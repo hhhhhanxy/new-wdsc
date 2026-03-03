@@ -1,0 +1,28 @@
+{
+    "required_sections": [
+        "摘要",
+        "引言",
+        "设计方案",
+        "验证结果",
+        "结论"
+    ],
+    "required_standards": [
+        "GB/T 19001",
+        "AS9100",
+        "GJB 9001C"
+    ],
+    "terminology_standards": "航空作动系统术语规范",
+    "format_rules": {
+        "font_size": {
+            "标题": 16,
+            "正文": 12
+        },
+        "line_spacing": 1.5,
+        "margin": {
+            "top": 2.54,
+            "bottom": 2.54,
+            "left": 3.17,
+            "right": 3.17
+        }
+    }
+}

@@ -11,7 +11,11 @@ class DocumentReviewer(Resource):
         args = parser.parse_args()
         
         file_path = args['file_path']
+<<<<<<< HEAD
         rules = args.get('rules') or {}
+=======
+        rules = args.get('rules', {})
+>>>>>>> 13371a631da68f7aee494143cce0048891b48353
         
         # 确保路径是绝对路径
         if not os.path.isabs(file_path):

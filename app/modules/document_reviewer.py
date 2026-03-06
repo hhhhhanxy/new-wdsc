@@ -11,11 +11,7 @@ class DocumentReviewer(Resource):
         args = parser.parse_args()
         
         file_path = args['file_path']
-<<<<<<< HEAD
-        rules = args.get('rules') or {}
-=======
         rules = args.get('rules', {})
->>>>>>> 13371a631da68f7aee494143cce0048891b48353
         
         # 确保路径是绝对路径
         if not os.path.isabs(file_path):
@@ -38,6 +34,10 @@ class DocumentReviewer(Resource):
             'terminology_check': [],
             'compliance_check': []
         }
+        
+        # 确保rules是字典
+        if rules is None:
+            rules = {}
         
         if file_path.endswith('.docx'):
             doc = Document(file_path)
@@ -65,13 +65,75 @@ class DocumentReviewer(Resource):
         """检查格式规范"""
         issues = []
         
-        # 检查标题格式
         lines = text.split('\n')
+        
+        # 检查标题格式
         for i, line in enumerate(lines):
             if line.strip().startswith('#'):
-                # 简单检查标题层级
-                if len(re.findall('#', line)) > 6:
+                # 检查标题层级
+                heading_level = len(re.findall('#', line))
+                if heading_level > 6:
                     issues.append(f'第{i+1}行：标题层级超过6级')
+                # 检查标题后是否有空格
+                if not re.match(r'^#{1,6}\s+', line):
+                    issues.append(f'第{i+1}行：标题符号后缺少空格')
+        
+        # 检查标点符号使用
+        for i, line in enumerate(lines):
+            # 检查中文标点使用
+            if re.search(r'[a-zA-Z0-9]，|，[a-zA-Z0-9]', line):
+                issues.append(f'第{i+1}行：中英文混用时标点符号使用不当')
+            # 检查行尾空格
+            if line.rstrip() != line:
+                issues.append(f'第{i+1}行：行尾存在多余空格')
+            # 检查连续标点
+            if re.search(r'[，。；：！？]{2,}', line):
+                issues.append(f'第{i+1}行：存在连续标点符号')
+        
+        # 检查数字和单位格式
+        for i, line in enumerate(lines):
+            # 检查数字与单位之间是否有空格
+            if re.search(r'\d+[a-zA-Z%℃°]', line):
+                issues.append(f'第{i+1}行：数字与单位之间缺少空格')
+            # 检查小数点使用
+            if re.search(r'\d+，\d+', line):
+                issues.append(f'第{i+1}行：使用了中文逗号作为小数点')
+        
+        # 检查段落格式
+        empty_line_count = 0
+        for i, line in enumerate(lines):
+            if line.strip() == '':
+                empty_line_count += 1
+                if empty_line_count > 2:
+                    issues.append(f'第{i+1}行：存在连续多个空行')
+            else:
+                empty_line_count = 0
+        
+        # 检查引用格式
+        for i, line in enumerate(lines):
+            if re.search(r'\[\d+\]', line):
+                # 检查引用编号格式
+                if not re.search(r'\[\d+\]$', line.strip()):
+                    issues.append(f'第{i+1}行：引用编号位置不当')
+        
+        # 检查代码块格式
+        in_code_block = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith('```'):
+                in_code_block = not in_code_block
+            elif in_code_block:
+                # 检查代码缩进
+                if line.startswith('    '):
+                    pass  # 4空格缩进，符合规范
+                elif line.startswith('\t'):
+                    issues.append(f'第{i+1}行：代码块中使用了制表符缩进，建议使用空格')
+        
+        # 检查表格格式
+        for i, line in enumerate(lines):
+            if '|' in line:
+                # 简单检查表格格式
+                if not re.match(r'^\|.*\|$', line.strip()):
+                    issues.append(f'第{i+1}行：表格格式不正确')
         
         return issues
     
@@ -94,13 +156,13 @@ class DocumentReviewer(Resource):
         # 简单检查术语一致性（示例）
         terminology_map = {
             '作动器': ['执行器', '驱动器'],
-            '控制系统': ['控制回路', '控制系统']
+            '控制系统': ['控制回路']
         }
         
         for term, variations in terminology_map.items():
             count = text.count(term)
             for variation in variations:
-                if variation in text:
+                if variation != term and variation in text:
                     issues.append(f'术语不一致：{term} 与 {variation} 混用')
         
         return issues

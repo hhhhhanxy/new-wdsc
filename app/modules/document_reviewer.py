@@ -1,17 +1,27 @@
-from flask_restful import Resource, reqparse
 import os
+import sys
+import datetime
+
+# 添加项目根目录到Python路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from flask_restful import Resource, reqparse
 from docx import Document
-import re
+from app.modules.review_framework import rule_manager
 
 class DocumentReviewer(Resource):
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('file_path', type=str, required=True, help='文档路径')
         parser.add_argument('rules', type=dict, required=False, help='审查规则')
+        parser.add_argument('save_result', type=bool, required=False, default=False, help='是否保存审查结果文档')
+        parser.add_argument('result_path', type=str, required=False, help='审查结果文档保存路径')
         args = parser.parse_args()
         
         file_path = args['file_path']
         rules = args.get('rules', {})
+        save_result = args.get('save_result', False)
+        result_path = args.get('result_path', None)
         
         # 确保路径是绝对路径
         if not os.path.isabs(file_path):
@@ -22,19 +32,115 @@ class DocumentReviewer(Resource):
         
         try:
             review_results = self.review_document(file_path, rules)
-            return {'status': 'success', 'results': review_results}, 200
+            
+            # 如果需要保存结果文档
+            result_document_path = None
+            if save_result:
+                result_document_path = self.save_review_result(file_path, review_results, result_path)
+            
+            response = {'status': 'success', 'results': review_results}
+            if result_document_path:
+                response['result_document'] = result_document_path
+            
+            return response, 200
         except Exception as e:
             return {'error': str(e)}, 500
     
+    def save_review_result(self, original_file_path, review_results, result_path=None):
+        """
+        保存审查结果为Word文档
+        :param original_file_path: 原始文档路径
+        :param review_results: 审查结果
+        :param result_path: 结果文档保存路径
+        :return: 结果文档保存路径
+        """
+        # 如果未指定保存路径，生成默认路径
+        if not result_path:
+            original_name = os.path.splitext(os.path.basename(original_file_path))[0]
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            # 默认保存到results文件夹
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            result_path = os.path.join(project_root, 'results', f'{original_name}_审查结果_{timestamp}.docx')
+        
+        # 确保保存目录存在
+        result_dir = os.path.dirname(result_path)
+        if not os.path.exists(result_dir):
+            os.makedirs(result_dir)
+        
+        # 创建Word文档
+        doc = Document()
+        
+        # 添加标题
+        doc.add_heading('文档审查结果', 0)
+        
+        # 添加基本信息
+        doc.add_heading('基本信息', level=1)
+        doc.add_paragraph(f'审查时间: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+        doc.add_paragraph(f'原始文档: {original_file_path}')
+        
+        # 添加审查结果
+        doc.add_heading('审查结果', level=1)
+        
+        # 格式检查结果
+        if review_results.get('format_check', []):
+            doc.add_heading('1. 格式规范检查', level=2)
+            for issue in review_results['format_check']:
+                doc.add_paragraph(f'- {issue}', style='List Bullet')
+        else:
+            doc.add_heading('1. 格式规范检查', level=2)
+            doc.add_paragraph('✓ 无问题', style='List Bullet')
+        
+        # 内容检查结果
+        if review_results.get('content_check', []):
+            doc.add_heading('2. 内容完整性检查', level=2)
+            for issue in review_results['content_check']:
+                doc.add_paragraph(f'- {issue}', style='List Bullet')
+        else:
+            doc.add_heading('2. 内容完整性检查', level=2)
+            doc.add_paragraph('✓ 无问题', style='List Bullet')
+        
+        # 术语检查结果
+        if review_results.get('terminology_check', []):
+            doc.add_heading('3. 术语一致性检查', level=2)
+            for issue in review_results['terminology_check']:
+                doc.add_paragraph(f'- {issue}', style='List Bullet')
+        else:
+            doc.add_heading('3. 术语一致性检查', level=2)
+            doc.add_paragraph('✓ 无问题', style='List Bullet')
+        
+        # 合规性检查结果
+        if review_results.get('compliance_check', []):
+            doc.add_heading('4. 合规性验证', level=2)
+            for issue in review_results['compliance_check']:
+                doc.add_paragraph(f'- {issue}', style='List Bullet')
+        else:
+            doc.add_heading('4. 合规性验证', level=2)
+            doc.add_paragraph('✓ 无问题', style='List Bullet')
+        
+        # 语言检查结果
+        if review_results.get('language_check', []):
+            doc.add_heading('5. 语言风格检查', level=2)
+            for issue in review_results['language_check']:
+                doc.add_paragraph(f'- {issue}', style='List Bullet')
+        else:
+            doc.add_heading('5. 语言风格检查', level=2)
+            doc.add_paragraph('✓ 无问题', style='List Bullet')
+        
+        # 添加总结
+        doc.add_heading('总结', level=1)
+        total_issues = sum(len(issues) for issues in review_results.values())
+        if total_issues == 0:
+            doc.add_paragraph('✓ 文档审查通过，未发现问题。')
+        else:
+            doc.add_paragraph(f'⚠️ 文档审查发现 {total_issues} 个问题，建议根据上述结果进行修改。')
+        
+        # 保存文档
+        doc.save(result_path)
+        
+        return result_path
+    
     def review_document(self, file_path, rules):
         """审查文档"""
-        results = {
-            'format_check': [],
-            'content_check': [],
-            'terminology_check': [],
-            'compliance_check': []
-        }
-        
         # 确保rules是字典
         if rules is None:
             rules = {}
@@ -47,134 +153,7 @@ class DocumentReviewer(Resource):
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 text = f.read()
         
-        # 格式规范检查
-        results['format_check'].extend(self.check_format(text))
-        
-        # 内容完整性校验
-        results['content_check'].extend(self.check_content_integrity(text, rules))
-        
-        # 工程术语一致性分析
-        results['terminology_check'].extend(self.check_terminology_consistency(text))
-        
-        # 合规性验证
-        results['compliance_check'].extend(self.check_compliance(text, rules))
+        # 使用规则管理器执行所有审查规则
+        results = rule_manager.execute_rules(text, rules)
         
         return results
-    
-    def check_format(self, text):
-        """检查格式规范"""
-        issues = []
-        
-        lines = text.split('\n')
-        
-        # 检查标题格式
-        for i, line in enumerate(lines):
-            if line.strip().startswith('#'):
-                # 检查标题层级
-                heading_level = len(re.findall('#', line))
-                if heading_level > 6:
-                    issues.append(f'第{i+1}行：标题层级超过6级')
-                # 检查标题后是否有空格
-                if not re.match(r'^#{1,6}\s+', line):
-                    issues.append(f'第{i+1}行：标题符号后缺少空格')
-        
-        # 检查标点符号使用
-        for i, line in enumerate(lines):
-            # 检查中文标点使用
-            if re.search(r'[a-zA-Z0-9]，|，[a-zA-Z0-9]', line):
-                issues.append(f'第{i+1}行：中英文混用时标点符号使用不当')
-            # 检查行尾空格
-            if line.rstrip() != line:
-                issues.append(f'第{i+1}行：行尾存在多余空格')
-            # 检查连续标点
-            if re.search(r'[，。；：！？]{2,}', line):
-                issues.append(f'第{i+1}行：存在连续标点符号')
-        
-        # 检查数字和单位格式
-        for i, line in enumerate(lines):
-            # 检查数字与单位之间是否有空格
-            if re.search(r'\d+[a-zA-Z%℃°]', line):
-                issues.append(f'第{i+1}行：数字与单位之间缺少空格')
-            # 检查小数点使用
-            if re.search(r'\d+，\d+', line):
-                issues.append(f'第{i+1}行：使用了中文逗号作为小数点')
-        
-        # 检查段落格式
-        empty_line_count = 0
-        for i, line in enumerate(lines):
-            if line.strip() == '':
-                empty_line_count += 1
-                if empty_line_count > 2:
-                    issues.append(f'第{i+1}行：存在连续多个空行')
-            else:
-                empty_line_count = 0
-        
-        # 检查引用格式
-        for i, line in enumerate(lines):
-            if re.search(r'\[\d+\]', line):
-                # 检查引用编号格式
-                if not re.search(r'\[\d+\]$', line.strip()):
-                    issues.append(f'第{i+1}行：引用编号位置不当')
-        
-        # 检查代码块格式
-        in_code_block = False
-        for i, line in enumerate(lines):
-            if line.strip().startswith('```'):
-                in_code_block = not in_code_block
-            elif in_code_block:
-                # 检查代码缩进
-                if line.startswith('    '):
-                    pass  # 4空格缩进，符合规范
-                elif line.startswith('\t'):
-                    issues.append(f'第{i+1}行：代码块中使用了制表符缩进，建议使用空格')
-        
-        # 检查表格格式
-        for i, line in enumerate(lines):
-            if '|' in line:
-                # 简单检查表格格式
-                if not re.match(r'^\|.*\|$', line.strip()):
-                    issues.append(f'第{i+1}行：表格格式不正确')
-        
-        return issues
-    
-    def check_content_integrity(self, text, rules):
-        """检查内容完整性"""
-        issues = []
-        
-        # 检查必要章节
-        required_sections = rules.get('required_sections', ['摘要', '引言', '结论'])
-        for section in required_sections:
-            if section not in text:
-                issues.append(f'缺少必要章节：{section}')
-        
-        return issues
-    
-    def check_terminology_consistency(self, text):
-        """检查工程术语一致性"""
-        issues = []
-        
-        # 简单检查术语一致性（示例）
-        terminology_map = {
-            '作动器': ['执行器', '驱动器'],
-            '控制系统': ['控制回路']
-        }
-        
-        for term, variations in terminology_map.items():
-            count = text.count(term)
-            for variation in variations:
-                if variation != term and variation in text:
-                    issues.append(f'术语不一致：{term} 与 {variation} 混用')
-        
-        return issues
-    
-    def check_compliance(self, text, rules):
-        """检查合规性"""
-        issues = []
-        
-        # 检查标准引用
-        required_standards = rules.get('required_standards', [])
-        for standard in required_standards:
-            if standard not in text:
-                issues.append(f'缺少标准引用：{standard}')
-        
-        return issues

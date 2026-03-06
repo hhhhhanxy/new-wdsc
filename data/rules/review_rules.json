@@ -6,10 +6,10 @@
         "验证结果",
         "结论"
     ],
-    "required_standards": [
+    "required_standards": [ 
         "GB/T 19001",
         "AS9100",
-        "GJB 9001C"
+        "GJB 9001C" 
     ],
     "terminology_standards": "航空作动系统术语规范",
     "format_rules": {

@@ -1,15 +1,10 @@
-# 虚拟环境文件夹（根据你的实际名称）
-wdsc/
-venv/
-.venv/
-env/
-ENV/
-
-# Python 编译文件和缓存
+# Python-generated files
 __pycache__/
-*.pyc
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 
-# 其他你可能想忽略的（例如 IDE 配置）
-.vscode/
-.idea/
-.DS_Store
+# Virtual environments
+.venv

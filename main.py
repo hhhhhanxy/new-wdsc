@@ -11,7 +11,7 @@ from config.settings import settings
 from models.document import ParsedDocument
 from parsers.docx_parser import ParserFactory
 from rules.base_rule import Rule, RuleRegistry, RuleCategory, RuleSeverity
-from rules.checkers import create_default_rules
+from rules.loaders.rule_loader import RuleLoader
 from llm.client import LLMClientFactory
 from core.executor import ReviewExecutor, DocumentReviewResult
 from reporters.base_reporter import ReporterFactory
@@ -21,21 +21,22 @@ console = Console()
 
 
 class DocumentReviewer:
-    def __init__(
-        self,
-        use_llm: bool = True,
-        llm_provider: str = "openai"
-    ):
+    def __init__(self, use_llm=True, llm_provider: Optional[str] = None):
+        self.llm_client = None
+        self.use_llm = use_llm
+        self.llm_provider = llm_provider or settings.llm_provider
+        
+        # 初始化规则注册表
         self.rule_registry = RuleRegistry()
+        # 加载默认规则
         self._load_default_rules()
         
-        self.llm_client = None
-        if use_llm:
+        if self.use_llm:
             try:
-                self.llm_client = LLMClientFactory.create_client(llm_provider)
+                self.llm_client = LLMClientFactory.create_client(self.llm_provider)
             except Exception as e:
-                console.print(f"[yellow]警告: LLM客户端初始化失败: {e}[/yellow]")
-                console.print("[yellow]将以纯规则模式运行[/yellow]")
+                console.print(f"[yellow]LLM客户端初始化失败: {e}[/yellow]")
+                self.use_llm = False  # 安全标志
         
         self.executor = ReviewExecutor(
             rule_registry=self.rule_registry,
@@ -44,8 +45,8 @@ class DocumentReviewer:
         )
     
     def _load_default_rules(self):
-        default_rules = create_default_rules()
-        for rule in default_rules:
+        rules = RuleLoader.load_all_rules(profile="aviation")
+        for rule in rules:
             self.rule_registry.register(rule)
     
     def add_rule(self, rule: Rule):

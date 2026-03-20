@@ -18,6 +18,8 @@ REVIEW_SYSTEM_PROMPT = """
 - 使用专业术语
 - 避免口语化表达
 - 给出工程可执行的修改建议
+- 输出必须严格符合指定格式
+- 不要输出任何额外解释或多余内容
 """
 
 REVIEW_SECTION_PROMPT = """请审查以下文档片段：
@@ -36,9 +38,11 @@ REVIEW_SECTION_PROMPT = """请审查以下文档片段：
 3. 提供具体的修改建议
 4. 给出审查结论（通过/不通过/需要修改）
 
-请以JSON格式返回审查结果：
+【输出要求】
+请严格按照以下JSON格式输出，不要输出任何额外内容：
+
 {
-    "passed": true/false,
+    "passed": true,
     "issues": [
         {
             "rule_id": "规则ID",
@@ -49,6 +53,9 @@ REVIEW_SECTION_PROMPT = """请审查以下文档片段：
     ],
     "summary": "审查总结"
 }
+
+如果无法生成JSON，请返回：
+{"error": "无法解析"}
 """
 
 REVIEW_DOCUMENT_PROMPT = """请对以下文档进行全面审查：
@@ -69,11 +76,33 @@ REVIEW_DOCUMENT_PROMPT = """请对以下文档进行全面审查：
 - {{ focus }}
 {% endfor %}
 
-请提供完整的审查报告，包括：
-1. 总体评价
-2. 发现的问题列表
-3. 修改建议
-4. 审查结论
+【审查要求】
+1. 给出总体评价
+2. 列出主要问题
+3. 提供修改建议
+4. 给出最终审查结论
+
+【输出要求】
+请严格按照以下JSON格式输出，不要输出任何额外内容：
+
+{
+    "summary": "总体评价",
+    "issues": [
+        {
+            "description": "问题描述",
+            "severity": "error/warning/info",
+            "suggestion": "修改建议"
+        }
+    ],
+    "suggestions": [
+        "整体修改建议1",
+        "整体修改建议2"
+    ],
+    "conclusion": "通过/不通过/需要修改"
+}
+
+如果无法生成JSON，请返回：
+{"error": "无法解析"}
 """
 
 DEFAULT_REVIEW_FOCUS = [
@@ -83,12 +112,9 @@ DEFAULT_REVIEW_FOCUS = [
 ]
 
 class ReviewPromptBuilder:
-    def __init__(self):
+    def __init__(self, llm_client: BaseLLMClient):
+        self.llm_client = llm_client
         self.system_prompt = REVIEW_SYSTEM_PROMPT
-
-    def _format_focus(self, review_focus: List[str]) -> str:
-        return "\n".join([f"{i+1}. {f}" for i, f in enumerate(review_focus)])
-
 
     def build_document_review_prompt(
         self,
@@ -104,6 +130,31 @@ class ReviewPromptBuilder:
         return template.render(
             document_title=document_title,
             document_content=document_content,
-            rules=self._format_rules(rules),
-            review_focus=self._format_focus(focus)
+            rules=rules,          # ✅ 关键：直接传 list
+            review_focus=focus    # ✅ 关键
         )
+
+    def build_section_review_prompt(
+        self,
+        section_text: str,
+        rules: List[Dict[str, str]]
+    ) -> str:
+        template = PromptTemplate(REVIEW_SECTION_PROMPT)
+        return template.render(
+            section_text=section_text,
+            rules=rules
+        )
+
+    # ✅ ⭐ 新增：真正调用 LLM
+    def review_section(self, section_text, rules):
+        prompt = self.build_section_review_prompt(section_text, rules)
+        return self.llm_client.generate(prompt, self.system_prompt)
+
+    def review_document(self, document_title, document_content, rules, review_focus=None):
+        prompt = self.build_document_review_prompt(
+            document_title,
+            document_content,
+            rules,
+            review_focus
+        )
+        return self.llm_client.generate(prompt, self.system_prompt)

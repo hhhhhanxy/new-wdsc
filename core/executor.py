@@ -7,6 +7,7 @@ from models.document import ParsedDocument, DocumentSection
 from rules.base_rule import Rule, RuleResult, RuleRegistry, RuleSeverity
 from llm.client import BaseLLMClient, LLMResponse
 from llm.prompts import ReviewPromptBuilder
+from parsers.review_parser import ReviewResultParser
 
 
 @dataclass
@@ -31,9 +32,6 @@ class SectionReviewResult:
             self.llm_passed = llm_result.get("passed", True)
             if not self.llm_passed:
                 self.passed = False
-    
-    def update_passed_status(self):
-        self.passed = self.passed and self.llm_passed
 
 
 @dataclass
@@ -86,6 +84,7 @@ class ReviewExecutor:
         self.llm_client = llm_client
         self.use_llm = use_llm and llm_client is not None
         self.prompt_builder = ReviewPromptBuilder(llm_client) if llm_client else None
+        self.parser = ReviewResultParser()
     
     def review_document(
         self,
@@ -156,7 +155,12 @@ class ReviewExecutor:
         
         try:
             response = self.prompt_builder.review_section(section.text, rules_info)
-            return self._parse_llm_response(response.content)
+            llm_result = self.parser.parse(response.content)
+            
+            if not isinstance(llm_result, dict):
+                llm_result = {"error": "LLM返回格式错误"}
+            
+            return llm_result
         except Exception as e:
             error_msg = str(e)
             if "Not Found" in error_msg:
@@ -185,7 +189,12 @@ class ReviewExecutor:
                 document.raw_text[:5000],
                 rules_info
             )
-            return response.content
+            llm_summary = self.parser.parse(response.content)
+            
+            if not isinstance(llm_summary, dict):
+                llm_summary = {"error": "LLM返回格式错误"}
+            
+            return llm_summary.get("summary", "")
         except Exception as e:
             error_msg = str(e)
             if "Not Found" in error_msg:
@@ -195,14 +204,4 @@ class ReviewExecutor:
             else:
                 return f"LLM审查失败: {error_msg}"
     
-    def _parse_llm_response(self, content: str) -> Dict[str, Any]:
-        try:
-            json_match = content
-            if "```json" in content:
-                json_match = content.split("```json")[1].split("```")[0]
-            elif "```" in content:
-                json_match = content.split("```")[1].split("```")[0]
-            
-            return json.loads(json_match.strip())
-        except json.JSONDecodeError:
-            return {"raw_content": content}
+

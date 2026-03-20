@@ -9,9 +9,10 @@ class RequiredSectionChecker(BaseRuleChecker):
         self.required_sections = required_sections
     
     def check(self, section: DocumentSection, context: dict) -> RuleResult:
-        found_sections = context.get("found_sections", set())
-        missing = set(self.required_sections) - found_sections
-        
+        # found_sections = context.get("found_sections", set())
+        # missing = set(self.required_sections) - found_sections
+        found_sections = {s.strip() for s in context.get("found_sections", set())}
+        missing = [s for s in self.required_sections if s not in found_sections]
         return RuleResult(
             rule_id="required_sections",
             rule_name="必需章节检查",
@@ -107,7 +108,8 @@ def create_default_rules() -> List[Rule]:
         description="检查标题是否包含编号",
         category=RuleCategory.FORMAT,
         severity=RuleSeverity.WARNING,
-        check_func=check_title_format
+        check_func=check_title_format,
+        source="common"
     ))
     
 

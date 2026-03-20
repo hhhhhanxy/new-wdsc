@@ -17,15 +17,6 @@ class BaseLLMClient(ABC):
     @abstractmethod
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> LLMResponse:
         pass
-    
-    @abstractmethod
-    def generate_with_context(
-        self, 
-        prompt: str, 
-        context: List[Dict[str, str]],
-        system_prompt: Optional[str] = None
-    ) -> LLMResponse:
-        pass
 
 
 class OpenAIClient(BaseLLMClient):
@@ -70,37 +61,7 @@ class OpenAIClient(BaseLLMClient):
             finish_reason=response.choices[0].finish_reason
         )
     
-    def generate_with_context(
-        self,
-        prompt: str,
-        context: List[Dict[str, str]],
-        system_prompt: Optional[str] = None
-    ) -> LLMResponse:
-        messages = []
-        
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        
-        messages.extend(context)
-        messages.append({"role": "user", "content": prompt})
-        
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            max_tokens=settings.max_tokens,
-            temperature=settings.temperature
-        )
-        
-        return LLMResponse(
-            content=response.choices[0].message.content,
-            model=response.model,
-            usage={
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens
-            },
-            finish_reason=response.choices[0].finish_reason
-        )
+
 
 
 class LLMClientFactory:

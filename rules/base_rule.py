@@ -40,6 +40,7 @@ class Rule:
     severity: RuleSeverity
     enabled: bool = True
     check_func: Optional[Callable] = None
+    source: str = "common"
     
     def check(self, section: DocumentSection, context: dict = None) -> RuleResult:
         if not self.enabled:

@@ -1,3 +1,4 @@
+import re
 from abc import ABC, abstractmethod
 from typing import Optional
 from docx import Document
@@ -15,6 +16,7 @@ class DocxParser(BaseParser):
         self.section_counter = 0
     
     def parse(self, file_path: str) -> ParsedDocument:
+        self.section_counter = 0
         doc = Document(file_path)
         sections = []
         raw_text_parts = []
@@ -33,7 +35,8 @@ class DocxParser(BaseParser):
                     sections.append(section)
                     raw_text_parts.append(section.text)
         
-        raw_text = "\n".join(raw_text_parts)
+        # raw_text = "\n".join(raw_text_parts)
+        raw_text = "\n\n".join(raw_text_parts)
         
         return ParsedDocument(
             file_path=file_path,
@@ -49,6 +52,10 @@ class DocxParser(BaseParser):
         elif doc.paragraphs:
             return doc.paragraphs[0].text[:50] if doc.paragraphs[0].text else "Untitled"
         return "Untitled"
+
+    def _get_heading_level(self, style_name: str) -> int:
+        match = re.search(r'Heading\s*(\d+)', style_name)
+        return int(match.group(1)) if match else 1
     
     def _parse_paragraph(self, element, doc: Document) -> Optional[DocumentSection]:
         from docx.text.paragraph import Paragraph
@@ -64,7 +71,7 @@ class DocxParser(BaseParser):
         section_id = f"section_{self.section_counter}"
         
         if para.style.name.startswith('Heading'):
-            level = int(para.style.name.split()[-1]) if para.style.name[-1].isdigit() else 1
+            level = level = self._get_heading_level(para.style.name)
             content_type = ContentType.HEADING
         else:
             level = 0
@@ -86,8 +93,9 @@ class DocxParser(BaseParser):
         
         for row in table.rows:
             cells_text = [cell.text.strip() for cell in row.cells]
-            rows_text.append(" | ".join(cells_text))
-        
+            # rows_text.append(" | ".join(cells_text))
+            rows_text.append(" | ".join([f"[{j}] {cell}" for j, cell in enumerate(cells_text)]))
+
         text = "\n".join(rows_text)
         
         if not text.strip():

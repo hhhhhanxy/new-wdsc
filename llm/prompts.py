@@ -1,6 +1,5 @@
 from typing import List, Dict, Any, Optional
 from jinja2 import Template
-from llm.client import BaseLLMClient, LLMResponse
 
 
 class PromptTemplate:
@@ -112,8 +111,7 @@ DEFAULT_REVIEW_FOCUS = [
 ]
 
 class ReviewPromptBuilder:
-    def __init__(self, llm_client: BaseLLMClient):
-        self.llm_client = llm_client
+    def __init__(self):
         self.system_prompt = REVIEW_SYSTEM_PROMPT
 
     def build_document_review_prompt(
@@ -144,17 +142,3 @@ class ReviewPromptBuilder:
             section_text=section_text,
             rules=rules
         )
-
-    # ✅ ⭐ 新增：真正调用 LLM
-    def review_section(self, section_text, rules):
-        prompt = self.build_section_review_prompt(section_text, rules)
-        return self.llm_client.generate(prompt, self.system_prompt)
-
-    def review_document(self, document_title, document_content, rules, review_focus=None):
-        prompt = self.build_document_review_prompt(
-            document_title,
-            document_content,
-            rules,
-            review_focus
-        )
-        return self.llm_client.generate(prompt, self.system_prompt)

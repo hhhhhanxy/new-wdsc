@@ -67,6 +67,7 @@ class OpenAIClient(BaseLLMClient):
 class LLMClientFactory:
     _clients = {
         "openai": OpenAIClient,
+        "siliconflow": OpenAIClient,
     }
     
     @classmethod

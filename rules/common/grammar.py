@@ -1,17 +1,16 @@
 import re
 from typing import List
 from models.document import DocumentSection, ContentType
-from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory
-
+from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, ReviewType
 
 class GrammarChecker:
 
     def __init__(self):
         self.common_mistakes = {
             "的地得": [
-                (r'地([的得])', "'地'后应接动词"),
-                (r'的([地得])', "'的'后应接名词"),
-                (r'得([的地])', "'得'后应接形容词或副词"),
+                (r'地([^的得]|$)', "'地'后应接动词，不能接名词"),
+                (r'的([^的得]|$)', "'的'后应接名词，不能接动词"),
+                (r'得([^的得]|$)', "'得'后应接形容词或副词"),
             ]
         }
 
@@ -65,5 +64,6 @@ def create_grammar_rule() -> Rule:
         description="检查常见语法错误（如的地得）",
         category=RuleCategory.CONTENT,
         severity=RuleSeverity.WARNING,
-        check_func=checker.check
+        check_func=checker.check,
+        review_type=ReviewType.BOTH
     )

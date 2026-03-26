@@ -42,8 +42,7 @@ class MarkdownReporter(BaseReporter):
         lines.append("|------|------|")
         lines.append(f"| 总问题数 | {result.total_issues} |")
         lines.append(f"| 错误 | {result.errors} |")
-        lines.append(f"| 警告 | {result.warnings} |")
-        lines.append(f"| LLM问题 | {getattr(result, 'llm_issues', 0)} |\n")
+        lines.append(f"| 警告 | {result.warnings} |\n")
         
         # 审查总结
         if result.summary:
@@ -59,8 +58,8 @@ class MarkdownReporter(BaseReporter):
             # 规则问题
             if any(not r.passed for r in section.rule_results):
                 lines.append("#### 规则问题\n")
-                lines.append("| 规则 | 严重程度 | 描述 | 建议 |")
-                lines.append("|------|----------|------|------|")
+                lines.append("| 规则 | 来源 | 严重程度 | 描述 | 建议 |")
+                lines.append("|------|------|----------|------|------|")
                 for r in section.rule_results:
                     if not r.passed:
                         severity_str = {
@@ -69,17 +68,10 @@ class MarkdownReporter(BaseReporter):
                             RuleSeverity.INFO: "🔵 信息"
                         }.get(r.severity, "未知")
                         suggestions = "; ".join(r.suggestions) if r.suggestions else "-"
-                        lines.append(f"| {r.rule_name} | {severity_str} | {r.message} | {suggestions} |")
+                        lines.append(f"| {r.rule_name} | {r.rule_source} | {severity_str} | {r.message} | {suggestions} |")
                 lines.append("")
             
-            # LLM问题
-            if section.llm_review and section.llm_review.get("issues"):
-                lines.append("#### 🤖 LLM问题\n")
-                for issue in section.llm_review.get("issues", []):
-                    lines.append(f"- **{issue.get('severity', 'info')}**: {issue.get('description')}")
-                    if issue.get('suggestion'):
-                        lines.append(f"  - 建议: {issue.get('suggestion')}")
-                lines.append("")
+
 
         lines.append("---")
         lines.append(f"*报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
@@ -106,8 +98,7 @@ class JsonReporter(BaseReporter):
             "statistics": {
                 "total_issues": result.total_issues,
                 "errors": result.errors,
-                "warnings": result.warnings,
-                "llm_issues": getattr(result, 'llm_issues', 0)
+                "warnings": result.warnings
             },
             "summary": result.summary,
             "sections": []
@@ -118,27 +109,18 @@ class JsonReporter(BaseReporter):
                 "section_id": section.section_id,
                 "content": section.section_text,
                 "passed": section.passed,
-                "rule_issues": [],
-                "llm_issues": []
+                "rule_issues": []
             }
             
-            # 规则问题
+            # 规则问题（包括 RULE 和 LLM 结果）
             for r in section.rule_results:
                 if not r.passed:
                     sec["rule_issues"].append({
                         "rule_name": r.rule_name,
+                        "rule_source": r.rule_source,
                         "severity": r.severity.name,
                         "message": r.message,
                         "suggestions": r.suggestions or []
-                    })
-            
-            # LLM问题
-            if section.llm_review and section.llm_review.get("issues"):
-                for issue in section.llm_review["issues"]:
-                    sec["llm_issues"].append({
-                        "severity": issue.get("severity", "info"),
-                        "description": issue.get("description"),
-                        "suggestion": issue.get("suggestion")
                     })
             
             data["sections"].append(sec)
@@ -182,7 +164,7 @@ class DocxReporter(BaseReporter):
         
         # 审查统计
         doc.add_heading('审查统计', level=1)
-        stats_table = doc.add_table(rows=4, cols=2)
+        stats_table = doc.add_table(rows=3, cols=2)
         stats_table.style = 'Table Grid'
         stats_table.cell(0, 0).text = '总问题数'
         stats_table.cell(0, 1).text = str(result.total_issues)
@@ -190,8 +172,6 @@ class DocxReporter(BaseReporter):
         stats_table.cell(1, 1).text = str(result.errors)
         stats_table.cell(2, 0).text = '警告数'
         stats_table.cell(2, 1).text = str(result.warnings)
-        stats_table.cell(3, 0).text = 'LLM问题数'
-        stats_table.cell(3, 1).text = str(getattr(result, 'llm_issues', 0))
         
         # 章节问题
         doc.add_heading('详细结果', level=1)
@@ -202,37 +182,24 @@ class DocxReporter(BaseReporter):
             # 规则问题
             if any(not r.passed for r in section.rule_results):
                 doc.add_heading("规则问题", level=3)
-                tbl = doc.add_table(rows=1, cols=4)
+                tbl = doc.add_table(rows=1, cols=5)
                 tbl.style = 'Table Grid'
                 hdr = tbl.rows[0].cells
                 hdr[0].text = "规则"
-                hdr[1].text = "严重程度"
-                hdr[2].text = "描述"
-                hdr[3].text = "建议"
+                hdr[1].text = "来源"
+                hdr[2].text = "严重程度"
+                hdr[3].text = "描述"
+                hdr[4].text = "建议"
                 for r in section.rule_results:
                     if not r.passed:
                         row = tbl.add_row().cells
                         row[0].text = r.rule_name
-                        row[1].text = r.severity.name
-                        row[2].text = r.message
-                        row[3].text = "; ".join(r.suggestions) if r.suggestions else "-"
+                        row[1].text = r.rule_source
+                        row[2].text = r.severity.name
+                        row[3].text = r.message
+                        row[4].text = "; ".join(r.suggestions) if r.suggestions else "-"
             
-            # LLM问题
-            if section.llm_review and section.llm_review.get("issues"):
-                doc.add_heading("LLM问题", level=3)
-                tbl = doc.add_table(rows=1, cols=4)
-                tbl.style = 'Table Grid'
-                hdr = tbl.rows[0].cells
-                hdr[0].text = "内容片段"
-                hdr[1].text = "严重程度"
-                hdr[2].text = "描述"
-                hdr[3].text = "建议"
-                for issue in section.llm_review.get("issues"):
-                    row = tbl.add_row().cells
-                    row[0].text = section.section_text[:100] + "..."
-                    row[1].text = issue.get("severity", "info")
-                    row[2].text = issue.get("description", "")
-                    row[3].text = issue.get("suggestion", "")
+
         
         # 总结
         if result.summary:

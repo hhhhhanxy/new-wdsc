@@ -1,11 +1,9 @@
 import re
 from typing import List
 from models.document import DocumentSection, ContentType
-from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory
-
+from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, ReviewType
 
 class FormatChecker:
-
     def __init__(self):
 
         self.punctuation_patterns = [
@@ -87,5 +85,6 @@ def create_format_rule() -> Rule:
         description="检查标点、空格和排版问题",
         category=RuleCategory.FORMAT,
         severity=RuleSeverity.WARNING,
-        check_func=checker.check
+        check_func=checker.check,
+        review_type=ReviewType.BOTH
     )

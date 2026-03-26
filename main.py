@@ -121,6 +121,7 @@ class DocumentReviewer:
             issues_table = Table(title="问题详情")
             issues_table.add_column("章节", style="cyan")
             issues_table.add_column("规则", style="magenta")
+            issues_table.add_column("来源", style="green")
             issues_table.add_column("严重程度")
             issues_table.add_column("描述")
             
@@ -137,6 +138,7 @@ class DocumentReviewer:
                             issues_table.add_row(
                                 section_result.section_id,
                                 rule_result.rule_name,
+                                rule_result.rule_source,
                                 f"[{severity_style}]{rule_result.severity.value}[/{severity_style}]",
                                 rule_result.message[:50] + "..." if len(rule_result.message) > 50 else rule_result.message
                             )
@@ -161,9 +163,9 @@ def main():
     )
     parser.add_argument(
         "-f", "--format",
-        choices=["txt", "md", "json", "docx"],
+        choices=["md", "json", "docx"],
         default="docx",
-        help="报告格式 (txt/md/json/docx)"
+        help="报告格式 (md/json/docx)"
     )
     parser.add_argument(
         "--no-llm",
@@ -216,8 +218,7 @@ def main():
                 output_path = Path(args.input).stem + "_report.json"
             elif args.format == "docx":
                 output_path = Path(args.input).stem + "_report.docx"
-            else:
-                output_path = Path(args.input).stem + "_report.txt"
+
             
             output_file = Path(output_path)
             if output_file.exists():

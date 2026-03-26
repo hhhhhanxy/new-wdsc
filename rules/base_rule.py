@@ -19,6 +19,12 @@ class RuleCategory(Enum):
     CUSTOM = "custom"
 
 
+class ReviewType(Enum):
+    RULE = "rule"
+    LLM = "llm"
+    BOTH = "both"
+
+
 @dataclass
 class RuleResult:
     rule_id: str
@@ -29,6 +35,7 @@ class RuleResult:
     section_id: Optional[str] = None
     suggestions: List[str] = field(default_factory=list)
     details: dict = field(default_factory=dict)
+    rule_source: str = "RULE"  # 新增字段，标注来源：RULE / LLM
 
 
 @dataclass
@@ -41,7 +48,8 @@ class Rule:
     enabled: bool = True
     check_func: Optional[Callable] = None
     source: str = "common"
-    
+    review_type: ReviewType = ReviewType.RULE
+
     def check(self, section: DocumentSection, context: dict = None) -> RuleResult:
         if not self.enabled:
             return RuleResult(

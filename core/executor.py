@@ -5,7 +5,7 @@ from datetime import datetime
 
 from models.document import ParsedDocument, DocumentSection
 from rules.base_rule import Rule, RuleResult, RuleRegistry, RuleSeverity
-from llm.client import BaseLLMClient, LLMResponse
+from llm.client import BaseLLMClient
 from llm.prompts import ReviewPromptBuilder
 from parsers.review_parser import ReviewResultParser
 
@@ -15,23 +15,12 @@ class SectionReviewResult:
     section_id: str
     section_text: str
     rule_results: List[RuleResult] = field(default_factory=list)
-    llm_review: Optional[Dict[str, Any]] = None
     passed: bool = True
-    llm_passed: bool = True
-    
+
     def add_rule_result(self, result: RuleResult):
         self.rule_results.append(result)
         if not result.passed and result.severity in [RuleSeverity.ERROR, RuleSeverity.WARNING]:
             self.passed = False
-    
-    def add_llm_result(self, llm_result: Dict[str, Any]):
-        self.llm_review = llm_result
-        if "error" in llm_result:
-            self.llm_passed = False
-        elif "passed" in llm_result:
-            self.llm_passed = llm_result.get("passed", True)
-            if not self.llm_passed:
-                self.passed = False
 
 
 @dataclass
@@ -43,15 +32,15 @@ class DocumentReviewResult:
     total_issues: int = 0
     errors: int = 0
     warnings: int = 0
-    llm_issues: int = 0
     review_time: str = ""
     summary: str = ""
-    
+
     def add_section_result(self, result: SectionReviewResult):
         self.section_results.append(result)
         if not result.passed:
             self.overall_passed = False
-        
+
+        # 累计问题
         for rule_result in result.rule_results:
             if not rule_result.passed:
                 self.total_issues += 1
@@ -59,18 +48,6 @@ class DocumentReviewResult:
                     self.errors += 1
                 elif rule_result.severity == RuleSeverity.WARNING:
                     self.warnings += 1
-        
-        if result.llm_review and "issues" in result.llm_review:
-            llm_issues = result.llm_review.get("issues", [])
-            self.llm_issues += len(llm_issues)
-            self.total_issues += len(llm_issues)
-            if not result.llm_passed:
-                for issue in llm_issues:
-                    severity = issue.get("severity", "info")
-                    if severity == "error":
-                        self.errors += 1
-                    elif severity == "warning":
-                        self.warnings += 1
 
 
 class ReviewExecutor:
@@ -83,9 +60,9 @@ class ReviewExecutor:
         self.rule_registry = rule_registry
         self.llm_client = llm_client
         self.use_llm = use_llm and llm_client is not None
-        self.prompt_builder = ReviewPromptBuilder(llm_client) if llm_client else None
+        self.prompt_builder = ReviewPromptBuilder() if llm_client else None
         self.parser = ReviewResultParser()
-    
+
     def review_document(
         self,
         document: ParsedDocument,
@@ -93,31 +70,27 @@ class ReviewExecutor:
         context: Dict[str, Any] = None
     ) -> DocumentReviewResult:
         start_time = datetime.now()
-        
         rules = rules or self.rule_registry.get_enabled_rules()
         context = context or {}
-        
         context["found_sections"] = {s.text[:50] for s in document.sections if s.text}
-        
+
         result = DocumentReviewResult(
             document_path=document.file_path,
             document_title=document.title
         )
-        
+
         for section in document.sections:
             section_result = self._review_section(section, rules, context)
             result.add_section_result(section_result)
-        
+
+        # LLM 文档总结（可选）
         if self.use_llm:
-            llm_summary = self._get_llm_document_review(document, rules)
-            if llm_summary:
-                result.summary = llm_summary
-        
+            result.summary = self._get_llm_document_summary(document, rules)
+
         end_time = datetime.now()
         result.review_time = str(end_time - start_time)
-        
         return result
-    
+
     def _review_section(
         self,
         section: DocumentSection,
@@ -128,18 +101,54 @@ class ReviewExecutor:
             section_id=section.section_id,
             section_text=section.text
         )
-        
+
+        # 只执行规则检查（RULE + BOTH）
         for rule in rules:
-            rule_result = rule.check(section, context)
-            result.add_rule_result(rule_result)
-        
+            try:
+                review_type = rule.review_type.value if hasattr(rule.review_type, 'value') else rule.review_type
+                if review_type in ["rule", "both"]:
+                    rule_result = rule.check(section, context)
+                    result.add_rule_result(rule_result)
+            except Exception:
+                pass
+
+        # LLM 检查
         if self.use_llm and section.text.strip():
-            llm_result = self._get_llm_section_review(section, rules)
-            if llm_result:
-                result.add_llm_result(llm_result)
-        
+            llm_rules = []
+            for r in rules:
+                try:
+                    review_type = r.review_type.value if hasattr(r.review_type, 'value') else r.review_type
+                    if review_type in ["llm", "both"]:
+                        llm_rules.append(r)
+                except Exception:
+                    pass
+            if llm_rules:
+                try:
+                    llm_result = self._get_llm_section_review(section, llm_rules)
+                    if llm_result and "issues" in llm_result:
+                        # 将 LLM 结果转换为 RuleResult
+                        for issue in llm_result.get("issues", []):
+                            rule_id = issue.get("rule_id", "llm_generated")
+                            rule_name = issue.get("rule_name", "LLM 审查")
+                            severity_str = issue.get("severity", "warning")
+                            severity = RuleSeverity(severity_str) if severity_str in [s.value for s in RuleSeverity] else RuleSeverity.WARNING
+                            
+                            rule_result = RuleResult(
+                                rule_id=rule_id,
+                                rule_name=rule_name,
+                                passed=False,
+                                severity=severity,
+                                message=issue.get("description", ""),
+                                section_id=section.section_id,
+                                suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else [],
+                                rule_source="LLM"
+                            )
+                            result.add_rule_result(rule_result)
+                except Exception:
+                    pass
+
         return result
-    
+
     def _get_llm_section_review(
         self,
         section: DocumentSection,
@@ -147,61 +156,40 @@ class ReviewExecutor:
     ) -> Optional[Dict[str, Any]]:
         if not self.prompt_builder:
             return None
-        
-        rules_info = [
-            {"name": r.name, "description": r.description}
-            for r in rules
-        ]
-        
+
+        rules_info = [{"name": r.name, "description": r.description} for r in rules]
+
         try:
-            response = self.prompt_builder.review_section(section.text, rules_info)
+            prompt = self.prompt_builder.build_section_review_prompt(section.text, rules_info)
+            response = self.llm_client.generate(prompt)
             llm_result = self.parser.parse(response.content)
-            
             if not isinstance(llm_result, dict):
                 llm_result = {"error": "LLM返回格式错误"}
-            
             return llm_result
         except Exception as e:
-            error_msg = str(e)
-            if "Not Found" in error_msg:
-                return {"error": "LLM模型未找到，请检查模型名称是否正确"}
-            elif "401" in error_msg:
-                return {"error": "LLM API密钥无效，请检查API密钥是否正确"}
-            else:
-                return {"error": f"LLM审查失败: {error_msg}"}
-    
-    def _get_llm_document_review(
+            return {"error": f"LLM审查失败: {str(e)}"}
+
+    def _get_llm_document_summary(
         self,
         document: ParsedDocument,
         rules: List[Rule]
-    ) -> Optional[str]:
+    ) -> str:
         if not self.prompt_builder:
-            return None
-        
-        rules_info = [
-            {"name": r.name, "description": r.description}
-            for r in rules
-        ]
-        
+            return ""
+        rules_info = []
+        for r in rules:
+            try:
+                review_type = r.review_type.value if hasattr(r.review_type, 'value') else r.review_type
+                if review_type in ["llm", "both"]:
+                    rules_info.append({"name": r.name, "description": r.description})
+            except Exception:
+                pass
         try:
-            response = self.prompt_builder.review_document(
-                document.title,
-                document.raw_text[:5000],
-                rules_info
-            )
-            llm_summary = self.parser.parse(response.content)
-            
-            if not isinstance(llm_summary, dict):
-                llm_summary = {"error": "LLM返回格式错误"}
-            
-            return llm_summary.get("summary", "")
+            prompt = self.prompt_builder.build_document_review_prompt(document.title, document.raw_text[:5000], rules_info)
+            response = self.llm_client.generate(prompt)
+            summary_result = self.parser.parse(response.content)
+            if not isinstance(summary_result, dict):
+                summary_result = {"error": "LLM返回格式错误"}
+            return summary_result.get("summary", "")
         except Exception as e:
-            error_msg = str(e)
-            if "Not Found" in error_msg:
-                return "LLM审查失败: 模型未找到，请检查模型名称是否正确"
-            elif "401" in error_msg:
-                return "LLM审查失败: API密钥无效，请检查API密钥是否正确"
-            else:
-                return f"LLM审查失败: {error_msg}"
-    
-
+            return f"LLM审查失败: {str(e)}"

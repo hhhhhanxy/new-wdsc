@@ -1,4 +1,4 @@
-from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory
+from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, ReviewType
 from models.document import DocumentSection
 
 
@@ -28,6 +28,7 @@ def create_actuator_rules():
             severity=RuleSeverity.WARNING,
             check_func=check_actuator_keywords,
             source="aviation",
-            enabled=False
+            enabled=False,
+            review_type=ReviewType.LLM 
         )
     ]

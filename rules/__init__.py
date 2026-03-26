@@ -1,4 +1,4 @@
-from .base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, RuleRegistry, BaseRuleChecker
+from .base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, RuleRegistry, BaseRuleChecker, ReviewType
 from .checkers import RequiredSectionChecker, KeywordChecker, FormatChecker, create_default_rules
 from .common.grammar import GrammarChecker, create_grammar_rule
 
@@ -9,6 +9,7 @@ __all__ = [
     "RuleCategory",
     "RuleRegistry",
     "BaseRuleChecker",
+    "ReviewType",
     "RequiredSectionChecker",
     "KeywordChecker",
     "FormatChecker",

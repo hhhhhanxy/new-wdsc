@@ -307,7 +307,162 @@ def start_review_task(filepath, mode):
 
 ---
 
-## 4. 数据模型
+## 4. Prompt与文档类型映射设计
+
+### 4.1 设计方案
+
+采用**方案1：扩展DynamicPromptBuilder**，在代码中配置文档类型与Prompt的映射关系。
+
+**优点：**
+- 实现简单，无需数据库查询
+- 代码集中，易于维护
+- 性能更好，配置加载到内存
+
+### 4.2 配置结构
+
+在 `llm/prompts.py` 中扩展 `DOCUMENT_TYPE_CONFIG`：
+
+```python
+# llm/prompts.py
+DOCUMENT_TYPE_CONFIG = {
+    "design_report": {
+        "review_focus": [
+            "设计完整性（是否覆盖关键设计要点）",
+            "安全性分析（是否符合适航规范）",
+            "接口定义（接口是否清晰完整）",
+            "验证方法（验证方案是否可行）"
+        ],
+        "system_prompt_addition": """
+## 设计报告审查要点
+- 系统架构设计是否合理
+- 安全性分析是否充分
+- 接口定义是否完整
+- 验证确认方法是否可行
+- 是否符合RTCA/DO-178标准
+"""
+    },
+    "test_report": {
+        "review_focus": [
+            "测试覆盖度（测试用例是否覆盖所有功能）",
+            "测试方法（测试方法是否科学有效）",
+            "测试环境（测试环境描述是否清晰）",
+            "结果分析（测试结果分析是否充分）"
+        ],
+        "system_prompt_addition": """
+## 测试报告审查要点
+- 测试用例设计是否完整
+- 测试条件设置是否合理
+- 测试数据记录是否详细
+- 失效分析是否深入
+- 是否符合RTCA/DO-160标准
+"""
+    },
+    "maintenance_manual": {
+        "review_focus": [
+            "操作清晰性（操作步骤是否清晰）",
+            "安全警示（安全提示是否醒目）",
+            "故障诊断（故障排查方法是否有效）",
+            "维护周期（维护周期是否合理）"
+        ],
+        "system_prompt_addition": """
+## 维护手册审查要点
+- 操作步骤是否明确
+- 安全警示是否醒目
+- 故障诊断流程是否清晰
+- 维护工具和材料是否列出
+- 图例和说明是否对应
+"""
+    },
+    "analysis_report": {
+        "review_focus": [
+            "分析方法（分析方法是否科学）",
+            "数据支撑（数据是否充分可靠）",
+            "结论有效性（结论是否基于数据）",
+            "建议可行性（改进建议是否可行）"
+        ],
+        "system_prompt_addition": """
+## 分析报告审查要点
+- 分析方法是否科学
+- 数据采集是否完整
+- 结果分析是否客观
+- 结论是否基于数据
+- 改进建议是否具体可行
+"""
+    }
+}
+```
+
+### 4.3 使用方式
+
+**在审查任务中：**
+
+```python
+# web/tasks/review_tasks.py
+@celery_app.task
+def start_review_task(filepath, mode, doc_type="design_report"):
+    # 获取文档类型配置
+    from llm.prompts import DOCUMENT_TYPE_CONFIG, DynamicPromptBuilder
+
+    config = DOCUMENT_TYPE_CONFIG.get(doc_type, DOCUMENT_TYPE_CONFIG["design_report"])
+    review_focus = config["review_focus"]
+    system_addition = config["system_prompt_addition"]
+
+    # 创建带文档类型配置的 Prompt Builder
+    prompt_builder = DynamicPromptBuilder(
+        style=PromptStyle.FEW_SHOT,
+        enable_cot=True
+    )
+    prompt_builder.system_prompt += system_addition
+
+    # 使用配置的 review_focus
+    rules_info = [{"name": r.name, "description": r.description} for r in rules]
+    prompt = prompt_builder.build_document_review_prompt(
+        document.title,
+        document.raw_text[:5000],
+        rules_info,
+        review_focus=review_focus
+    )
+
+    # 执行审查
+    result = executor.review_document(document)
+    return result
+```
+
+**在生成任务中：**
+
+```python
+# web/tasks/generate_tasks.py
+@celery_app.task
+def start_generate_task(template_id, params, doc_type):
+    from llm.prompts import DOCUMENT_TYPE_CONFIG
+
+    config = DOCUMENT_TYPE_CONFIG.get(doc_type)
+    template = load_template(template_id)
+
+    # 为每个章节生成内容
+    for section in template.sections:
+        section_content = generate_section_with_doc_type(
+            section,
+            params,
+            doc_type,
+            config
+        )
+```
+
+### 4.4 数据流
+
+```
+用户选择文档类型 → 前端传递 doc_type → 后端接收 → 查找配置 → 使用对应 Prompt → 执行任务
+     ↓
+"design_report"     POST /api/review/start      DOCUMENT_TYPE_CONFIG["design_report"]
+"test_report"       POST /api/review/start      DOCUMENT_TYPE_CONFIG["test_report"]
+"maintenance_manual" POST /api/review/start   DOCUMENT_TYPE_CONFIG["maintenance_manual"]
+"analysis_report"   POST /api/review/start      DOCUMENT_TYPE_CONFIG["analysis_report"]
+```
+
+---
+
+## 5. 数据模型
 
 ### 4.1 核心数据表
 

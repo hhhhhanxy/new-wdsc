@@ -1,11 +1,7 @@
 import sys
 import os
+from pathlib import Path
 
-# Add parent directory to path so we can import web module
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# Configure pytest to not look in the parent directory
-import pytest
-def pytest_configure(config):
-    # Set the test paths to only look in tests directory
-    config.option.testpaths = ['tests']
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))

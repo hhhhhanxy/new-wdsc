@@ -1,3 +1,2 @@
-from .main import DocumentReviewer, main
-
-__all__ = ["DocumentReviewer", "main"]
+# This file exists to mark the directory as a Python package
+# Imports are done in specific modules to avoid circular dependencies

@@ -10,6 +10,7 @@ from core.executor import ReviewExecutor
 from rules.loaders.rule_loader import RuleLoader
 from llm.client import LLMClientFactory
 from parsers.docx_parser import ParserFactory
+from datetime import datetime
 import json
 import logging
 
@@ -68,15 +69,14 @@ def run_review_task(task_id: int, filepath: str, mode: str, db):
             'summary': result.summary
         }
 
-        # Mark as completed
-        import sqlite3
-        cursor = db.conn.cursor()
-        cursor.execute('''
-            UPDATE review_tasks
-            SET result = ?, status = 'completed', progress = 100, completed_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (json.dumps(result_data), task_id))
-        db.conn.commit()
+        # Mark as completed using helper function for consistency
+        db.update_review_task(
+            task_id,
+            result=json.dumps(result_data),
+            status='completed',
+            progress=100,
+            completed_at=datetime.now().isoformat()
+        )
 
         logger.info(f"Review task {task_id} completed successfully")
 
@@ -85,11 +85,10 @@ def run_review_task(task_id: int, filepath: str, mode: str, db):
         import traceback
         traceback.print_exc()
 
-        # Mark as failed
-        cursor = db.conn.cursor()
-        cursor.execute('''
-            UPDATE review_tasks
-            SET status = 'failed', error = ?, completed_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (str(e), task_id))
-        db.conn.commit()
+        # Mark as failed using helper function for consistency
+        db.update_review_task(
+            task_id,
+            status='failed',
+            error=str(e),
+            completed_at=datetime.now().isoformat()
+        )

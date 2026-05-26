@@ -1,15 +1,17 @@
-# Python-generated files
+# Python
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.py[cod]
+*$py.class
+*.so
+.Python
 
 # Virtual environments
 .venv/
+venv/
+ENV/
+env/
 
-# 环境变量文件 (包含敏感信息)
+# Environment variables (sensitive)
 .env
 .env.prod
 .env.local
@@ -20,23 +22,68 @@ wheels/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
-# 日志文件
+# Logs
 *.log
 
-# 缓存
+# Cache
 .cache/
 *.cache
-
-# 测试
 .pytest_cache/
-.coverage
-htmlcov/
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
-# 报告输出
+# Testing
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Report outputs (generated during testing)
 *_report.*
 *_output.*
 
-# 数据库文件
-web/database.db
+# Database files
 *.db
+*.db-journal
+*.sqlite
+*.sqlite3
+web/database.db
+
+# Uploads (ignore uploaded files, keep .gitignore)
+uploads/*
+!uploads/.gitignore
+uploads/generated/
+
+# Config and examples (local development only)
+config/*.py
+!config/__init__.py
+examples/
+
+# Test documents (generated reports)
+document*.docx
+
+# Build artifacts
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+
+# Superpowers brainstorm temporary files
+.superpowers/
+.claude/superpowers/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

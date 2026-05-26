@@ -26,10 +26,10 @@ class OpenAIClient(BaseLLMClient):
         base_url: Optional[str] = None,
         model: Optional[str] = None
     ):
-        self.api_key = api_key or settings.llm_api_key
+        self.api_key = api_key or settings.get_api_key()
         self.base_url = base_url or settings.llm_base_url
         self.model = model or settings.llm_model
-        
+
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url

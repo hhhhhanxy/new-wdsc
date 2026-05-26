@@ -1,21 +1,44 @@
-from pydantic_settings import BaseSettings
-from typing import Optional
+from config.base import BaseSettings
+from config.dev import DevSettings
+from config.prod import ProdSettings
+from config.validator import validate_on_startup
+import os
 
 
-class Settings(BaseSettings):
-    llm_api_key: str = "sk-mdqrrduahosrkudfrpxahoveroutolvjyxuhgkfdqrpsqhqm"
-    llm_base_url: str = "https://api.siliconflow.cn/v1/chat/completions"
-    llm_model: str = "deepseek-ai/DeepSeek-V3.2"
-    max_tokens: int = 4096
-    temperature: float = 0.1
-    default_document_path: str = "E:\github\新建文件夹\profileRe\document.docx"
-    # default_document_path: str = str(Path.cwd() / "documents" / "document.docx")
-    llm_provider: str = "siliconflow"
-    log_level: str = "INFO"
-    chunk_size: int = 1000  # 文档分片长度
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+def create_settings() -> BaseSettings:
+    """
+    根据环境变量创建配置对象
+
+    环境优先级:
+    1. ENVIRONMENT 环境变量 (推荐)
+    2. .env 文件中的 ENVIRONMENT
+    3. 默认 'dev'
+
+    Returns:
+        BaseSettings: 配置对象
+    """
+    # 读取环境标识
+    env = os.getenv("ENVIRONMENT", "dev").lower()
+
+    if env == "prod":
+        settings_cls = ProdSettings
+    elif env == "dev":
+        settings_cls = DevSettings
+    else:
+        # 默认使用开发环境配置
+        settings_cls = DevSettings
+
+    # 创建配置对象（会自动读取 .env 文件）
+    settings = settings_cls()
+
+    return settings
 
 
-settings = Settings()
+# 创建全局配置实例
+settings = create_settings()
+
+# 启动时验证配置
+validate_on_startup(settings, verbose=True)
+
+# 导出便于其他模块使用
+__all__ = ["settings", "BaseSettings", "DevSettings", "ProdSettings", "create_settings"]

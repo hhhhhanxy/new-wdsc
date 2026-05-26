@@ -1,5 +1,12 @@
 from .client import OpenAIClient, LLMClientFactory, BaseLLMClient, LLMResponse
-from .prompts import ReviewPromptBuilder, PromptTemplate
+from .prompts import (
+    ReviewPromptBuilder,
+    PromptTemplate,
+    PromptStyle,
+    PromptEvaluator,
+    DynamicPromptBuilder,
+    DEFAULT_REVIEW_FOCUS,
+)
 
 __all__ = [
     "OpenAIClient",
@@ -8,4 +15,8 @@ __all__ = [
     "LLMResponse",
     "ReviewPromptBuilder",
     "PromptTemplate",
+    "PromptStyle",
+    "PromptEvaluator",
+    "DynamicPromptBuilder",
+    "DEFAULT_REVIEW_FOCUS",
 ]

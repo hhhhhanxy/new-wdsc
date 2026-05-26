@@ -78,7 +78,7 @@ class Database:
 
     def update_review_task(self, task_id: int, **kwargs):
         """Update review task fields"""
-        valid_fields = {'status', 'progress', 'result', 'error'}
+        valid_fields = {'status', 'progress', 'result', 'error', 'completed_at'}
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if not updates:
             return
@@ -112,7 +112,7 @@ class Database:
 
     def update_generate_task(self, task_id: int, **kwargs):
         """Update generate task fields"""
-        valid_fields = {'status', 'progress', 'result_path', 'error'}
+        valid_fields = {'status', 'progress', 'result_path', 'error', 'completed_at'}
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if not updates:
             return

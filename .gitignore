@@ -28,6 +28,9 @@ env/
 # Logs
 *.log
 
+# claude
+.claude/
+
 # Cache
 .cache/
 *.cache

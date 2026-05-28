@@ -108,14 +108,10 @@ class PhasedReviewExecutor(ReviewExecutor):
             logger.debug("阶段 %s 无适用规则，跳过", phase.value)
             return phase_result
 
-        # 按 ReviewType 分组
-        rule_check_rules = [r for r in phase_rules if r.review_type in (ReviewType.RULE, ReviewType.BOTH)]
-        llm_check_rules = [r for r in phase_rules if r.review_type in (ReviewType.LLM, ReviewType.BOTH)]
-
-        # 规则检查
+        # 规则检查 — 所有规则，不按 review_type 过滤
         if ReviewMode.uses_rule_engine(self.mode):
             for section in document.sections:
-                for rule in rule_check_rules:
+                for rule in phase_rules:
                     try:
                         rr = rule.check(section, context)
                         rr.phase = phase
@@ -125,9 +121,9 @@ class PhasedReviewExecutor(ReviewExecutor):
 
                 phase_result.section_count += 1
 
-        # LLM 检查
-        if ReviewMode.uses_llm(self.mode) and llm_check_rules:
-            llm_results = self._get_llm_section_review_phased(document, llm_check_rules, phase)
+        # LLM 检查 — 所有规则，不按 review_type 过滤
+        if ReviewMode.uses_llm(self.mode) and phase_rules:
+            llm_results = self._get_llm_section_review_phased(document, phase_rules, phase)
             if llm_results:
                 for rr in llm_results:
                     phase_result.add_rule_result(rr)

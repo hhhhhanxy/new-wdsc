@@ -243,10 +243,10 @@ class ReviewExecutor:
         """
         审查单个章节
 
-        三种模式下的规则执行策略:
-        - both:      RULE → 规则引擎, LLM → LLM, BOTH → 规则引擎+LLM
-        - rule_only: RULE → 规则引擎, LLM → 跳过,   BOTH → 仅规则引擎
-        - llm_only:  RULE → 跳过,     LLM → LLM, BOTH → 仅 LLM
+        mode 控制引擎选择（与规则 review_type 无关）:
+        - rule_only: 所有规则走规则引擎
+        - llm_only:  所有规则走 LLM
+        - both:      所有规则走规则引擎 + LLM
 
         Args:
             section: 文档章节
@@ -264,14 +264,9 @@ class ReviewExecutor:
         uses_rules = ReviewMode.uses_rule_engine(self.mode)
         uses_llm = ReviewMode.uses_llm(self.mode)
 
-        # 1. 规则引擎检查 — 仅在 both/rule_only 模式下执行
+        # 1. 规则引擎检查 — rule_only / both 模式
         if uses_rules:
-            rule_check_rules = filter_rules_by_review_type(
-                rules,
-                [ReviewType.RULE, ReviewType.BOTH]
-            )
-
-            for rule in rule_check_rules:
+            for rule in rules:
                 rule_result = safe_execute_rule(
                     rule,
                     section,
@@ -286,18 +281,12 @@ class ReviewExecutor:
                 )
                 result.add_rule_result(rule_result)
 
-        # 2. LLM 检查 — 仅在 both/llm_only 模式下执行
+        # 2. LLM 检查 — llm_only / both 模式
         if uses_llm and section.text.strip():
-            llm_check_rules = filter_rules_by_review_type(
-                rules,
-                [ReviewType.LLM, ReviewType.BOTH]
-            )
-
-            if llm_check_rules:
-                llm_results = self._get_llm_section_review(section, llm_check_rules)
-                if llm_results:
-                    for llm_result in llm_results:
-                        result.add_rule_result(llm_result)
+            llm_results = self._get_llm_section_review(section, rules)
+            if llm_results:
+                for llm_result in llm_results:
+                    result.add_rule_result(llm_result)
 
         return result
 

@@ -99,6 +99,9 @@ class Rule:
     phase: ReviewPhase = ReviewPhase.FORMAT
     doc_types: List[DocumentType] = field(default_factory=list)
     params: Dict[str, Any] = field(default_factory=dict)
+    code: str = ""
+    logic: str = ""
+    standard_ref: str = ""
 
     def check(self, section: DocumentSection, context: dict = None) -> RuleResult:
         if not self.enabled:

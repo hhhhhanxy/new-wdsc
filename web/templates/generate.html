@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}文档生成 - 文档审查与生成平台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>文档生成</h1>
+    <p>选择文档类型和模板，自动生成符合规范的技术文档</p>
+</div>
+
+<div class="two-col">
+    <!-- Left: Config -->
+    <div>
+        <!-- Step 1: Doc type -->
+        <p class="section-step">1. 选择文档类型</p>
+        <div class="doc-type-grid">
+            <div class="doc-type-card selected" data-type="requirements" onclick="selectDocType(this)">
+                <div class="type-icon">&#128203;</div>
+                <div class="type-name">需求文档</div>
+                <div class="type-desc">航空产品需求文档标准模板</div>
+            </div>
+            <div class="doc-type-card" data-type="general_characteristics" onclick="selectDocType(this)">
+                <div class="type-icon">&#128200;</div>
+                <div class="type-name">通用特性文档</div>
+                <div class="type-desc">产品物理特性与功能特性模板</div>
+            </div>
+            <div class="doc-type-card" data-type="technical_specification" onclick="selectDocType(this)">
+                <div class="type-icon">&#128295;</div>
+                <div class="type-name">技术说明书</div>
+                <div class="type-desc">系统设计与接口定义模板</div>
+            </div>
+            <div class="doc-type-card" data-type="verification" onclick="selectDocType(this)">
+                <div class="type-icon">&#9989;</div>
+                <div class="type-name">验证文档</div>
+                <div class="type-desc">验证方法与测试结果模板</div>
+            </div>
+        </div>
+
+        <!-- Step 2: Template info -->
+        <p class="section-step">2. 模板信息</p>
+        <div class="config-section" id="templateInfo">
+            <div style="font-weight:600;margin-bottom:6px;" id="templateName">需求文档模板</div>
+            <div style="font-size:12px;color:var(--text-secondary);" id="templateStructure">
+                章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.需求 &rarr; 4.验证 &rarr; 5.质量保证
+            </div>
+        </div>
+
+        <!-- Step 3: Input -->
+        <p class="section-step">3. 输入需求信息</p>
+        <div class="config-section">
+            <div class="form-group">
+                <label>文档标题</label>
+                <input type="text" class="form-control" id="docTitle" placeholder="例如：电动作动系统设计说明书">
+            </div>
+            <div class="form-group">
+                <label>产品描述</label>
+                <textarea class="form-control" id="docDesc" placeholder="输入产品功能、性能指标、应用场景等..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>关键技术参数</label>
+                <textarea class="form-control" id="docParams" placeholder="响应时间、行程、推力、工作温度等..." style="min-height:60px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>参考文档（可选）</label>
+                <div class="upload-zone" id="refUploadZone" style="padding:16px;">
+                    <p style="font-size:12px;" id="refUploadText">点击上传参考文档</p>
+                    <input type="file" id="refFileInput" accept=".docx" style="display:none">
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Generate -->
+        <button class="btn btn-success btn-block" id="generateBtn" onclick="startGenerate()">
+            基于模板生成文档
+        </button>
+    </div>
+
+    <!-- Right: Progress & Preview -->
+    <div>
+        <!-- Progress -->
+        <div class="progress-section" id="genProgressSection" style="display:none;">
+            <p class="section-title">生成进度</p>
+            <div class="progress-info">
+                <span id="genProgressStatus">正在生成...</span>
+                <span id="genProgressPercent">0%</span>
+            </div>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar-fill" id="genProgressBar" style="width:0%"></div>
+            </div>
+        </div>
+
+        <!-- Result -->
+        <div id="genResultSection" style="display:none;">
+            <div class="report-section">
+                <p class="section-title">生成结果</p>
+                <div style="text-align:center;padding:16px;" id="genResultIcon">
+                    <div style="font-size:40px;margin-bottom:10px;" id="genResultEmoji">&#9989;</div>
+                    <p style="font-size:14px;font-weight:600;" id="genResultTitle">文档生成完成</p>
+                    <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
+                </div>
+
+                <!-- Review result (closed loop) -->
+                <div id="genReviewSection" style="display:none;margin-top:12px;">
+                    <p class="section-title">自动审查结果</p>
+                    <div class="report-stats">
+                        <div class="report-stat">
+                            <div class="value" style="color:var(--primary);" id="genReviewTotal">0</div>
+                            <div class="label">总问题</div>
+                        </div>
+                        <div class="report-stat">
+                            <div class="value" style="color:var(--danger);" id="genReviewErrors">0</div>
+                            <div class="label">错误</div>
+                        </div>
+                        <div class="report-stat">
+                            <div class="value" style="color:var(--warning);" id="genReviewWarnings">0</div>
+                            <div class="label">警告</div>
+                        </div>
+                    </div>
+                    <div id="genPhaseResults" style="margin-top:10px;"></div>
+                </div>
+
+                <div style="text-align:center;margin-top:12px;">
+                    <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载生成文档</button>
+                    <button class="btn btn-outline" id="retryGenBtn" style="display:none;margin-left:8px;" onclick="retryGenerate()">重新生成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security blocked -->
+        <div id="genBlockedSection" class="alert alert-danger" style="display:none;">
+            <strong>安全警告：</strong><span id="genBlockedMsg"></span>
+        </div>
+
+        <!-- Info -->
+        <div class="panel" style="margin-top:16px;">
+            <div class="panel-title">生成说明</div>
+            <ul style="font-size:12px;color:var(--text-secondary);line-height:1.8;padding-left:16px;">
+                <li>生成后的文档将遵循模板的章节结构和格式要求</li>
+                <li>基于 LLM 自动填充各章节内容</li>
+                <li>生成后可在 Word 中进一步编辑调整</li>
+                <li>支持导出为 DOCX 格式</li>
+            </ul>
+        </div>
+
+        <div class="alert alert-warning" style="margin-top:12px;">
+            提示：提供越详细的产品描述和技术参数，生成的文档质量越高。
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedDocType = 'requirements';
+let currentGenTaskId = null;
+let genPollTimer = null;
+
+const templateData = {
+    requirements: {
+        name: '需求文档模板',
+        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.需求（功能/性能/接口/环境） &rarr; 4.验证 &rarr; 5.质量保证'
+    },
+    general_characteristics: {
+        name: '通用特性文档模板',
+        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.产品概述 &rarr; 4.物理特性 &rarr; 5.功能特性 &rarr; 6.性能参数 &rarr; 7.环境适应性 &rarr; 8.可靠性'
+    },
+    technical_specification: {
+        name: '技术说明书模板',
+        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.系统概述 &rarr; 4.系统设计（总体/详细/接口） &rarr; 5.安全性分析 &rarr; 6.验证与确认 &rarr; 7.使用与维护 &rarr; 8.附录'
+    },
+    verification: {
+        name: '验证文档模板',
+        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.验证目的 &rarr; 4.验证方法 &rarr; 5.验证环境 &rarr; 6.验证结果 &rarr; 7.结论与建议'
+    }
+};
+
+function selectDocType(el) {
+    document.querySelectorAll('.doc-type-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedDocType = el.dataset.type;
+    const tmpl = templateData[selectedDocType];
+    document.getElementById('templateName').textContent = tmpl.name;
+    document.getElementById('templateStructure').innerHTML = tmpl.structure;
+}
+
+// Reference file upload
+const refZone = document.getElementById('refUploadZone');
+const refInput = document.getElementById('refFileInput');
+const refText = document.getElementById('refUploadText');
+refZone.addEventListener('click', () => refInput.click());
+refInput.addEventListener('change', e => {
+    if (e.target.files.length) refText.innerHTML = '<span style="color:var(--primary);">' + e.target.files[0].name + '</span>';
+});
+
+function startGenerate() {
+    const title = document.getElementById('docTitle').value.trim();
+    if (!title) { alert('请输入文档标题'); return; }
+
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.textContent = '生成中...';
+
+    const params = {
+        doc_type: selectedDocType,
+        template_name: templateData[selectedDocType].name,
+        title: title,
+        description: document.getElementById('docDesc').value.trim(),
+        technical_params: document.getElementById('docParams').value.trim()
+    };
+
+    fetch('/generate/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '基于模板生成文档'; return; }
+        currentGenTaskId = data.task_id;
+        document.getElementById('genProgressSection').style.display = 'block';
+        pollGenProgress();
+    })
+    .catch(err => {
+        alert('请求失败: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '基于模板生成文档';
+    });
+}
+
+function pollGenProgress() {
+    genPollTimer = setInterval(() => {
+        fetch('/generate/status/' + currentGenTaskId)
+            .then(r => r.json())
+            .then(data => {
+                const pct = data.progress || 0;
+                document.getElementById('genProgressBar').style.width = pct + '%';
+                document.getElementById('genProgressPercent').textContent = pct + '%';
+
+                // Status text mapping
+                const statusTexts = {
+                    'processing': '正在生成...',
+                    'generated': '文档已生成，正在审查...',
+                    'reviewing': '正在执行审查...',
+                    'completed': '生成并通过审查',
+                    'review_failed': '审查未通过',
+                    'blocked': '安全检测拦截',
+                    'failed': '生成失败',
+                };
+                document.getElementById('genProgressStatus').textContent =
+                    statusTexts[data.status] || data.status;
+
+                if (['completed', 'failed', 'blocked', 'review_failed'].includes(data.status)) {
+                    clearInterval(genPollTimer);
+                    handleGenFinalState(data);
+                }
+            });
+    }, 2000);
+}
+
+function handleGenFinalState(data) {
+    document.getElementById('genProgressSection').style.display = 'none';
+    document.getElementById('generateBtn').disabled = false;
+    document.getElementById('generateBtn').textContent = '基于模板生成文档';
+
+    if (data.status === 'completed') {
+        // Success: generated and passed review
+        document.getElementById('genResultSection').style.display = 'block';
+        document.getElementById('genResultEmoji').innerHTML = '&#9989;';
+        document.getElementById('genResultTitle').textContent = '文档生成完成，已通过审查';
+        document.getElementById('genResultName').textContent = data.result_path
+            ? data.result_path.split(/[/\\]/).pop() : 'generated_document.docx';
+        document.getElementById('retryGenBtn').style.display = 'none';
+        showGenReview(data);
+
+    } else if (data.status === 'review_failed') {
+        // Generated but review failed
+        document.getElementById('genResultSection').style.display = 'block';
+        document.getElementById('genResultEmoji').innerHTML = '&#9888;';
+        document.getElementById('genResultTitle').textContent = '文档已生成，但未通过审查';
+        document.getElementById('genResultName').textContent = data.error || '请查看下方审查结果';
+        document.getElementById('retryGenBtn').style.display = 'inline-flex';
+        showGenReview(data);
+
+    } else if (data.status === 'blocked') {
+        // Security blocked
+        document.getElementById('genBlockedSection').style.display = 'block';
+        document.getElementById('genBlockedMsg').textContent = data.error || '检测到涉密内容，已停止处理';
+
+    } else {
+        // Failed
+        alert('生成失败: ' + (data.error || '未知错误'));
+    }
+}
+
+function showGenReview(data) {
+    // Try to extract review result from params
+    let reviewResult = null;
+    try {
+        const params = JSON.parse(data.params || '{}');
+        reviewResult = params.review_result;
+    } catch (e) {}
+
+    if (!reviewResult) return;
+
+    document.getElementById('genReviewSection').style.display = 'block';
+    document.getElementById('genReviewTotal').textContent = reviewResult.total_issues || 0;
+    document.getElementById('genReviewErrors').textContent = reviewResult.errors || 0;
+    document.getElementById('genReviewWarnings').textContent = reviewResult.warnings || 0;
+
+    // Show phase results
+    if (reviewResult.phases) {
+        let phaseHtml = '<div style="font-size:12px;margin-top:8px;">';
+        const phaseNames = {
+            'format': '格式检查',
+            'completeness': '完整性检查',
+            'consistency': '一致性检查',
+            'standard_compliance': '标准符合性',
+            'traceability': '追溯性检查',
+        };
+        for (const [phase, info] of Object.entries(reviewResult.phases)) {
+            const badge = info.passed
+                ? '<span class="badge badge-success">通过</span>'
+                : '<span class="badge badge-danger">' + info.issues + ' 个问题</span>';
+            phaseHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);">' +
+                '<span>' + (phaseNames[phase] || phase) + '</span>' + badge + '</div>';
+        }
+        phaseHtml += '</div>';
+        document.getElementById('genPhaseResults').innerHTML = phaseHtml;
+    }
+}
+
+function retryGenerate() {
+    document.getElementById('genResultSection').style.display = 'none';
+    document.getElementById('genReviewSection').style.display = 'none';
+    startGenerate();
+}
+
+function downloadGenerated() {
+    if (currentGenTaskId) window.location.href = '/generate/download/' + currentGenTaskId;
+}
+</script>
+{% endblock %}

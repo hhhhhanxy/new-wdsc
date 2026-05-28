@@ -3,19 +3,27 @@ Database models for the web application.
 Uses SQLite for simplicity in MVP.
 """
 import sqlite3
+import threading
 from typing import Optional, Dict, Any
 import json
 
 
 class Database:
-    """SQLite database handler for MVP"""
+    """SQLite database handler for MVP - thread safe via per-thread connections."""
 
     def __init__(self, db_path: str = 'web/database.db'):
-        """Initialize database connection and create tables"""
         self.db_path = db_path
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
+        self._local = threading.local()
+        import os
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.init_db()
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        if not hasattr(self._local, 'conn') or self._local.conn is None:
+            self._local.conn = sqlite3.connect(self.db_path)
+            self._local.conn.row_factory = sqlite3.Row
+        return self._local.conn
 
     def init_db(self):
         """Create database tables"""

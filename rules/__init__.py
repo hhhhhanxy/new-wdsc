@@ -1,4 +1,9 @@
-from .base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, RuleRegistry, BaseRuleChecker, ReviewType
+from .base_rule import (
+    Rule, RuleResult, RuleSeverity, RuleCategory,
+    RuleRegistry, BaseRuleChecker, ReviewType,
+    TextPosition, FixSuggestion,
+    ReviewPhase, PHASE_ORDER, PHASE_DISPLAY_NAMES,
+)
 from .checkers import RequiredSectionChecker, KeywordChecker, FormatChecker, create_default_rules
 from .common.grammar import GrammarChecker, create_grammar_rule
 
@@ -10,6 +15,11 @@ __all__ = [
     "RuleRegistry",
     "BaseRuleChecker",
     "ReviewType",
+    "TextPosition",
+    "FixSuggestion",
+    "ReviewPhase",
+    "PHASE_ORDER",
+    "PHASE_DISPLAY_NAMES",
     "RequiredSectionChecker",
     "KeywordChecker",
     "FormatChecker",

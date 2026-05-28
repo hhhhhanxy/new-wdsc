@@ -13,7 +13,7 @@ from parsers.docx_parser import ParserFactory
 from rules.base_rule import Rule, RuleRegistry, RuleCategory, RuleSeverity
 from rules.loaders.rule_loader import RuleLoader
 from llm.client import LLMClientFactory
-from core.executor import ReviewExecutor, DocumentReviewResult
+from core.executor import ReviewExecutor, ReviewMode, DocumentReviewResult
 from reporters.base_reporter import ReporterFactory
 
 
@@ -41,7 +41,7 @@ class DocumentReviewer:
         self.executor = ReviewExecutor(
             rule_registry=self.rule_registry,
             llm_client=self.llm_client,
-            use_llm=use_llm and self.llm_client is not None
+            mode=ReviewMode.BOTH if use_llm else ReviewMode.RULE_ONLY
         )
     
     def _load_default_rules(self):

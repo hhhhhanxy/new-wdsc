@@ -71,7 +71,7 @@ class DocxParser(BaseParser):
         section_id = f"section_{self.section_counter}"
         
         if para.style.name.startswith('Heading'):
-            level = level = self._get_heading_level(para.style.name)
+            level = self._get_heading_level(para.style.name)
             content_type = ContentType.HEADING
         else:
             level = 0

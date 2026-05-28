@@ -13,8 +13,8 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from models.document import ParsedDocument, DocumentSection
-from rules.base_rule import Rule, RuleResult, RuleRegistry, RuleSeverity, ReviewType
+from models.document import ParsedDocument, DocumentSection, DocumentType
+from rules.base_rule import Rule, RuleResult, RuleRegistry, RuleSeverity, ReviewType, ReviewPhase, PHASE_ORDER
 from llm.client import BaseLLMClient
 from llm.prompts import ReviewPromptBuilder, PromptStyle
 from parsers.review_parser import ReviewResultParser
@@ -81,6 +81,45 @@ class DocumentReviewResult:
                     self.llm_issues += 1
 
 
+@dataclass
+class PhaseResult:
+    """单个审查阶段的结果。"""
+    phase: ReviewPhase
+    passed: bool = True
+    rule_results: List[RuleResult] = field(default_factory=list)
+    issues_count: int = 0
+    section_count: int = 0
+
+    def add_rule_result(self, result: RuleResult):
+        self.rule_results.append(result)
+        if not result.passed:
+            self.issues_count += 1
+            if result.severity in [RuleSeverity.ERROR, RuleSeverity.WARNING]:
+                self.passed = False
+
+
+@dataclass
+class PhasedDocumentReviewResult(DocumentReviewResult):
+    """带阶段分解的文档审查结果。"""
+    phase_results: Dict[ReviewPhase, 'PhaseResult'] = field(default_factory=dict)
+    doc_type: Optional[DocumentType] = None
+
+
+class ReviewMode:
+    """审查模式"""
+    BOTH = "both"           # 规则引擎 + LLM
+    RULE_ONLY = "rule_only"  # 仅规则引擎
+    LLM_ONLY = "llm_only"   # 仅 LLM
+
+    @classmethod
+    def uses_rule_engine(cls, mode: str) -> bool:
+        return mode in (cls.BOTH, cls.RULE_ONLY)
+
+    @classmethod
+    def uses_llm(cls, mode: str) -> bool:
+        return mode in (cls.BOTH, cls.LLM_ONLY)
+
+
 class ReviewExecutor:
     """文档审查执行器 - 重构版本"""
 
@@ -88,7 +127,7 @@ class ReviewExecutor:
         self,
         rule_registry: RuleRegistry,
         llm_client: Optional[BaseLLMClient] = None,
-        use_llm: bool = True,
+        mode: str = ReviewMode.BOTH,
         enable_cache: bool = None,
         enable_retry: bool = None,
         prompt_style: PromptStyle = PromptStyle.STANDARD,
@@ -102,7 +141,7 @@ class ReviewExecutor:
         Args:
             rule_registry: 规则注册表
             llm_client: LLM 客户端
-            use_llm: 是否使用 LLM
+            mode: 审查模式 (both/rule_only/llm_only)
             enable_cache: 是否启用缓存（默认从配置读取）
             enable_retry: 是否启用重试（默认从配置读取）
             prompt_style: Prompt 风格（STANDARD/COT/FEW_SHOT/STRICT）
@@ -114,7 +153,7 @@ class ReviewExecutor:
 
         self.rule_registry = rule_registry
         self.llm_client = llm_client
-        self.use_llm = use_llm and llm_client is not None
+        self.mode = mode
         self.enable_cache = enable_cache if enable_cache is not None else settings.cache_enabled
         self.enable_retry = enable_retry if enable_retry is not None else settings.retry_enabled
 
@@ -132,12 +171,12 @@ class ReviewExecutor:
             enable_cot=self.enable_cot,
             enable_few_shot=self.enable_few_shot,
             enable_domain_knowledge=enable_domain_knowledge
-        ) if llm_client else None
+        ) if llm_client and ReviewMode.uses_llm(mode) else None
         self.parser = ReviewResultParser()
 
         logger.info(
             f"审查执行器初始化完成 - "
-            f"LLM: {self.use_llm}, "
+            f"模式: {self.mode}, "
             f"缓存: {self.enable_cache}, "
             f"重试: {self.enable_retry}, "
             f"Prompt风格: {prompt_style.value}, "
@@ -184,7 +223,7 @@ class ReviewExecutor:
             result.add_section_result(section_result)
 
         # LLM 文档总结
-        if self.use_llm:
+        if ReviewMode.uses_llm(self.mode):
             result.summary = self._get_llm_document_summary(document, rules)
 
         # 计算耗时
@@ -204,6 +243,11 @@ class ReviewExecutor:
         """
         审查单个章节
 
+        三种模式下的规则执行策略:
+        - both:      RULE → 规则引擎, LLM → LLM, BOTH → 规则引擎+LLM
+        - rule_only: RULE → 规则引擎, LLM → 跳过,   BOTH → 仅规则引擎
+        - llm_only:  RULE → 跳过,     LLM → LLM, BOTH → 仅 LLM
+
         Args:
             section: 文档章节
             rules: 规则列表
@@ -217,29 +261,33 @@ class ReviewExecutor:
             section_text=section.text
         )
 
-        # 1. 规则引擎检查（RULE + BOTH）
-        rule_check_rules = filter_rules_by_review_type(
-            rules,
-            [ReviewType.RULE, ReviewType.BOTH]
-        )
+        uses_rules = ReviewMode.uses_rule_engine(self.mode)
+        uses_llm = ReviewMode.uses_llm(self.mode)
 
-        for rule in rule_check_rules:
-            rule_result = safe_execute_rule(
-                rule,
-                section,
-                context,
-                default_result=RuleResult(
-                    rule_id=rule.rule_id,
-                    rule_name=rule.name,
-                    passed=True,
-                    severity=rule.severity,
-                    message="规则检查失败，默认通过"
-                )
+        # 1. 规则引擎检查 — 仅在 both/rule_only 模式下执行
+        if uses_rules:
+            rule_check_rules = filter_rules_by_review_type(
+                rules,
+                [ReviewType.RULE, ReviewType.BOTH]
             )
-            result.add_rule_result(rule_result)
 
-        # 2. LLM 检查（LLM + BOTH）
-        if self.use_llm and section.text.strip():
+            for rule in rule_check_rules:
+                rule_result = safe_execute_rule(
+                    rule,
+                    section,
+                    context,
+                    default_result=RuleResult(
+                        rule_id=rule.rule_id,
+                        rule_name=rule.name,
+                        passed=True,
+                        severity=rule.severity,
+                        message="规则检查失败，默认通过"
+                    )
+                )
+                result.add_rule_result(rule_result)
+
+        # 2. LLM 检查 — 仅在 both/llm_only 模式下执行
+        if uses_llm and section.text.strip():
             llm_check_rules = filter_rules_by_review_type(
                 rules,
                 [ReviewType.LLM, ReviewType.BOTH]

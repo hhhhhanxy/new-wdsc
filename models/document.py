@@ -11,6 +11,13 @@ class ContentType(Enum):
     IMAGE = "image"
 
 
+class DocumentType(Enum):
+    REQUIREMENTS = "requirements"                              # 需求文档
+    GENERAL_CHARACTERISTICS = "general_characteristics"        # 通用特性文档
+    TECHNICAL_SPECIFICATION = "technical_specification"        # 技术说明书
+    VERIFICATION = "verification"                              # 验证文档
+
+
 @dataclass
 class DocumentSection:
     section_id: str
@@ -29,6 +36,8 @@ class ParsedDocument:
     sections: List[DocumentSection]
     raw_text: str
     metadata: dict = field(default_factory=dict)
+    doc_type: Optional[DocumentType] = None
+    detected_doc_type: Optional[DocumentType] = None
     
     def get_section_by_id(self, section_id: str) -> Optional[DocumentSection]:
         for section in self.sections:

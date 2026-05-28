@@ -7,9 +7,11 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from core.executor import ReviewExecutor
+from rules.base_rule import RuleRegistry
 from rules.loaders.rule_loader import RuleLoader
 from llm.client import LLMClientFactory
 from parsers.docx_parser import ParserFactory
+from config.settings import settings
 from datetime import datetime
 import json
 import logging
@@ -25,34 +27,61 @@ def update_task_progress(db, task_id: int, progress: int, status: str = None):
         db.update_review_task(task_id, progress=progress)
 
 
-def run_review_task(task_id: int, filepath: str, mode: str, db):
+def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, db):
     """Execute document review task in background thread"""
     try:
-        logger.info(f"Starting review task {task_id} for {filepath}")
+        logger.info(f"Starting review task {task_id} for {filepath} (doc_type={doc_type})")
 
         # Update status to processing
         update_task_progress(db, task_id, 0, 'processing')
 
         # Initialize components
         rules = RuleLoader.load_all_rules(profile="aviation")
-        llm_client = LLMClientFactory.create_client("siliconflow")
-        executor = ReviewExecutor(
-            rule_registry=None,  # Will load rules directly
-            llm_client=llm_client,
-            use_llm=(mode != 'rule_only')
-        )
+        llm_client = LLMClientFactory.create_client(settings.llm_provider)
+
+        registry = RuleRegistry()
+        for rule in rules:
+            registry.register(rule)
 
         # Parse document
         update_task_progress(db, task_id, 10)
         parser = ParserFactory.get_parser(".docx")
         document = parser.parse(filepath)
 
-        # Load rules into registry
-        from rules.base_rule import RuleRegistry
-        registry = RuleRegistry()
-        for rule in rules:
-            registry.register(rule)
-        executor.rule_registry = registry
+        # Set document type (user selection or auto-detect)
+        from models.document import DocumentType
+        if doc_type and doc_type != 'auto':
+            try:
+                document.doc_type = DocumentType(doc_type)
+            except ValueError:
+                pass
+        if not document.doc_type:
+            from parsers.doc_type_detector import DocumentTypeDetector
+            detector_type = DocumentTypeDetector(llm_client=llm_client)
+            document.detected_doc_type = detector_type.detect(document)
+            if not document.doc_type:
+                document.doc_type = document.detected_doc_type
+
+        # Security classification check (pre-processing gate)
+        update_task_progress(db, task_id, 15)
+        from security.classification_detector import ClassificationDetector
+        detector = ClassificationDetector(llm_client=llm_client)
+        sec_result = detector.check(document)
+        if sec_result.is_classified:
+            logger.warning("Task %d blocked: classified content detected", task_id)
+            db.update_review_task(
+                task_id,
+                status='blocked',
+                error=sec_result.warning_message,
+                completed_at=datetime.now().isoformat()
+            )
+            return
+
+        executor = ReviewExecutor(
+            rule_registry=registry,
+            llm_client=llm_client,
+            mode=mode
+        )
 
         # Execute review
         update_task_progress(db, task_id, 50)
@@ -60,13 +89,33 @@ def run_review_task(task_id: int, filepath: str, mode: str, db):
 
         # Prepare result data
         update_task_progress(db, task_id, 90)
+        sections_data = []
+        for sr in result.section_results:
+            issues = []
+            for rr in sr.rule_results:
+                if not rr.passed:
+                    issues.append({
+                        'rule_name': rr.rule_name,
+                        'rule_source': rr.rule_source,
+                        'severity': rr.severity.value,
+                        'message': rr.message,
+                        'suggestions': rr.suggestions,
+                    })
+            sections_data.append({
+                'section_id': sr.section_id,
+                'section_text': sr.section_text,
+                'passed': sr.passed,
+                'issues': issues,
+            })
+
         result_data = {
             'passed': result.overall_passed,
             'total_issues': result.total_issues,
             'errors': result.errors,
             'warnings': result.warnings,
             'llm_issues': getattr(result, 'llm_issues', 0),
-            'summary': result.summary
+            'summary': result.summary,
+            'sections': sections_data,
         }
 
         # Mark as completed using helper function for consistency

@@ -32,9 +32,13 @@
             </div>
             <div class="config-row">
                 <div class="config-label">规则集</div>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span class="badge badge-info">航空作动系统</span>
-                    <a href="/rules/" style="font-size:11px;color:var(--purple);text-decoration:none;">查看规则 &rarr;</a>
+                <div>
+                    <select class="form-control" id="ruleSetSelect" style="width:auto;padding:4px 8px;font-size:12px;">
+                        <option value="all">全部规则</option>
+                        {% for rs in rule_sets %}
+                        <option value="{{ rs.source }}">{{ rs.name }} ({{ rs.count }}条)</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
             <div class="config-row">
@@ -187,6 +191,7 @@ function startReview() {
     formData.append('file', selectedFile);
     formData.append('mode', reviewMode);
     formData.append('doc_type', document.getElementById('docTypeSelect').value);
+    formData.append('rule_set', document.getElementById('ruleSetSelect').value);
 
     fetch('/review/upload', { method: 'POST', body: formData })
         .then(r => r.json())

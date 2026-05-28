@@ -27,20 +27,25 @@ def update_task_progress(db, task_id: int, progress: int, status: str = None):
         db.update_review_task(task_id, progress=progress)
 
 
-def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, db):
+def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_set: str, db):
     """Execute document review task in background thread"""
     try:
-        logger.info(f"Starting review task {task_id} for {filepath} (doc_type={doc_type})")
+        logger.info(f"Starting review task {task_id} for {filepath} (doc_type={doc_type}, rule_set={rule_set})")
 
         # Update status to processing
         update_task_progress(db, task_id, 0, 'processing')
 
         # Initialize components
-        rules = RuleLoader.load_all_rules(profile="aviation")
+        all_rules = RuleLoader.load_all_rules(profile="aviation")
+
+        # 按规则集筛选
+        if rule_set and rule_set != 'all':
+            all_rules = [r for r in all_rules if r.source == rule_set]
+
         llm_client = LLMClientFactory.create_client(settings.llm_provider)
 
         registry = RuleRegistry()
-        for rule in rules:
+        for rule in all_rules:
             registry.register(rule)
 
         # Parse document

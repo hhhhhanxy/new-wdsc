@@ -15,7 +15,15 @@ bp = Blueprint('review', __name__)
 def index():
     db = current_app.db
     recent = db.get_recent_review_tasks(limit=5)
-    return render_template('review.html', active_page='review', recent_tasks=recent)
+
+    # 获取可用规则集列表
+    from rules.loaders.rule_loader import RuleLoader
+    from web.routes.rules import _group_rules_by_source
+    rules = RuleLoader.load_all_rules("aviation", include_extensions=False)
+    groups, _, _ = _group_rules_by_source(rules)
+    rule_sets = [{"source": g["source"], "name": g["display_name"], "count": g["total"]} for g in groups]
+
+    return render_template('review.html', active_page='review', recent_tasks=recent, rule_sets=rule_sets)
 
 
 @bp.route('/upload', methods=['POST'])
@@ -31,6 +39,7 @@ def upload():
 
     mode = request.form.get('mode', 'both')
     doc_type = request.form.get('doc_type', 'auto')
+    rule_set = request.form.get('rule_set', 'all')
     safe_name = os.path.basename(file.filename)
     unique_name = f"{uuid.uuid4().hex[:8]}_{safe_name}"
     filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_name)
@@ -40,7 +49,7 @@ def upload():
 
     thread = threading.Thread(
         target=run_review_task,
-        args=(task_id, filepath, mode, doc_type, db)
+        args=(task_id, filepath, mode, doc_type, rule_set, db)
     )
     thread.daemon = True
     thread.start()

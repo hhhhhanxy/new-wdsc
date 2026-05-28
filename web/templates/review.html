@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}文档审查 - 文档审查与生成平台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>文档审查</h1>
+    <p>上传DOCX文档，选择审查模式，获取审查报告</p>
+</div>
+
+<div class="two-col">
+    <!-- Left: Upload & Config -->
+    <div>
+        <!-- Step 1: Upload -->
+        <p class="section-step">1. 上传文档</p>
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">&#128196;</div>
+            <p id="uploadText">拖拽 DOCX 文件到此处，或点击选择</p>
+            <small>支持 .docx 格式，最大 50MB</small>
+            <input type="file" id="fileInput" accept=".docx" style="display:none">
+        </div>
+
+        <!-- Step 2: Config -->
+        <p class="section-step" style="margin-top:20px;">2. 审查配置</p>
+        <div class="config-section">
+            <div class="config-row">
+                <div class="config-label">审查模式</div>
+                <div class="mode-btns">
+                    <button class="mode-btn active" data-mode="both" onclick="selectMode(this)">规则+LLM</button>
+                    <button class="mode-btn" data-mode="rule_only" onclick="selectMode(this)">仅规则</button>
+                    <button class="mode-btn" data-mode="llm_only" onclick="selectMode(this)">仅LLM</button>
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-label">规则集</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="badge badge-info">航空作动系统</span>
+                    <a href="/rules/" style="font-size:11px;color:var(--primary);text-decoration:none;">查看规则 &rarr;</a>
+                </div>
+            </div>
+            <div class="config-row">
+                <div class="config-label">文档类型</div>
+                <div>
+                    <select class="form-control" id="docTypeSelect" style="width:auto;padding:4px 8px;font-size:12px;">
+                        <option value="auto">自动识别</option>
+                        <option value="requirements">需求文档</option>
+                        <option value="general_characteristics">通用特性文档</option>
+                        <option value="technical_specification">技术说明书</option>
+                        <option value="verification">验证文档</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Start -->
+        <button class="btn btn-primary btn-block" id="startBtn" disabled onclick="startReview()">
+            开始审查
+        </button>
+    </div>
+
+    <!-- Right: Progress & Result -->
+    <div>
+        <!-- Security warning -->
+        <div id="securityWarning" class="alert alert-danger" style="display:none;">
+            <strong>安全警告：</strong><span id="securityMessage"></span>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-section" id="progressSection" style="display:none;">
+            <p class="section-title">审查进度</p>
+            <div class="progress-info">
+                <span id="progressStatus">正在审查...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+            </div>
+        </div>
+
+        <!-- Result -->
+        <div id="resultSection" style="display:none;">
+            <div class="report-section">
+                <p class="section-title">审查结果</p>
+                <div class="report-stats">
+                    <div class="report-stat">
+                        <div class="value" style="color:var(--primary);" id="resultTotal">0</div>
+                        <div class="label">总问题</div>
+                    </div>
+                    <div class="report-stat">
+                        <div class="value" style="color:var(--danger);" id="resultErrors">0</div>
+                        <div class="label">错误</div>
+                    </div>
+                    <div class="report-stat">
+                        <div class="value" style="color:var(--warning);" id="resultWarnings">0</div>
+                        <div class="label">警告</div>
+                    </div>
+                </div>
+
+                <div id="resultStatus"></div>
+
+                <div id="summarySection" style="display:none; margin-top:14px;">
+                    <p class="section-title">审查总结</p>
+                    <p id="summaryText" style="font-size:13px;color:var(--text-secondary);line-height:1.6;"></p>
+                </div>
+
+                <div style="margin-top:14px;">
+                    <button class="btn btn-success" id="downloadBtn" onclick="downloadReport()">下载审查报告</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent reviews -->
+        <div class="panel" style="margin-top:16px;">
+            <div class="panel-title">最近审查</div>
+            {% if recent_tasks %}
+            <ul class="task-list">
+                {% for task in recent_tasks %}
+                <li class="task-item">
+                    <div class="task-info">
+                        <div class="task-name">{{ task.filename }}</div>
+                        <div class="task-meta">{{ task.created_at }} &middot;
+                            {% if task.status == 'completed' %}审查完成
+                            {% elif task.status == 'processing' %}审查中...
+                            {% elif task.status == 'blocked' %}安全阻断
+                            {% else %}{{ task.status }}{% endif %}
+                        </div>
+                    </div>
+                    <span class="badge badge-{{ 'success' if task.status == 'completed' else 'warning' if task.status == 'processing' else 'danger' if task.status == 'blocked' else 'default' }}">
+                        {{ '已完成' if task.status == 'completed' else '审查中' if task.status == 'processing' else '安全阻断' if task.status == 'blocked' else task.status }}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty-state">暂无审查记录</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedFile = null;
+let reviewMode = 'both';
+let currentTaskId = null;
+let pollTimer = null;
+
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const uploadText = document.getElementById('uploadText');
+const startBtn = document.getElementById('startBtn');
+
+// Upload zone interactions
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+    if (!file.name.endsWith('.docx')) {
+        alert('请选择 .docx 格式文件');
+        return;
+    }
+    selectedFile = file;
+    uploadText.innerHTML = '<span class="file-selected">' + file.name + '</span>';
+    startBtn.disabled = false;
+}
+
+function selectMode(btn) {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    reviewMode = btn.dataset.mode;
+}
+
+function startReview() {
+    if (!selectedFile) return;
+
+    startBtn.disabled = true;
+    startBtn.textContent = '上传中...';
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('mode', reviewMode);
+    formData.append('doc_type', document.getElementById('docTypeSelect').value);
+
+    fetch('/review/upload', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); startBtn.disabled = false; startBtn.textContent = '开始审查'; return; }
+            currentTaskId = data.task_id;
+            document.getElementById('progressSection').style.display = 'block';
+            startBtn.textContent = '审查中...';
+            pollProgress();
+        })
+        .catch(err => {
+            alert('上传失败: ' + err.message);
+            startBtn.disabled = false;
+            startBtn.textContent = '开始审查';
+        });
+}
+
+function pollProgress() {
+    pollTimer = setInterval(() => {
+        fetch('/review/status/' + currentTaskId)
+            .then(r => r.json())
+            .then(data => {
+                updateProgress(data);
+                if (data.status === 'completed' || data.status === 'failed' || data.status === 'blocked') {
+                    clearInterval(pollTimer);
+                    if (data.status === 'completed') showResult(data);
+                    else if (data.status === 'blocked') {
+                        document.getElementById('progressSection').style.display = 'none';
+                        document.getElementById('securityWarning').style.display = 'block';
+                        document.getElementById('securityMessage').textContent = data.error || '检测到涉密内容，已停止处理';
+                        resetUI();
+                    }
+                    else { alert('审查失败: ' + (data.error || '未知错误')); resetUI(); }
+                }
+            });
+    }, 2000);
+}
+
+function updateProgress(data) {
+    const pct = data.progress || 0;
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressPercent').textContent = pct + '%';
+    document.getElementById('progressStatus').textContent =
+        data.status === 'processing' ? '正在审查...' : data.status === 'completed' ? '审查完成' : '准备中...';
+}
+
+function showResult(data) {
+    document.getElementById('progressSection').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'block';
+
+    const result = data.result ? JSON.parse(data.result) : {};
+    document.getElementById('resultTotal').textContent = result.total_issues || 0;
+    document.getElementById('resultErrors').textContent = result.errors || 0;
+    document.getElementById('resultWarnings').textContent = result.warnings || 0;
+
+    const passed = result.passed !== false;
+    document.getElementById('resultStatus').innerHTML =
+        '<span class="badge badge-' + (passed ? 'success' : 'danger') + '">' +
+        (passed ? '审查通过' : '审查未通过') + '</span>';
+
+    if (result.summary) {
+        document.getElementById('summarySection').style.display = 'block';
+        document.getElementById('summaryText').textContent = result.summary;
+    }
+
+    resetUI();
+}
+
+function downloadReport() {
+    if (currentTaskId) window.location.href = '/review/report/' + currentTaskId;
+}
+
+function resetUI() {
+    startBtn.disabled = false;
+    startBtn.textContent = '开始审查';
+    selectedFile = null;
+    uploadText.innerHTML = '拖拽 DOCX 文件到此处，或点击选择';
+}
+</script>
+{% endblock %}

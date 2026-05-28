@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block title %}规则管理 - 文档审查与生成平台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>规则管理</h1>
+    <p>查看和管理审查规则集，编辑规则属性和参数</p>
+</div>
+
+<div class="two-col">
+    <!-- Left: Rule set list -->
+    <div>
+        <div class="panel">
+            <div class="panel-title">规则集</div>
+            <ul class="rule-set-list" id="ruleSetList">
+            </ul>
+            <div class="rule-stats" id="ruleStats"></div>
+        </div>
+    </div>
+
+    <!-- Right: Rules table -->
+    <div>
+        <div class="panel">
+            <div class="panel-title" id="currentSetTitle">请选择规则集</div>
+            <table class="rule-table" id="ruleTable" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>状态</th>
+                        <th>规则名称</th>
+                        <th>阶段</th>
+                        <th>类型</th>
+                        <th>级别</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="ruleTableBody"></tbody>
+            </table>
+            <div class="empty-state" id="noRulesHint">选择左侧规则集查看规则列表</div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">编辑规则</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveRule()">保存</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const groups = {{ groups | tojson }};
+const totalCount = {{ total }};
+const enabledCount = {{ enabled_count }};
+const disabledCount = {{ disabled_count }};
+const phases = {{ phases | tojson }};
+const severities = {{ severities | tojson }};
+const reviewTypes = {{ review_types | tojson }};
+
+let currentGroup = null;
+let currentRule = null;
+
+const severityLabels = {};
+severities.forEach(s => severityLabels[s.value] = s.label);
+
+const severityBadges = {
+    error: 'badge-danger',
+    warning: 'badge-warning',
+    info: 'badge-info',
+};
+
+const reviewTypeLabels = {};
+reviewTypes.forEach(t => reviewTypeLabels[t.value] = t.label);
+
+const phaseLabels = {};
+phases.forEach(p => phaseLabels[p.value] = p.label);
+
+function renderSetList() {
+    const list = document.getElementById('ruleSetList');
+    list.innerHTML = groups.map(g => `
+        <li class="rule-set-item" data-source="${g.source}" onclick="selectGroup('${g.source}')">
+            <span class="set-name">${g.display_name}</span>
+            <span class="set-count">${g.enabled}/${g.total}</span>
+        </li>
+    `).join('');
+
+    document.getElementById('ruleStats').innerHTML =
+        `共 ${totalCount} 条规则 &middot; 已启用 ${enabledCount} &middot; 已禁用 ${disabledCount}`;
+}
+
+function selectGroup(source) {
+    currentGroup = groups.find(g => g.source === source);
+    if (!currentGroup) return;
+
+    document.querySelectorAll('.rule-set-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-source="${source}"]`).classList.add('active');
+
+    document.getElementById('currentSetTitle').textContent = currentGroup.display_name;
+    document.getElementById('noRulesHint').style.display = 'none';
+    document.getElementById('ruleTable').style.display = '';
+
+    renderRuleTable(currentGroup.rules);
+}
+
+function renderRuleTable(rules) {
+    const tbody = document.getElementById('ruleTableBody');
+    tbody.innerHTML = rules.map(r => `
+        <tr>
+            <td><span class="status-dot ${r.enabled ? 'on' : 'off'}" title="${r.enabled ? '已启用' : '已禁用'}"></span></td>
+            <td>
+                <div class="rule-name-cell" title="${r.name}">${r.name}</div>
+                <div class="rule-id-cell">${r.rule_id}</div>
+            </td>
+            <td>${phaseLabels[r.phase] || r.phase}</td>
+            <td>${reviewTypeLabels[r.review_type] || r.review_type}</td>
+            <td><span class="badge ${severityBadges[r.severity] || 'badge-default'}">${severityLabels[r.severity] || r.severity}</span></td>
+            <td>
+                <div class="rule-actions">
+                    <button class="btn btn-outline" onclick="openEdit('${r.rule_id}')">编辑</button>
+                    <button class="btn btn-outline" onclick="toggleEnabled('${r.rule_id}', ${!r.enabled})">${r.enabled ? '禁用' : '启用'}</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function toggleEnabled(ruleId, newState) {
+    fetch('/rules/api/rules/' + ruleId, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled: newState}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        for (const g of groups) {
+            const rule = g.rules.find(r => r.rule_id === ruleId);
+            if (rule) {
+                rule.enabled = newState;
+                g.enabled = g.rules.filter(r => r.enabled).length;
+                break;
+            }
+        }
+        selectGroup(currentGroup.source);
+        renderSetList();
+        document.querySelector(`[data-source="${currentGroup.source}"]`).classList.add('active');
+    });
+}
+
+function openEdit(ruleId) {
+    fetch('/rules/api/rules/' + ruleId)
+        .then(r => r.json())
+        .then(rule => {
+            currentRule = rule;
+            document.getElementById('modalTitle').textContent = '编辑规则 - ' + rule.name;
+            renderModalBody(rule);
+            document.getElementById('editModal').classList.add('open');
+        });
+}
+
+function closeModal() {
+    document.getElementById('editModal').classList.remove('open');
+    currentRule = null;
+}
+
+function renderModalBody(rule) {
+    let html = '';
+    html += `<div class="modal-field"><label>规则ID</label><div class="readonly">${rule.rule_id}</div></div>`;
+    html += `<div class="modal-field"><label>描述</label><div class="readonly">${rule.description}</div></div>`;
+    html += `<div class="modal-divider">基本属性</div>`;
+    html += `<div class="modal-field"><label>启用状态</label>
+        <label class="toggle-switch">
+            <input type="checkbox" id="editEnabled" ${rule.enabled ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+        </label>
+    </div>`;
+    html += `<div class="modal-field"><label>严重级别</label>
+        <select id="editSeverity">
+            ${severities.map(s => `<option value="${s.value}" ${rule.severity === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+        </select>
+    </div>`;
+    html += `<div class="modal-field"><label>审查类型</label>
+        <div class="review-type-btns">
+            ${reviewTypes.map(t => `
+                <label><input type="radio" name="editReviewType" value="${t.value}" ${rule.review_type === t.value ? 'checked' : ''}><span>${t.label}</span></label>
+            `).join('')}
+        </div>
+    </div>`;
+    html += `<div class="modal-field"><label>审查阶段</label>
+        <select id="editPhase">
+            ${phases.map(p => `<option value="${p.value}" ${rule.phase === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}
+        </select>
+    </div>`;
+
+    if (rule.params && Object.keys(rule.params).length > 0) {
+        html += `<div class="modal-divider">规则参数</div>`;
+        for (const [key, param] of Object.entries(rule.params)) {
+            html += renderParamField(key, param);
+        }
+    }
+
+    document.getElementById('modalBody').innerHTML = html;
+}
+
+function renderParamField(key, param) {
+    const label = param.label || key;
+    const type = param.type || 'text';
+
+    if (type === 'tag_list') {
+        const values = param.value || [];
+        return `<div class="modal-field">
+            <label>${label}</label>
+            <div class="tag-list" id="param_${key}">
+                ${values.map(v => `<span class="tag-item">${v}<span class="tag-remove" onclick="this.parentElement.remove()">&times;</span></span>`).join('')}
+                <input class="tag-input" placeholder="输入后回车添加" onkeydown="addTag(event, '${key}')">
+            </div>
+        </div>`;
+    }
+
+    if (type === 'number') {
+        const min = param.min !== undefined ? `min="${param.min}"` : '';
+        const max = param.max !== undefined ? `max="${param.max}"` : '';
+        return `<div class="modal-field">
+            <label>${label}</label>
+            <input type="number" id="param_${key}" value="${param.value !== undefined ? param.value : ''}" ${min} ${max}>
+        </div>`;
+    }
+
+    if (type === 'select') {
+        const options = param.options || [];
+        return `<div class="modal-field">
+            <label>${label}</label>
+            <select id="param_${key}">
+                ${options.map(o => `<option value="${o}" ${param.value === o ? 'selected' : ''}>${o}</option>`).join('')}
+            </select>
+        </div>`;
+    }
+
+    return `<div class="modal-field">
+        <label>${label}</label>
+        <input type="text" id="param_${key}" value="${param.value !== undefined ? param.value : ''}">
+    </div>`;
+}
+
+function addTag(event, key) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const input = event.target;
+    const value = input.value.trim();
+    if (!value) return;
+
+    const tagHtml = `<span class="tag-item">${value}<span class="tag-remove" onclick="this.parentElement.remove()">&times;</span></span>`;
+    input.insertAdjacentHTML('beforebegin', tagHtml);
+    input.value = '';
+}
+
+function saveRule() {
+    if (!currentRule) return;
+
+    const updates = {
+        enabled: document.getElementById('editEnabled').checked,
+        severity: document.getElementById('editSeverity').value,
+        review_type: document.querySelector('input[name="editReviewType"]:checked').value,
+        phase: document.getElementById('editPhase').value,
+    };
+
+    if (currentRule.params && Object.keys(currentRule.params).length > 0) {
+        const params = {};
+        for (const [key, param] of Object.entries(currentRule.params)) {
+            const type = param.type || 'text';
+            if (type === 'tag_list') {
+                const container = document.getElementById('param_' + key);
+                const tags = container.querySelectorAll('.tag-item');
+                params[key] = {label: param.label, type: param.type, value: Array.from(tags).map(t => t.textContent.replace('×', '').trim())};
+            } else if (type === 'number') {
+                const val = parseFloat(document.getElementById('param_' + key).value);
+                params[key] = {label: param.label, type: param.type, value: val};
+            } else {
+                const el = document.getElementById('param_' + key);
+                params[key] = {label: param.label, type: param.type, value: el.value};
+            }
+        }
+        updates.params = params;
+    }
+
+    fetch('/rules/api/rules/' + currentRule.rule_id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(updates),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        fetch('/rules/api/profiles')
+            .then(r => r.json())
+            .then(profileData => {
+                groups.length = 0;
+                groups.push(...profileData.groups);
+                closeModal();
+                renderSetList();
+                if (currentGroup) selectGroup(currentGroup.source);
+            });
+    });
+}
+
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+renderSetList();
+</script>
+{% endblock %}

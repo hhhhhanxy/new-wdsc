@@ -106,8 +106,25 @@
                     <p id="summaryText" style="font-size:13px;color:var(--text-secondary);line-height:1.6;"></p>
                 </div>
 
-                <div style="margin-top:14px;">
-                    <button class="btn btn-success" id="downloadBtn" onclick="downloadReport()">下载审查报告</button>
+                <div id="issueListSection" style="display:none; margin-top:14px;">
+                    <p class="section-title">问题详情</p>
+                    <table class="issue-table">
+                        <thead>
+                            <tr>
+                                <th>章节</th>
+                                <th>规则</th>
+                                <th>级别</th>
+                                <th>来源</th>
+                                <th>问题描述</th>
+                            </tr>
+                        </thead>
+                        <tbody id="issueTableBody"></tbody>
+                    </table>
+                    <div id="noIssuesHint" class="empty-state" style="display:none;">未发现问题</div>
+                </div>
+
+                <div style="margin-top:14px; display:flex; gap:8px;">
+                    <button class="btn btn-success" onclick="downloadReport()">下载 DOCX 报告</button>
                 </div>
             </div>
         </div>
@@ -255,6 +272,42 @@ function showResult(data) {
     if (result.summary) {
         document.getElementById('summarySection').style.display = 'block';
         document.getElementById('summaryText').textContent = result.summary;
+    }
+
+    // 渲染问题详情表格
+    const issues = [];
+    (result.sections || []).forEach(sec => {
+        (sec.issues || []).forEach(iss => {
+            issues.push({
+                section: sec.section_id || '-',
+                rule: iss.rule_name || '-',
+                severity: iss.severity || 'warning',
+                source: iss.rule_source || 'RULE',
+                message: iss.message || '',
+            });
+        });
+    });
+
+    const issueSection = document.getElementById('issueListSection');
+    const issueBody = document.getElementById('issueTableBody');
+    const noIssues = document.getElementById('noIssuesHint');
+
+    if (issues.length > 0) {
+        issueSection.style.display = 'block';
+        noIssues.style.display = 'none';
+        issueBody.innerHTML = issues.map(iss => `
+            <tr>
+                <td>${iss.section}</td>
+                <td>${iss.rule}</td>
+                <td><span class="badge badge-${iss.severity === 'error' ? 'danger' : iss.severity === 'warning' ? 'warning' : 'info'}">${iss.severity === 'error' ? '错误' : iss.severity === 'warning' ? '警告' : '信息'}</span></td>
+                <td>${iss.source}</td>
+                <td>${iss.message}</td>
+            </tr>
+        `).join('');
+    } else {
+        issueSection.style.display = 'block';
+        noIssues.style.display = '';
+        issueBody.innerHTML = '';
     }
 
     resetUI();

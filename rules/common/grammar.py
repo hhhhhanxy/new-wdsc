@@ -74,5 +74,8 @@ def create_grammar_rule() -> Rule:
                 "value": "yes",
                 "options": ["yes", "no"],
             }
-        }
+        },
+        code="GR-001",
+        logic='逐词扫描"的、地、得"用法，依据语法规则判断其后应接名词、动词或形容词/副词，使用不当即判定不通过',
+        standard_ref="GB/T 15834 标点符号用法",
     )

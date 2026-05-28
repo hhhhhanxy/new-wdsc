@@ -37,6 +37,9 @@ def create_actuator_rules():
                     "type": "tag_list",
                     "value": ["作动器", "冗余", "液压", "电传"],
                 }
-            }
+            },
+            code="AV-001",
+            logic="检查文档是否包含作动器、冗余、液压、电传四个关键术语，缺少任一即判定不通过",
+            standard_ref="GJB 438B 第5.3.2条 关键术语要求",
         )
     ]

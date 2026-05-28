@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}文档审查与生成平台{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Mobile top bar (hidden on desktop) -->
+    <div class="mobile-topbar" style="display:none;">
+        <button onclick="toggleSidebar()">&#9776;</button>
+        <span>文档审查平台</span>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <h2>文档审查平台</h2>
+            <small>航空作动产品技术文档</small>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="{{ 'active' if active_page == 'index' else '' }}" onclick="closeSidebarMobile()">
+                <span class="nav-icon">&#9776;</span> <span>首页</span>
+            </a>
+            <a href="/review/" class="{{ 'active' if active_page == 'review' else '' }}" onclick="closeSidebarMobile()">
+                <span class="nav-icon">&#128269;</span> <span>文档审查</span>
+            </a>
+            <a href="/generate/" class="{{ 'active' if active_page == 'generate' else '' }}" onclick="closeSidebarMobile()">
+                <span class="nav-icon">&#9997;</span> <span>文档生成</span>
+            </a>
+            <a href="/rules/" class="{{ 'active' if active_page == 'rules' else '' }}" onclick="closeSidebarMobile()">
+                <span class="nav-icon">&#128295;</span> <span>规则管理</span>
+            </a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
+    function closeSidebarMobile() {
+        if (window.innerWidth <= 640) {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+        }
+    }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

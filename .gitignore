@@ -65,6 +65,7 @@ uploads/generated/
 # Config and examples (local development only)
 config/*.py
 !config/__init__.py
+!config/rule_overrides.py
 examples/
 
 # Test documents (generated reports)

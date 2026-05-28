@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}首页 - 文档审查与生成平台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>航空航天技术文档审查与生成平台</h1>
+    <p>覆盖需求文档、通用特性文档、技术说明书、验证文档四大类型</p>
+</div>
+
+<div class="quick-actions">
+    <a href="/review/" class="quick-card blue">
+        <div class="card-icon">&#128196;</div>
+        <div class="card-body">
+            <h3>上传文档审查</h3>
+            <p>上传DOCX文件，自动进行规则+LLM混合审查</p>
+        </div>
+    </a>
+    <a href="/generate/" class="quick-card green">
+        <div class="card-icon">&#10024;</div>
+        <div class="card-body">
+            <h3>生成新文档</h3>
+            <p>选择模板，输入需求，自动生成技术文档</p>
+        </div>
+    </a>
+    <a href="/review/" class="quick-card orange">
+        <div class="card-icon">&#128203;</div>
+        <div class="card-body">
+            <h3>查看历史</h3>
+            <p>浏览审查历史记录和报告</p>
+        </div>
+    </a>
+    <a href="/rules/" class="quick-card purple">
+        <div class="card-icon">&#9881;</div>
+        <div class="card-body">
+            <h3>规则管理</h3>
+            <p>配置审查规则和行业规范</p>
+        </div>
+    </a>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-value blue">{{ stats.pending }}</div>
+        <div class="stat-label">待审查</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value orange">{{ stats.processing }}</div>
+        <div class="stat-label">审查中</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value green">{{ stats.completed }}</div>
+        <div class="stat-label">已完成</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value purple">{{ stats.pass_rate }}%</div>
+        <div class="stat-label">通过率</div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-title">最近审查记录</div>
+    {% if recent_tasks %}
+    <ul class="task-list">
+        {% for task in recent_tasks %}
+        <li class="task-item">
+            <div class="task-info">
+                <div class="task-name">{{ task.filename }}</div>
+                <div class="task-meta">{{ task.created_at }}</div>
+            </div>
+            <span class="badge badge-{{ 'success' if task.status == 'completed' else 'warning' if task.status == 'processing' else 'danger' if task.status in ('failed', 'blocked') else 'default' }}">
+                {{ '已完成' if task.status == 'completed' else '审查中' if task.status == 'processing' else '失败' if task.status == 'failed' else '安全阻断' if task.status == 'blocked' else task.status }}
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">暂无审查记录</div>
+    {% endif %}
+</div>
+{% endblock %}

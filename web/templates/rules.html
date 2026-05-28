@@ -11,7 +11,10 @@
     <!-- Left: Rule set list -->
     <div>
         <div class="panel">
-            <div class="panel-title">规则集</div>
+            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>规则集</span>
+                <button class="btn btn-outline" style="padding:4px 12px;font-size:11px;" onclick="openCreateSetModal()">+ 新建规则集</button>
+            </div>
             <ul class="rule-set-list" id="ruleSetList">
             </ul>
             <div class="rule-stats" id="ruleStats"></div>
@@ -21,7 +24,10 @@
     <!-- Right: Rules table -->
     <div>
         <div class="panel">
-            <div class="panel-title" id="currentSetTitle">请选择规则集</div>
+            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span id="currentSetTitle">请选择规则集</span>
+                <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:4px 12px;font-size:11px;" onclick="openCreateRuleModal()">+ 添加规则</button>
+            </div>
             <table class="rule-table" id="ruleTable" style="display:none;">
                 <thead>
                     <tr>
@@ -52,6 +58,74 @@
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeModal()">取消</button>
             <button class="btn btn-primary" onclick="saveRule()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create Set Modal -->
+<div class="modal-overlay" id="createSetModal">
+    <div class="modal" style="width:400px;">
+        <div class="modal-header">
+            <h3>新建规则集</h3>
+            <button class="modal-close" onclick="closeCreateSetModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-field">
+                <label>规则集标识（英文，如 my_rules）</label>
+                <input type="text" id="newSetSource" placeholder="my_rules">
+            </div>
+            <div class="modal-field">
+                <label>显示名称</label>
+                <input type="text" id="newSetName" placeholder="我的规则集">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeCreateSetModal()">取消</button>
+            <button class="btn btn-primary" onclick="createSet()">创建</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create Rule Modal -->
+<div class="modal-overlay" id="createRuleModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="createRuleTitle">添加新规则</h3>
+            <button class="modal-close" onclick="closeCreateRuleModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-field">
+                <label>规则ID（英文，如 my_check）</label>
+                <input type="text" id="newRuleId" placeholder="my_check">
+            </div>
+            <div class="modal-field">
+                <label>规则名称</label>
+                <input type="text" id="newRuleName" placeholder="我的检查规则">
+            </div>
+            <div class="modal-field">
+                <label>描述</label>
+                <input type="text" id="newRuleDesc" placeholder="规则描述">
+            </div>
+            <div class="modal-divider">属性配置</div>
+            <div class="modal-field"><label>严重级别</label>
+                <select id="newRuleSeverity">
+                    ${severities.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}
+                </select>
+            </div>
+            <div class="modal-field"><label>审查类型</label>
+                <select id="newRuleReviewType">
+                    ${reviewTypes.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
+                </select>
+            </div>
+            <div class="modal-field"><label>审查阶段</label>
+                <select id="newRulePhase">
+                    ${phases.map(p => `<option value="${p.value}">${p.label}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeCreateRuleModal()">取消</button>
+            <button class="btn btn-primary" onclick="createRule()">添加</button>
         </div>
     </div>
 </div>
@@ -90,7 +164,10 @@ function renderSetList() {
     list.innerHTML = groups.map(g => `
         <li class="rule-set-item" data-source="${g.source}" onclick="selectGroup('${g.source}')">
             <span class="set-name">${g.display_name}</span>
-            <span class="set-count">${g.enabled}/${g.total}</span>
+            <span style="display:flex;align-items:center;gap:6px;">
+                <span class="set-count">${g.enabled}/${g.total}</span>
+                ${g.custom ? `<span class="tag-remove" onclick="event.stopPropagation();deleteSet('${g.source}')" title="删除规则集">&times;</span>` : ''}
+            </span>
         </li>
     `).join('');
 
@@ -108,6 +185,7 @@ function selectGroup(source) {
     document.getElementById('currentSetTitle').textContent = currentGroup.display_name;
     document.getElementById('noRulesHint').style.display = 'none';
     document.getElementById('ruleTable').style.display = '';
+    document.getElementById('addRuleBtn').style.display = '';
 
     renderRuleTable(currentGroup.rules);
 }
@@ -128,6 +206,7 @@ function renderRuleTable(rules) {
                 <div class="rule-actions">
                     <button class="btn btn-outline" onclick="openEdit('${r.rule_id}')">编辑</button>
                     <button class="btn btn-outline" onclick="toggleEnabled('${r.rule_id}', ${!r.enabled})">${r.enabled ? '禁用' : '启用'}</button>
+                    ${r.custom ? `<button class="btn btn-outline" style="color:var(--danger);" onclick="deleteRule('${r.rule_id}')">删除</button>` : ''}
                 </div>
             </td>
         </tr>
@@ -154,6 +233,16 @@ function toggleEnabled(ruleId, newState) {
         selectGroup(currentGroup.source);
         renderSetList();
         document.querySelector(`[data-source="${currentGroup.source}"]`).classList.add('active');
+    });
+}
+
+function deleteRule(ruleId) {
+    if (!confirm('确定删除此规则？')) return;
+    fetch('/rules/api/rules/' + ruleId, {method: 'DELETE'})
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        reloadProfiles(() => selectGroup(currentGroup.source));
     });
 }
 
@@ -316,6 +405,114 @@ function saveRule() {
 document.getElementById('editModal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
+
+document.getElementById('createSetModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCreateSetModal();
+});
+
+document.getElementById('createRuleModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCreateRuleModal();
+});
+
+// ---- Create Set ----
+function openCreateSetModal() {
+    document.getElementById('newSetSource').value = '';
+    document.getElementById('newSetName').value = '';
+    document.getElementById('createSetModal').classList.add('open');
+}
+
+function closeCreateSetModal() {
+    document.getElementById('createSetModal').classList.remove('open');
+}
+
+function createSet() {
+    const source = document.getElementById('newSetSource').value.trim();
+    const name = document.getElementById('newSetName').value.trim();
+    if (!source || !name) { alert('请填写完整'); return; }
+
+    fetch('/rules/api/sets', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({source: source, display_name: name}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        reloadProfiles();
+        closeCreateSetModal();
+    });
+}
+
+function deleteSet(source) {
+    if (!confirm('确定删除规则集？')) return;
+    fetch('/rules/api/sets/' + source, {method: 'DELETE'})
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        if (currentGroup && currentGroup.source === source) {
+            currentGroup = null;
+            document.getElementById('currentSetTitle').textContent = '请选择规则集';
+            document.getElementById('ruleTable').style.display = 'none';
+            document.getElementById('noRulesHint').style.display = '';
+            document.getElementById('addRuleBtn').style.display = 'none';
+        }
+        reloadProfiles();
+    });
+}
+
+// ---- Create Rule ----
+function openCreateRuleModal() {
+    if (!currentGroup) return;
+    document.getElementById('newRuleId').value = '';
+    document.getElementById('newRuleName').value = '';
+    document.getElementById('newRuleDesc').value = '';
+    document.getElementById('createRuleTitle').textContent = '添加新规则 - ' + currentGroup.display_name;
+    document.getElementById('createRuleModal').classList.add('open');
+}
+
+function closeCreateRuleModal() {
+    document.getElementById('createRuleModal').classList.remove('open');
+}
+
+function createRule() {
+    const ruleId = document.getElementById('newRuleId').value.trim();
+    const name = document.getElementById('newRuleName').value.trim();
+    const desc = document.getElementById('newRuleDesc').value.trim();
+    if (!ruleId || !name) { alert('规则ID和名称不能为空'); return; }
+
+    fetch('/rules/api/rules', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            rule_id: ruleId,
+            name: name,
+            description: desc,
+            source: currentGroup.source,
+            severity: document.getElementById('newRuleSeverity').value,
+            review_type: document.getElementById('newRuleReviewType').value,
+            phase: document.getElementById('newRulePhase').value,
+        }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        closeCreateRuleModal();
+        reloadProfiles(() => selectGroup(currentGroup.source));
+    });
+}
+
+// ---- Reload ----
+function reloadProfiles(callback) {
+    fetch('/rules/api/profiles')
+        .then(r => r.json())
+        .then(data => {
+            groups.length = 0;
+            groups.push(...data.groups);
+            // update counts
+            renderSetList();
+            if (callback) callback();
+        });
+}
 
 renderSetList();
 </script>

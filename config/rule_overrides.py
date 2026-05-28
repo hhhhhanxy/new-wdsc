@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "rule_overrides.json")
 
 VALID_OVERRIDE_FIELDS = {"enabled", "severity", "review_type", "phase", "params"}
+CUSTOM_RULE_FIELDS = {"source", "name", "description", "category"}
 
 
 def load_overrides() -> Dict[str, Dict[str, Any]]:
@@ -39,13 +40,33 @@ def save_overrides(overrides: Dict[str, Dict[str, Any]]):
     logger.info("规则覆盖已保存到 %s", OVERRIDES_FILE)
 
 
+def _deserialize_value(field_name, value):
+    """将 JSON 值反序列化为对应枚举类型。"""
+    if field_name == "severity":
+        from rules.base_rule import RuleSeverity
+        return RuleSeverity(value)
+    elif field_name == "review_type":
+        from rules.base_rule import ReviewType
+        return ReviewType(value)
+    elif field_name == "phase":
+        from rules.base_rule import ReviewPhase
+        return ReviewPhase(value)
+    elif field_name == "category":
+        from rules.base_rule import RuleCategory
+        return RuleCategory(value)
+    return value
+
+
 def apply_overrides(rules: List) -> List:
-    """将 override 配置 merge 到规则列表上。"""
+    """将 override 配置 merge 到规则列表上，并创建自定义规则。"""
     overrides = load_overrides()
 
     if not overrides:
         return rules
 
+    existing_ids = {r.rule_id for r in rules}
+
+    # 处理已有规则的覆盖
     for rule in rules:
         rule_overrides = overrides.get(rule.rule_id)
         if not rule_overrides:
@@ -56,32 +77,42 @@ def apply_overrides(rules: List) -> List:
                 logger.debug("忽略未知字段 %s.%s", rule.rule_id, field_name)
                 continue
 
-            if field_name == "severity":
-                from rules.base_rule import RuleSeverity
-                try:
-                    value = RuleSeverity(value)
-                except ValueError:
-                    logger.warning("非法 severity 值 %s for %s，跳过", value, rule.rule_id)
-                    continue
-            elif field_name == "review_type":
-                from rules.base_rule import ReviewType
-                try:
-                    value = ReviewType(value)
-                except ValueError:
-                    logger.warning("非法 review_type 值 %s for %s，跳过", value, rule.rule_id)
-                    continue
-            elif field_name == "phase":
-                from rules.base_rule import ReviewPhase
-                try:
-                    value = ReviewPhase(value)
-                except ValueError:
-                    logger.warning("非法 phase 值 %s for %s，跳过", value, rule.rule_id)
-                    continue
+            try:
+                value = _deserialize_value(field_name, value)
+            except (ValueError, TypeError):
+                logger.warning("非法 %s 值 %s for %s，跳过", field_name, value, rule.rule_id)
+                continue
 
             try:
                 setattr(rule, field_name, value)
             except AttributeError:
                 logger.warning("无法设置字段 %s.%s", rule.rule_id, field_name)
+
+    # 创建自定义规则（override 中有 name + source 但不在已有规则中）
+    from rules.base_rule import Rule, RuleCategory, RuleSeverity, ReviewType, ReviewPhase
+
+    for rule_id, rule_data in overrides.items():
+        if rule_id in existing_ids:
+            continue
+        if "name" not in rule_data or "source" not in rule_data:
+            continue
+
+        try:
+            rule = Rule(
+                rule_id=rule_id,
+                name=rule_data.get("name", rule_id),
+                description=rule_data.get("description", ""),
+                category=RuleCategory(rule_data.get("category", "custom")),
+                severity=RuleSeverity(rule_data.get("severity", "warning")),
+                enabled=rule_data.get("enabled", True),
+                source=rule_data["source"],
+                review_type=ReviewType(rule_data.get("review_type", "rule")),
+                phase=ReviewPhase(rule_data.get("phase", "format")),
+                params=rule_data.get("params", {}),
+            )
+            rules.append(rule)
+        except (ValueError, TypeError) as e:
+            logger.warning("无法创建自定义规则 %s: %s", rule_id, e)
 
     return rules
 

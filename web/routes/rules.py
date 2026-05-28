@@ -67,6 +67,9 @@ def _serialize_rule(rule: Rule) -> dict:
         "doc_types": [dt.value for dt in rule.doc_types],
         "params": rule.params,
         "custom": is_custom,
+        "code": rule.code,
+        "logic": rule.logic,
+        "standard_ref": rule.standard_ref,
     }
 
 

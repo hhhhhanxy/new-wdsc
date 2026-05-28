@@ -25,21 +25,32 @@ class RuleLoader:
         return create_actuator_rules()
 
     @staticmethod
-    def load_all_rules(profile: str = "default") -> List[Rule]:
+    def load_extension_rules() -> List[Rule]:
+        """加载扩展贡献的规则。"""
+        from extensions.discovery import collect_from_extensions
+        return collect_from_extensions("register_rules")
+
+    @staticmethod
+    def load_all_rules(profile: str = "default", include_extensions: bool = True) -> List[Rule]:
         rules: List[Rule] = []
 
-        # 1️⃣ 通用规则
+        # 1. 通用规则
         rules.extend(RuleLoader.load_common_rules())
 
-        # 2️⃣ 行业规则（可扩展）
+        # 2. 行业规则
         profile_map = {
             "aviation": RuleLoader.load_aviation_rules,
-            # 未来可以扩展：
-            # "space": load_space_rules,
-            # "aircraft": load_aircraft_rules
         }
 
         if profile in profile_map:
             rules.extend(profile_map[profile]())
+
+        # 3. 扩展规则
+        if include_extensions:
+            rules.extend(RuleLoader.load_extension_rules())
+
+        # 4. 应用用户覆盖
+        from config.rule_overrides import apply_overrides
+        rules = apply_overrides(rules)
 
         return rules

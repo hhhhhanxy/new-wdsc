@@ -86,7 +86,7 @@ def create_format_rule() -> Rule:
         category=RuleCategory.FORMAT,
         severity=RuleSeverity.WARNING,
         check_func=checker.check,
-        review_type=ReviewType.BOTH,
+        review_type=ReviewType.RULE,
         params={
             "check_punctuation": {
                 "label": "检查标点符号",

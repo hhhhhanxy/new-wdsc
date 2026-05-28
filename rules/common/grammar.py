@@ -1,7 +1,7 @@
 import re
 from typing import List
 from models.document import DocumentSection, ContentType
-from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, ReviewType
+from rules.base_rule import Rule, RuleResult, RuleSeverity, RuleCategory, ReviewType, ReviewPhase
 
 class GrammarChecker:
 
@@ -65,7 +65,8 @@ def create_grammar_rule() -> Rule:
         category=RuleCategory.CONTENT,
         severity=RuleSeverity.WARNING,
         check_func=checker.check,
-        review_type=ReviewType.BOTH,
+        review_type=ReviewType.RULE,
+        phase=ReviewPhase.COMPLETENESS,
         params={
             "check_de_di_de": {
                 "label": "检查的地得用法",

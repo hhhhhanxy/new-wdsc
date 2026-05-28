@@ -9,7 +9,11 @@ def create_app():
     app = Flask(__name__)
 
     # Configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+    secret_key = os.environ.get('SECRET_KEY')
+    if not secret_key:
+        import secrets
+        secret_key = secrets.token_hex(32)
+    app.config['SECRET_KEY'] = secret_key
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), '..', 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 
@@ -25,10 +29,16 @@ def create_app():
     from web.routes import bp as index_bp
     from web.routes.review import bp as review_bp
     from web.routes.generate import bp as generate_bp
+    from web.routes.rules import bp as rules_bp
 
     app.register_blueprint(index_bp)
     app.register_blueprint(review_bp, url_prefix='/review')
     app.register_blueprint(generate_bp, url_prefix='/generate')
+    app.register_blueprint(rules_bp, url_prefix='/rules')
+
+    # Load extensions
+    from extensions.registry import get_registry
+    get_registry().load_extensions()
 
     return app
 

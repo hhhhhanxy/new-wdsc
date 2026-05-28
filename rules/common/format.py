@@ -86,5 +86,20 @@ def create_format_rule() -> Rule:
         category=RuleCategory.FORMAT,
         severity=RuleSeverity.WARNING,
         check_func=checker.check,
-        review_type=ReviewType.BOTH
+        review_type=ReviewType.BOTH,
+        params={
+            "check_punctuation": {
+                "label": "检查标点符号",
+                "type": "select",
+                "value": "yes",
+                "options": ["yes", "no"],
+            },
+            "max_consecutive_spaces": {
+                "label": "最大连续空格数",
+                "type": "number",
+                "value": 3,
+                "min": 1,
+                "max": 10,
+            }
+        }
     )

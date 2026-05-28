@@ -65,5 +65,13 @@ def create_grammar_rule() -> Rule:
         category=RuleCategory.CONTENT,
         severity=RuleSeverity.WARNING,
         check_func=checker.check,
-        review_type=ReviewType.BOTH
+        review_type=ReviewType.BOTH,
+        params={
+            "check_de_di_de": {
+                "label": "检查的地得用法",
+                "type": "select",
+                "value": "yes",
+                "options": ["yes", "no"],
+            }
+        }
     )

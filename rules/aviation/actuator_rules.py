@@ -29,6 +29,13 @@ def create_actuator_rules():
             check_func=check_actuator_keywords,
             source="aviation",
             enabled=False,
-            review_type=ReviewType.LLM 
+            review_type=ReviewType.LLM,
+            params={
+                "keywords": {
+                    "label": "必须包含术语",
+                    "type": "tag_list",
+                    "value": ["作动器", "冗余", "液压", "电传"],
+                }
+            }
         )
     ]

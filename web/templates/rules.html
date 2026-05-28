@@ -2,6 +2,20 @@
 {% block title %}规则管理 - 文档审查与生成平台{% endblock %}
 
 {% block content %}
+<style>
+/* 规则管理页面紫色主题 */
+.main-content { --primary: #8e24aa; --primary-dark: #7b1fa2; }
+.sidebar-nav a.active { border-left-color: #8e24aa; }
+.rule-set-item.active { background: #f3e5f5; border-left-color: var(--primary); }
+.tag-item { background: #f3e5f5; color: var(--primary); }
+.tag-item .tag-remove { color: var(--primary); }
+.modal-field select:focus,
+.modal-field input:focus { border-color: var(--primary); }
+.review-type-btns input:checked + span { color: var(--primary); }
+.review-type-btns label:has(input:checked) { border-color: var(--primary); background: #f3e5f5; }
+.btn-primary { background: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+</style>
 <div class="page-header">
     <h1>规则管理</h1>
     <p>查看和管理审查规则集，编辑规则属性和参数</p>

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "rule_overrides.json")
 
-VALID_OVERRIDE_FIELDS = {"enabled", "severity", "review_type", "phase", "params"}
+VALID_OVERRIDE_FIELDS = {"enabled", "severity", "review_type", "phase", "params", "code", "logic", "standard_ref"}
 CUSTOM_RULE_FIELDS = {"source", "name", "description", "category"}
 
 

@@ -40,6 +40,7 @@ class Database:
                 filename TEXT NOT NULL,
                 filepath TEXT NOT NULL,
                 mode TEXT NOT NULL,
+                rule_set TEXT DEFAULT 'all',
                 status TEXT NOT NULL DEFAULT 'pending',
                 progress INTEGER DEFAULT 0,
                 result TEXT,
@@ -48,6 +49,7 @@ class Database:
                 completed_at TIMESTAMP
             )
         ''')
+        self._ensure_column(cursor, 'review_tasks', 'rule_set', "TEXT DEFAULT 'all'")
 
         # Generate tasks table
         cursor.execute('''
@@ -67,6 +69,12 @@ class Database:
 
         self.conn.commit()
 
+    def _ensure_column(self, cursor, table: str, column: str, definition: str):
+        cursor.execute(f'PRAGMA table_info({table})')
+        columns = {row[1] for row in cursor.fetchall()}
+        if column not in columns:
+            cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+
     def get_review_task(self, task_id: int) -> Optional[Dict[str, Any]]:
         """Get review task by ID"""
         cursor = self.conn.cursor()
@@ -74,13 +82,13 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def create_review_task(self, filename: str, filepath: str, mode: str) -> int:
+    def create_review_task(self, filename: str, filepath: str, mode: str, rule_set: str = 'all') -> int:
         """Create a new review task and return its ID"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO review_tasks (filename, filepath, mode, status)
-            VALUES (?, ?, ?, 'pending')
-        ''', (filename, filepath, mode))
+            INSERT INTO review_tasks (filename, filepath, mode, rule_set, status)
+            VALUES (?, ?, ?, ?, 'pending')
+        ''', (filename, filepath, mode, rule_set))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -139,7 +147,7 @@ class Database:
         """Get recent review tasks"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            SELECT id, filename, status, progress, created_at
+            SELECT id, filename, status, progress, rule_set, created_at
             FROM review_tasks
             ORDER BY created_at DESC
             LIMIT ?

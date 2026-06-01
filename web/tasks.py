@@ -6,13 +6,13 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from core.executor import ReviewExecutor
+from core.executor import ReviewExecutor, ReviewMode
 from rules.base_rule import RuleRegistry
 from rules.loaders.rule_loader import RuleLoader
 from llm.client import LLMClientFactory
 from parsers.docx_parser import ParserFactory
 from config.settings import settings
-from datetime import datetime
+from web.time_utils import beijing_now_str
 import json
 import logging
 
@@ -27,20 +27,36 @@ def update_task_progress(db, task_id: int, progress: int, status: str = None):
         db.update_review_task(task_id, progress=progress)
 
 
-def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_set: str, db):
+def run_review_task(task_id: int, filepath: str, rule_set: str, db):
     """Execute document review task in background thread"""
     try:
-        logger.info(f"Starting review task {task_id} for {filepath} (doc_type={doc_type}, rule_set={rule_set})")
+        logger.info(f"Starting review task {task_id} for {filepath} (rule_set={rule_set})")
 
         # Update status to processing
         update_task_progress(db, task_id, 0, 'processing')
 
         # Initialize components
-        all_rules = RuleLoader.load_all_rules(profile="aviation")
+        all_rules = RuleLoader.load_all_rules(profile="default")
 
         # 按规则集筛选
         if rule_set and rule_set != 'all':
             all_rules = [r for r in all_rules if r.source == rule_set]
+        enabled_rules = [r for r in all_rules if r.enabled]
+        rule_snapshot = {
+            r.rule_id: {
+                "rule_id": r.rule_id,
+                "name": r.name,
+                "code": r.code,
+                "description": r.description,
+                "logic": r.logic,
+                "standard_ref": r.standard_ref,
+                "severity": r.severity.value,
+                "review_type": r.review_type.value,
+                "source": r.source,
+                "enabled": r.enabled,
+            }
+            for r in enabled_rules
+        }
 
         llm_client = LLMClientFactory.create_client(settings.llm_provider)
 
@@ -53,20 +69,6 @@ def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_
         parser = ParserFactory.get_parser(".docx")
         document = parser.parse(filepath)
 
-        # Set document type (user selection or auto-detect)
-        from models.document import DocumentType
-        if doc_type and doc_type != 'auto':
-            try:
-                document.doc_type = DocumentType(doc_type)
-            except ValueError:
-                pass
-        if not document.doc_type:
-            from parsers.doc_type_detector import DocumentTypeDetector
-            detector_type = DocumentTypeDetector(llm_client=llm_client)
-            document.detected_doc_type = detector_type.detect(document)
-            if not document.doc_type:
-                document.doc_type = document.detected_doc_type
-
         # Security classification check (pre-processing gate)
         update_task_progress(db, task_id, 15)
         from security.classification_detector import ClassificationDetector
@@ -78,14 +80,14 @@ def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_
                 task_id,
                 status='blocked',
                 error=sec_result.warning_message,
-                completed_at=datetime.now().isoformat()
+                completed_at=beijing_now_str()
             )
             return
 
         executor = ReviewExecutor(
             rule_registry=registry,
             llm_client=llm_client,
-            mode=mode
+            mode=ReviewMode.BOTH
         )
 
         # Execute review
@@ -100,11 +102,15 @@ def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_
             for rr in sr.rule_results:
                 if not rr.passed:
                     issues.append({
+                        'rule_id': rr.rule_id,
                         'rule_name': rr.rule_name,
+                        'rule_code': rule_snapshot.get(rr.rule_id, {}).get('code', ''),
                         'rule_source': rr.rule_source,
                         'severity': rr.severity.value,
                         'message': rr.message,
                         'suggestions': rr.suggestions,
+                        'rule_reference': rr.rule_reference or rule_snapshot.get(rr.rule_id, {}).get('standard_ref', ''),
+                        'rule_logic': rule_snapshot.get(rr.rule_id, {}).get('logic', ''),
                     })
             sections_data.append({
                 'section_id': sr.section_id,
@@ -120,6 +126,10 @@ def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_
             'warnings': result.warnings,
             'llm_issues': getattr(result, 'llm_issues', 0),
             'summary': result.summary,
+            'review_time': beijing_now_str(),
+            'review_duration': result.review_time,
+            'rule_set': rule_set or 'all',
+            'rule_snapshot': rule_snapshot,
             'sections': sections_data,
         }
 
@@ -129,7 +139,7 @@ def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_
             result=json.dumps(result_data),
             status='completed',
             progress=100,
-            completed_at=datetime.now().isoformat()
+            completed_at=result_data['review_time']
         )
 
         logger.info(f"Review task {task_id} completed successfully")
@@ -144,5 +154,5 @@ def run_review_task(task_id: int, filepath: str, mode: str, doc_type: str, rule_
             task_id,
             status='failed',
             error=str(e),
-            completed_at=datetime.now().isoformat()
+            completed_at=beijing_now_str()
         )

@@ -45,7 +45,7 @@ class DocumentReviewer:
         )
     
     def _load_default_rules(self):
-        rules = RuleLoader.load_all_rules(profile="aviation")
+        rules = RuleLoader.load_all_rules(profile="default")
         for rule in rules:
             self.rule_registry.register(rule)
     

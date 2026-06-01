@@ -4,60 +4,39 @@
 {% block content %}
 <div class="page-header">
     <h1>文档生成</h1>
-    <p>选择文档类型和模板，自动生成符合规范的技术文档</p>
+    <p>由用户维护生成定义，平台按定义生成技术文档</p>
 </div>
 
 <div class="two-col">
     <!-- Left: Config -->
     <div>
-        <!-- Step 1: Doc type -->
-        <p class="section-step">1. 选择文档类型</p>
-        <div class="doc-type-grid">
-            <div class="doc-type-card selected" data-type="requirements" onclick="selectDocType(this)">
-                <div class="type-icon">&#128203;</div>
-                <div class="type-name">需求文档</div>
-                <div class="type-desc">航空产品需求文档标准模板</div>
+        <!-- Step 1: Definition -->
+        <p class="section-step">1. 文档生成定义</p>
+        <div class="config-section">
+            <div class="form-group">
+                <label>文档类型/用途</label>
+                <input type="text" class="form-control" id="docType" placeholder="例如：某类设计说明、试验报告、审签记录">
             </div>
-            <div class="doc-type-card" data-type="general_characteristics" onclick="selectDocType(this)">
-                <div class="type-icon">&#128200;</div>
-                <div class="type-name">通用特性文档</div>
-                <div class="type-desc">产品物理特性与功能特性模板</div>
-            </div>
-            <div class="doc-type-card" data-type="technical_specification" onclick="selectDocType(this)">
-                <div class="type-icon">&#128295;</div>
-                <div class="type-name">技术说明书</div>
-                <div class="type-desc">系统设计与接口定义模板</div>
-            </div>
-            <div class="doc-type-card" data-type="verification" onclick="selectDocType(this)">
-                <div class="type-icon">&#9989;</div>
-                <div class="type-name">验证文档</div>
-                <div class="type-desc">验证方法与测试结果模板</div>
+            <div class="form-group">
+                <label>生成定义</label>
+                <textarea class="form-control" id="generationDefinition" placeholder="写明章节结构、内容要求、写作口径、必填字段、禁止事项、输出格式等..." style="min-height:150px;"></textarea>
             </div>
         </div>
 
-        <!-- Step 2: Template info -->
-        <p class="section-step">2. 模板信息</p>
-        <div class="config-section" id="templateInfo">
-            <div style="font-weight:600;margin-bottom:6px;" id="templateName">需求文档模板</div>
-            <div style="font-size:12px;color:var(--text-secondary);" id="templateStructure">
-                章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.需求 &rarr; 4.验证 &rarr; 5.质量保证
-            </div>
-        </div>
-
-        <!-- Step 3: Input -->
-        <p class="section-step">3. 输入需求信息</p>
+        <!-- Step 2: Input -->
+        <p class="section-step">2. 输入素材</p>
         <div class="config-section">
             <div class="form-group">
                 <label>文档标题</label>
-                <input type="text" class="form-control" id="docTitle" placeholder="例如：电动作动系统设计说明书">
+                <input type="text" class="form-control" id="docTitle" placeholder="请输入生成文档的标题">
             </div>
             <div class="form-group">
-                <label>产品描述</label>
-                <textarea class="form-control" id="docDesc" placeholder="输入产品功能、性能指标、应用场景等..."></textarea>
+                <label>背景说明</label>
+                <textarea class="form-control" id="docDesc" placeholder="输入任务背景、对象说明、适用范围等..."></textarea>
             </div>
             <div class="form-group">
-                <label>关键技术参数</label>
-                <textarea class="form-control" id="docParams" placeholder="响应时间、行程、推力、工作温度等..." style="min-height:60px;"></textarea>
+                <label>关键参数/素材</label>
+                <textarea class="form-control" id="docParams" placeholder="输入可用于生成的参数、条目、约束、数据或参考摘要..." style="min-height:80px;"></textarea>
             </div>
             <div class="form-group">
                 <label>参考文档（可选）</label>
@@ -70,7 +49,7 @@
 
         <!-- Step 4: Generate -->
         <button class="btn btn-success btn-block" id="generateBtn" onclick="startGenerate()">
-            基于模板生成文档
+            按定义生成文档
         </button>
     </div>
 
@@ -134,15 +113,15 @@
         <div class="panel" style="margin-top:16px;">
             <div class="panel-title">生成说明</div>
             <ul style="font-size:12px;color:var(--text-secondary);line-height:1.8;padding-left:16px;">
-                <li>生成后的文档将遵循模板的章节结构和格式要求</li>
-                <li>基于 LLM 自动填充各章节内容</li>
+                <li>平台只提供生成执行能力，具体章节和内容要求由用户填写</li>
+                <li>生成时会按用户定义组织正文，并执行安全检测</li>
                 <li>生成后可在 Word 中进一步编辑调整</li>
                 <li>支持导出为 DOCX 格式</li>
             </ul>
         </div>
 
         <div class="alert alert-warning" style="margin-top:12px;">
-            提示：提供越详细的产品描述和技术参数，生成的文档质量越高。
+            提示：生成定义越明确，输出越稳定；请勿输入不应在平台处理的敏感内容。
         </div>
     </div>
 </div>
@@ -150,37 +129,8 @@
 
 {% block scripts %}
 <script>
-let selectedDocType = 'requirements';
 let currentGenTaskId = null;
 let genPollTimer = null;
-
-const templateData = {
-    requirements: {
-        name: '需求文档模板',
-        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.需求（功能/性能/接口/环境） &rarr; 4.验证 &rarr; 5.质量保证'
-    },
-    general_characteristics: {
-        name: '通用特性文档模板',
-        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.产品概述 &rarr; 4.物理特性 &rarr; 5.功能特性 &rarr; 6.性能参数 &rarr; 7.环境适应性 &rarr; 8.可靠性'
-    },
-    technical_specification: {
-        name: '技术说明书模板',
-        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.系统概述 &rarr; 4.系统设计（总体/详细/接口） &rarr; 5.安全性分析 &rarr; 6.验证与确认 &rarr; 7.使用与维护 &rarr; 8.附录'
-    },
-    verification: {
-        name: '验证文档模板',
-        structure: '章节结构：1.范围 &rarr; 2.引用文件 &rarr; 3.验证目的 &rarr; 4.验证方法 &rarr; 5.验证环境 &rarr; 6.验证结果 &rarr; 7.结论与建议'
-    }
-};
-
-function selectDocType(el) {
-    document.querySelectorAll('.doc-type-card').forEach(c => c.classList.remove('selected'));
-    el.classList.add('selected');
-    selectedDocType = el.dataset.type;
-    const tmpl = templateData[selectedDocType];
-    document.getElementById('templateName').textContent = tmpl.name;
-    document.getElementById('templateStructure').innerHTML = tmpl.structure;
-}
 
 // Reference file upload
 const refZone = document.getElementById('refUploadZone');
@@ -194,15 +144,18 @@ refInput.addEventListener('change', e => {
 function startGenerate() {
     const title = document.getElementById('docTitle').value.trim();
     if (!title) { alert('请输入文档标题'); return; }
+    const definition = document.getElementById('generationDefinition').value.trim();
+    if (!definition) { alert('请填写文档生成定义'); return; }
 
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
     btn.textContent = '生成中...';
 
     const params = {
-        doc_type: selectedDocType,
-        template_name: templateData[selectedDocType].name,
+        doc_type: document.getElementById('docType').value.trim() || '用户自定义文档',
+        template_name: '用户自定义生成定义',
         title: title,
+        generation_definition: definition,
         description: document.getElementById('docDesc').value.trim(),
         technical_params: document.getElementById('docParams').value.trim()
     };
@@ -214,7 +167,7 @@ function startGenerate() {
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '基于模板生成文档'; return; }
+        if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '按定义生成文档'; return; }
         currentGenTaskId = data.task_id;
         document.getElementById('genProgressSection').style.display = 'block';
         pollGenProgress();
@@ -222,7 +175,7 @@ function startGenerate() {
     .catch(err => {
         alert('请求失败: ' + err.message);
         btn.disabled = false;
-        btn.textContent = '基于模板生成文档';
+        btn.textContent = '按定义生成文档';
     });
 }
 
@@ -259,7 +212,7 @@ function pollGenProgress() {
 function handleGenFinalState(data) {
     document.getElementById('genProgressSection').style.display = 'none';
     document.getElementById('generateBtn').disabled = false;
-    document.getElementById('generateBtn').textContent = '基于模板生成文档';
+    document.getElementById('generateBtn').textContent = '按定义生成文档';
 
     if (data.status === 'completed') {
         // Success: generated and passed review

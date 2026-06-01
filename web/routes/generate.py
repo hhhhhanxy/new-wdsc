@@ -25,6 +25,7 @@ def start():
         'title': data['title'],
         'description': data.get('description', ''),
         'technical_params': data.get('technical_params', ''),
+        'generation_definition': data.get('generation_definition', ''),
     }
 
     task_id = db.create_generate_task(
@@ -71,7 +72,6 @@ def run_generate_task(task_id, data, upload_folder, db):
 
         from llm.client import LLMClientFactory
         from config.settings import settings
-        from models.document import DocumentType
         from rules.base_rule import RuleRegistry
         from rules.loaders.rule_loader import RuleLoader
         from core.pipeline import generate_and_review
@@ -80,16 +80,12 @@ def run_generate_task(task_id, data, upload_folder, db):
         db.update_generate_task(task_id, progress=20)
 
         # Load rules for review
-        rules = RuleLoader.load_all_rules(profile="aviation")
+        rules = RuleLoader.load_all_rules(profile="default")
         registry = RuleRegistry()
         for rule in rules:
             registry.register(rule)
 
-        doc_type_str = data.get('doc_type', 'technical_specification')
-        try:
-            doc_type = DocumentType(doc_type_str)
-        except ValueError:
-            doc_type = DocumentType.TECHNICAL_SPECIFICATION
+        doc_type = data.get('doc_type', 'custom_document')
 
         db.update_generate_task(task_id, progress=30)
 
@@ -100,8 +96,9 @@ def run_generate_task(task_id, data, upload_folder, db):
             params={
                 "description": data.get('description', ''),
                 "technical_params": data.get('technical_params', ''),
-                "doc_type": doc_type_str,
-                "generator": "template_docx",
+                "generation_definition": data.get('generation_definition', ''),
+                "doc_type": doc_type,
+                "generator": "user_defined_docx",
             },
             llm_client=llm_client,
             rule_registry=registry,

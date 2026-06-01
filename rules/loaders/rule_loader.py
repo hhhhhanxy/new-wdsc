@@ -20,11 +20,6 @@ class RuleLoader:
         return rules
 
     @staticmethod
-    def load_aviation_rules() -> List[Rule]:
-        from rules.aviation.actuator_rules import create_actuator_rules
-        return create_actuator_rules()
-
-    @staticmethod
     def load_extension_rules() -> List[Rule]:
         """加载扩展贡献的规则。"""
         from extensions.discovery import collect_from_extensions
@@ -37,19 +32,11 @@ class RuleLoader:
         # 1. 通用规则
         rules.extend(RuleLoader.load_common_rules())
 
-        # 2. 行业规则
-        profile_map = {
-            "aviation": RuleLoader.load_aviation_rules,
-        }
-
-        if profile in profile_map:
-            rules.extend(profile_map[profile]())
-
-        # 3. 扩展规则
+        # 2. 扩展规则
         if include_extensions:
             rules.extend(RuleLoader.load_extension_rules())
 
-        # 4. 应用用户覆盖
+        # 3. 应用用户覆盖
         from config.rule_overrides import apply_overrides
         rules = apply_overrides(rules)
 

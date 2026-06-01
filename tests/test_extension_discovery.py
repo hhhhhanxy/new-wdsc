@@ -74,18 +74,16 @@ def test_extension_registry_manual_rule():
     assert any(r.rule_id == "test_rule_manual" for r in rules)
 
 
-def test_discover_aviation_extension():
+def test_discover_extensions_returns_list():
     from extensions.discovery import discover_extensions
     modules = discover_extensions()
-    names = [m.__name__ for m in modules]
-    assert "extensions.aviation_rules" in names
+    assert isinstance(modules, list)
 
 
 def test_collect_rules_from_extension():
     from extensions.discovery import collect_from_extensions
     rules = collect_from_extensions("register_rules")
-    rule_ids = [r.rule_id for r in rules]
-    assert "spec_reference_format" in rule_ids
+    assert isinstance(rules, list)
 
 
 def test_base_generator_interface():
@@ -113,7 +111,7 @@ if __name__ == "__main__":
     test_rule_result_with_new_fields()
     test_extension_registry_singleton()
     test_extension_registry_manual_rule()
-    test_discover_aviation_extension()
+    test_discover_extensions_returns_list()
     test_collect_rules_from_extension()
     test_base_generator_interface()
     test_simple_docx_generator()
@@ -128,7 +126,7 @@ if __name__ == "__main__":
     print("All tests passed!")
 
 
-# ---- New tests for aviation platform features ----
+# ---- Platform feature tests ----
 
 def test_document_type_enum():
     from models.document import DocumentType
@@ -194,6 +192,6 @@ def test_doc_type_detector():
 
 def test_template_generator():
     from generators.base_generator import GeneratorFactory
-    assert "template_docx" in GeneratorFactory.available_generators()
-    gen = GeneratorFactory.create("template_docx")
-    assert gen.name == "template_docx"
+    assert "user_defined_docx" in GeneratorFactory.available_generators()
+    gen = GeneratorFactory.create("user_defined_docx")
+    assert gen.name == "user_defined_docx"

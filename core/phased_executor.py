@@ -8,13 +8,14 @@ from typing import List, Dict, Any, Optional, Callable
 
 from core.executor import (
     ReviewExecutor, ReviewMode, DocumentReviewResult, SectionReviewResult,
-    PhaseResult, PhasedDocumentReviewResult,
+    PhaseResult, PhasedDocumentReviewResult, _rule_prompt_description,
 )
 from models.document import ParsedDocument, DocumentType
 from rules.base_rule import (
     Rule, RuleResult, RuleRegistry, RuleSeverity,
     ReviewType, ReviewPhase, PHASE_ORDER,
 )
+from core.utils import should_use_rule_check, should_use_llm_check
 
 logger = logging.getLogger(__name__)
 
@@ -108,10 +109,13 @@ class PhasedReviewExecutor(ReviewExecutor):
             logger.debug("阶段 %s 无适用规则，跳过", phase.value)
             return phase_result
 
-        # 规则检查 — 所有规则，不按 review_type 过滤
+        rule_check_rules = [r for r in phase_rules if should_use_rule_check(r)]
+        llm_check_rules = [r for r in phase_rules if should_use_llm_check(r)]
+
+        # 规则检查
         if ReviewMode.uses_rule_engine(self.mode):
             for section in document.sections:
-                for rule in phase_rules:
+                for rule in rule_check_rules:
                     try:
                         rr = rule.check(section, context)
                         rr.phase = phase
@@ -121,9 +125,9 @@ class PhasedReviewExecutor(ReviewExecutor):
 
                 phase_result.section_count += 1
 
-        # LLM 检查 — 所有规则，不按 review_type 过滤
-        if ReviewMode.uses_llm(self.mode) and phase_rules:
-            llm_results = self._get_llm_section_review_phased(document, phase_rules, phase)
+        # LLM 检查
+        if ReviewMode.uses_llm(self.mode) and llm_check_rules:
+            llm_results = self._get_llm_section_review_phased(document, llm_check_rules, phase)
             if llm_results:
                 for rr in llm_results:
                     phase_result.add_rule_result(rr)
@@ -140,7 +144,7 @@ class PhasedReviewExecutor(ReviewExecutor):
         if not self.prompt_builder:
             return None
 
-        rules_info = [{"name": r.name, "description": r.description} for r in rules]
+        rules_info = [{"name": r.name, "description": _rule_prompt_description(r)} for r in rules]
         prompt = self.prompt_builder.build_section_review_prompt(
             document.raw_text[:5000],
             rules_info,

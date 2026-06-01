@@ -34,6 +34,43 @@ from core.utils import (
 logger = logging.getLogger(__name__)
 
 
+def _rule_prompt_description(rule: Rule) -> str:
+    """把用户维护的规则定义整理为 LLM 可执行的审查说明。"""
+    parts = [rule.description or ""]
+    if rule.logic:
+        parts.append(f"检查逻辑：{rule.logic}")
+    if rule.standard_ref:
+        parts.append(f"依据：{rule.standard_ref}")
+    if rule.code:
+        parts.append(f"编号：{rule.code}")
+    return "\n".join(part for part in parts if part)
+
+
+def _rule_prompt_info(rule: Rule) -> dict:
+    return {
+        "rule_id": rule.rule_id,
+        "code": rule.code,
+        "name": rule.name,
+        "severity": rule.severity.value,
+        "description": _rule_prompt_description(rule),
+    }
+
+
+def _rules_cache_signature(rules: List[Rule]) -> str:
+    payload = [
+        {
+            "id": r.rule_id,
+            "name": r.name,
+            "review_type": r.review_type.value,
+            "description": r.description,
+            "logic": r.logic,
+            "standard_ref": r.standard_ref,
+        }
+        for r in rules
+    ]
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
 @dataclass
 class SectionReviewResult:
     """章节审查结果"""
@@ -133,7 +170,7 @@ class ReviewExecutor:
         prompt_style: PromptStyle = PromptStyle.STANDARD,
         enable_cot: bool = None,
         enable_few_shot: bool = None,
-        enable_domain_knowledge: bool = True
+        enable_domain_knowledge: bool = False
     ):
         """
         初始化审查执行器
@@ -243,10 +280,10 @@ class ReviewExecutor:
         """
         审查单个章节
 
-        mode 控制引擎选择（与规则 review_type 无关）:
-        - rule_only: 所有规则走规则引擎
-        - llm_only:  所有规则走 LLM
-        - both:      所有规则走规则引擎 + LLM
+        mode 控制可用引擎，规则自身的 review_type 控制该规则走哪个引擎：
+        - rule:      仅规则引擎
+        - llm:       仅 LLM
+        - both:      规则引擎 + LLM
 
         Args:
             section: 文档章节
@@ -263,10 +300,12 @@ class ReviewExecutor:
 
         uses_rules = ReviewMode.uses_rule_engine(self.mode)
         uses_llm = ReviewMode.uses_llm(self.mode)
+        rule_check_rules = [r for r in rules if should_use_rule_check(r)]
+        llm_check_rules = [r for r in rules if should_use_llm_check(r)]
 
-        # 1. 规则引擎检查 — rule_only / both 模式
+        # 1. 规则引擎检查
         if uses_rules:
-            for rule in rules:
+            for rule in rule_check_rules:
                 rule_result = safe_execute_rule(
                     rule,
                     section,
@@ -281,9 +320,9 @@ class ReviewExecutor:
                 )
                 result.add_rule_result(rule_result)
 
-        # 2. LLM 检查 — llm_only / both 模式
-        if uses_llm and section.text.strip():
-            llm_results = self._get_llm_section_review(section, rules)
+        # 2. LLM 检查
+        if uses_llm and llm_check_rules and section.text.strip():
+            llm_results = self._get_llm_section_review(section, llm_check_rules)
             if llm_results:
                 for llm_result in llm_results:
                     result.add_rule_result(llm_result)
@@ -311,7 +350,7 @@ class ReviewExecutor:
 
         # 检查缓存
         if self.enable_cache:
-            cache_key = generate_cache_key("llm_section", section.section_id, section.text[:200])
+            cache_key = generate_cache_key("llm_section", section.section_id, section.text[:200], _rules_cache_signature(rules))
             from core.cache import get_cache
             cached_result = get_cache().get(cache_key)
             if cached_result is not None:
@@ -319,7 +358,7 @@ class ReviewExecutor:
                 return cached_result
 
         # 构建 prompt
-        rules_info = [{"name": r.name, "description": r.description} for r in rules]
+        rules_info = [_rule_prompt_info(r) for r in rules]
         prompt = self.prompt_builder.build_section_review_prompt(section.text, rules_info)
 
         # 调用 LLM
@@ -332,9 +371,17 @@ class ReviewExecutor:
 
         # 转换为 RuleResult 列表
         results = []
+        rules_by_id = {r.rule_id: r for r in rules}
+        rules_by_name = {r.name: r for r in rules}
         for issue in llm_result.get("issues", []):
             rule_id = issue.get("rule_id", "llm_generated")
             rule_name = issue.get("rule_name", "LLM 审查")
+            matched_rule = rules_by_id.get(rule_id) or rules_by_name.get(rule_name)
+            if not matched_rule:
+                logger.warning("LLM 返回了未在本次启用规则中的问题，已忽略: %s/%s", rule_id, rule_name)
+                continue
+            rule_id = matched_rule.rule_id
+            rule_name = matched_rule.name
             severity_str = issue.get("severity", "warning")
 
             try:
@@ -350,7 +397,8 @@ class ReviewExecutor:
                 message=issue.get("description", ""),
                 section_id=section.section_id,
                 suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else [],
-                rule_source="LLM"
+                rule_source="LLM",
+                rule_reference=matched_rule.standard_ref if matched_rule else None,
             )
             results.append(rule_result)
 
@@ -382,7 +430,7 @@ class ReviewExecutor:
 
         # 检查缓存
         if self.enable_cache:
-            cache_key = generate_cache_key("llm_summary", document.title, document.raw_text[:500])
+            cache_key = generate_cache_key("llm_summary", document.title, document.raw_text[:500], _rules_cache_signature(rules))
             from core.cache import get_cache
             cached_summary = get_cache().get(cache_key)
             if cached_summary is not None:
@@ -399,7 +447,7 @@ class ReviewExecutor:
             return ""
 
         # 构建 prompt
-        rules_info = [{"name": r.name, "description": r.description} for r in llm_rules]
+        rules_info = [_rule_prompt_info(r) for r in llm_rules]
         prompt = self.prompt_builder.build_document_review_prompt(
             document.title,
             truncate_text(document.raw_text, 5000),

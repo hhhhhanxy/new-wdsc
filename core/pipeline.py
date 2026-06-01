@@ -7,7 +7,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 
-from models.document import DocumentType
 from core.executor import PhasedDocumentReviewResult
 from security.classification_detector import ClassificationDetector
 
@@ -35,7 +34,7 @@ class PipelineResult:
 
 
 def generate_and_review(
-    doc_type: DocumentType,
+    doc_type,
     title: str,
     params: Dict[str, Any],
     llm_client,
@@ -58,7 +57,10 @@ def generate_and_review(
 
     # Step 1: 安全检测（输入）
     detector = ClassificationDetector(llm_client=llm_client)
-    input_text = f"{title} {params.get('description', '')} {params.get('technical_params', '')}"
+    input_text = (
+        f"{title} {params.get('description', '')} "
+        f"{params.get('technical_params', '')} {params.get('generation_definition', '')}"
+    )
     input_check = detector.check_text(input_text)
     if input_check.is_classified:
         result.is_blocked = True
@@ -71,12 +73,12 @@ def generate_and_review(
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f"{title}.docx")
 
-    gen_name = params.get("generator", "template_docx")
+    gen_name = params.get("generator", "user_defined_docx")
     generator = GeneratorFactory.create(gen_name)
     try:
         generator.generate(
             title=title,
-            params={**params, "doc_type": doc_type.value},
+            params={**params, "doc_type": getattr(doc_type, "value", str(doc_type or ""))},
             llm_client=llm_client,
             output_path=output_path,
         )
@@ -90,7 +92,8 @@ def generate_and_review(
     # Step 3: 安全检测（输出）
     parser = ParserFactory.get_parser(".docx")
     document = parser.parse(output_path)
-    document.doc_type = doc_type
+    if hasattr(doc_type, "value"):
+        document.doc_type = doc_type
 
     output_check = detector.check(document)
     if output_check.is_classified:

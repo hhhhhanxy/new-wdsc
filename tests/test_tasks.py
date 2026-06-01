@@ -25,7 +25,10 @@ def test_review_task_updates_database():
         assert task['progress'] == 0
 
         # Run review task in background thread
-        thread = threading.Thread(target=run_review_task, args=(task_id, '/fake/path.docx', 'both', db))
+        thread = threading.Thread(
+            target=run_review_task,
+            args=(task_id, '/fake/path.docx', 'all', db),
+        )
         thread.start()
 
         # Wait for task to complete (will fail due to fake path, but that's expected)

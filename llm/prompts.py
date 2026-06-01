@@ -34,32 +34,15 @@ class PromptTemplate:
 # 系统 Prompt
 # ============================================================================
 
-AVIATION_DOMAIN_KNOWLEDGE = """
-## 航空作动系统领域知识
-
-### 关键术语
-- 作动器（Actuator）：将能量转换为机械运动的装置
-- 冗余（Redundancy）：备份系统，提高可靠性
-- 电传（Fly-by-Wire）：电子飞行控制系统
-- 适航（Airworthiness）：满足飞行安全标准的证明
-
-### 审查要点
-- 技术参数必须完整且准确
-- 安全性分析必须符合适航规范
-- 测试验证必须覆盖关键场景
-- 文档结构必须清晰、逻辑连贯
-"""
-
 REVIEW_SYSTEM_PROMPT = """
-你是一名航空作动系统领域的高级工程专家，熟悉适航规范、设计报告和工程文档审查标准。
-
-{domain_knowledge}
+你是一名严谨的技术文档审查专家。具体文档类型、审查依据和判定标准以用户维护的规则定义为准。
 
 ## 审查原则
-1. **专业性**：使用准确的术语，避免口语化
-2. **可执行性**：给出具体、可操作的修改建议
-3. **规范性**：严格遵循输出格式要求
-4. **客观性**：基于规则进行客观判断
+1. **规则优先**：严格依据用户提供的规则名称、说明、检查逻辑和标准依据审查
+2. **专业性**：使用准确的术语，避免口语化
+3. **可执行性**：给出具体、可操作的修改建议
+4. **规范性**：严格遵循输出格式要求
+5. **客观性**：基于规则进行客观判断，不臆造未提供的行业要求
 
 ## 输出要求
 - 严格按照指定的 JSON 格式输出
@@ -76,26 +59,26 @@ REVIEW_SYSTEM_PROMPT = """
 FEW_SHOT_EXAMPLES = """
 ## 参考示例
 
-### 示例 1：发现术语缺失
+### 示例 1：发现必填内容缺失
 输入文本：
-"该系统采用液压驱动方式，具有良好的响应特性。"
+"本文档说明了系统总体功能。"
 
 审查规则：
-- 作动系统关键术语检查
+- 必填章节完整性检查
 
 审查结果：
 {
     "passed": false,
     "issues": [
         {
-            "rule_id": "actuator_keywords",
-            "rule_name": "作动系统关键术语检查",
-            "description": "缺少关键术语：作动器、冗余、电传",
+            "rule_id": "required_section_check",
+            "rule_name": "必填章节完整性检查",
+            "description": "未发现规则要求的必填章节或字段",
             "severity": "warning",
-            "suggestion": "建议补充关键术语以符合航空工程文档规范，例如明确'作动器类型'、'冗余设计'等内容"
+            "suggestion": "按规则定义补充缺失章节或字段，并保持标题与内容对应"
         }
     ],
-    "summary": "文档缺少航空作动系统的核心术语，需要补充相关技术描述"
+    "summary": "文档缺少规则要求的内容，需要补充后再审查"
 }
 
 ### 示例 2：格式规范检查
@@ -122,17 +105,17 @@ FEW_SHOT_EXAMPLES = """
 
 ### 示例 3：通过审查
 输入文本：
-"该作动系统采用电液伺服控制，具有双冗余设计，响应时间为50ms，工作温度范围为-40℃至+60℃，符合RTCA/DO-160G标准要求。"
+"本文档包含范围、术语、技术要求、验证方法和修订记录，各项内容与规则要求一致。"
 
 审查规则：
-- 作动系统关键术语检查
+- 必填章节完整性检查
 - 格式规范检查
 
 审查结果：
 {
     "passed": true,
     "issues": [],
-    "summary": "文档内容完整，术语使用准确，格式规范，符合审查要求"
+    "summary": "文档内容与用户规则一致，未发现不符合项"
 }
 """
 
@@ -182,6 +165,9 @@ REVIEW_SECTION_PROMPT = """请审查以下文档片段：
 【审查规则】
 {% for rule in rules %}
 {{ loop.index }}. **{{ rule.name }}**
+   - 规则ID：{{ rule.rule_id }}
+   - 编号：{{ rule.code or "-" }}
+   - 严重级别：{{ rule.severity or "warning" }}
    - 说明：{{ rule.description }}
 {% endfor %}
 
@@ -244,6 +230,9 @@ REVIEW_DOCUMENT_PROMPT = """请对以下文档进行全面审查：
 【审查规则】
 {% for rule in rules %}
 {{ loop.index }}. **{{ rule.name }}**
+   - 规则ID：{{ rule.rule_id }}
+   - 编号：{{ rule.code or "-" }}
+   - 严重级别：{{ rule.severity or "warning" }}
    - 说明：{{ rule.description }}
 {% endfor %}
 
@@ -311,7 +300,7 @@ DEFAULT_REVIEW_FOCUS = [
     "格式规范性（是否符合文档规范）",
     "逻辑一致性（是否前后连贯）",
     "技术准确性（技术参数是否准确）",
-    "标准符合性（是否符合行业标准）"
+    "标准符合性（是否符合用户提供的标准依据）"
 ]
 
 
@@ -327,7 +316,7 @@ class ReviewPromptBuilder:
         style: PromptStyle = PromptStyle.STANDARD,
         enable_cot: bool = False,
         enable_few_shot: bool = True,
-        enable_domain_knowledge: bool = True
+        enable_domain_knowledge: bool = False
     ):
         """
         初始化 Prompt 构建器
@@ -348,8 +337,7 @@ class ReviewPromptBuilder:
 
     def _build_system_prompt(self) -> str:
         """构建系统 Prompt"""
-        domain_knowledge = AVIATION_DOMAIN_KNOWLEDGE if self.enable_domain_knowledge else ""
-        return REVIEW_SYSTEM_PROMPT.format(domain_knowledge=domain_knowledge)
+        return REVIEW_SYSTEM_PROMPT
 
     def build_document_review_prompt(
         self,

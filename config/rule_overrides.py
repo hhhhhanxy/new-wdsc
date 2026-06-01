@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "rule_overrides.json")
 
-VALID_OVERRIDE_FIELDS = {"enabled", "severity", "review_type", "phase", "params", "code", "logic", "standard_ref"}
+VALID_OVERRIDE_FIELDS = {"enabled", "severity", "review_type", "params", "code", "logic", "standard_ref"}
 CUSTOM_RULE_FIELDS = {"source", "name", "description", "category"}
 
 
@@ -106,9 +106,12 @@ def apply_overrides(rules: List) -> List:
                 severity=RuleSeverity(rule_data.get("severity", "warning")),
                 enabled=rule_data.get("enabled", True),
                 source=rule_data["source"],
-                review_type=ReviewType(rule_data.get("review_type", "rule")),
+                review_type=ReviewType.LLM,
                 phase=ReviewPhase(rule_data.get("phase", "format")),
                 params=rule_data.get("params", {}),
+                code=rule_data.get("code", ""),
+                logic=rule_data.get("logic", ""),
+                standard_ref=rule_data.get("standard_ref", ""),
             )
             rules.append(rule)
         except (ValueError, TypeError) as e:
@@ -125,7 +128,7 @@ def update_rule_override(rule_id: str, updates: Dict[str, Any]) -> Dict[str, Any
         return {"error": "没有有效的更新字段"}
 
     # 序列化枚举值
-    for key in ("severity", "review_type", "phase"):
+    for key in ("severity", "review_type"):
         if key in filtered and hasattr(filtered[key], "value"):
             filtered[key] = filtered[key].value
 

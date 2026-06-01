@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <h1>文档审查</h1>
-    <p>上传DOCX文档，选择审查模式，获取审查报告</p>
+    <p>上传 DOCX 文档，按规则库中每条规则的审查类型执行审查</p>
 </div>
 
 <div class="two-col">
@@ -23,14 +23,6 @@
         <p class="section-step" style="margin-top:20px;">2. 审查配置</p>
         <div class="config-section">
             <div class="config-row">
-                <div class="config-label">审查模式</div>
-                <div class="mode-btns">
-                    <button class="mode-btn active" data-mode="both" onclick="selectMode(this)">规则+LLM</button>
-                    <button class="mode-btn" data-mode="rule_only" onclick="selectMode(this)">仅规则</button>
-                    <button class="mode-btn" data-mode="llm_only" onclick="selectMode(this)">仅LLM</button>
-                </div>
-            </div>
-            <div class="config-row">
                 <div class="config-label">规则集</div>
                 <div>
                     <select class="form-control" id="ruleSetSelect" style="width:auto;padding:4px 8px;font-size:12px;">
@@ -41,17 +33,25 @@
                     </select>
                 </div>
             </div>
-            <div class="config-row">
-                <div class="config-label">文档类型</div>
-                <div>
-                    <select class="form-control" id="docTypeSelect" style="width:auto;padding:4px 8px;font-size:12px;">
-                        <option value="auto">自动识别</option>
-                        <option value="requirements">需求文档</option>
-                        <option value="general_characteristics">通用特性文档</option>
-                        <option value="technical_specification">技术说明书</option>
-                        <option value="verification">验证文档</option>
-                    </select>
+            <div class="review-rule-panel">
+                <div class="review-rule-header">
+                    <span id="reviewRuleTitle">规则明细</span>
+                    <span id="reviewRuleStats"></span>
                 </div>
+                <table class="rule-table review-rule-table" id="reviewRuleTable">
+                    <thead>
+                        <tr>
+                            <th>状态</th>
+                            <th>规则名称</th>
+                            <th>审查类型</th>
+                            <th>级别</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reviewRuleTableBody"></tbody>
+                </table>
+                <div class="pager" id="reviewRulePager"></div>
+                <div class="empty-state" id="reviewNoRulesHint" style="display:none;">该规则集暂无规则</div>
             </div>
         </div>
 
@@ -112,9 +112,11 @@
                         <thead>
                             <tr>
                                 <th>章节</th>
+                                <th>规则编号</th>
                                 <th>规则</th>
                                 <th>级别</th>
                                 <th>来源</th>
+                                <th>依据</th>
                                 <th>问题描述</th>
                             </tr>
                         </thead>
@@ -139,6 +141,7 @@
                     <div class="task-info">
                         <div class="task-name">{{ task.filename }}</div>
                         <div class="task-meta">{{ task.created_at }} &middot;
+                            规则集：{{ task.rule_set_label or '全部规则' }} &middot;
                             {% if task.status == 'completed' %}审查完成
                             {% elif task.status == 'processing' %}审查中...
                             {% elif task.status == 'blocked' %}安全阻断
@@ -148,6 +151,9 @@
                     <span class="badge badge-{{ 'success' if task.status == 'completed' else 'warning' if task.status == 'processing' else 'danger' if task.status == 'blocked' else 'default' }}">
                         {{ '已完成' if task.status == 'completed' else '审查中' if task.status == 'processing' else '安全阻断' if task.status == 'blocked' else task.status }}
                     </span>
+                    {% if task.status == 'completed' %}
+                    <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="window.location.href='/review/report/{{ task.id }}'">下载报告</button>
+                    {% endif %}
                 </li>
                 {% endfor %}
             </ul>
@@ -162,14 +168,35 @@
 {% block scripts %}
 <script>
 let selectedFile = null;
-let reviewMode = 'both';
 let currentTaskId = null;
 let pollTimer = null;
+let reviewRuleGroups = [];
+let reviewRulePage = 1;
+const reviewRulePageSize = 10;
 
 const uploadZone = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
 const uploadText = document.getElementById('uploadText');
 const startBtn = document.getElementById('startBtn');
+const ruleSetSelect = document.getElementById('ruleSetSelect');
+
+const reviewTypeLabels = {
+    rule: '规则引擎',
+    llm: 'LLM',
+    both: '规则+LLM',
+};
+
+const severityLabels = {
+    error: '错误',
+    warning: '警告',
+    info: '信息',
+};
+
+const severityBadges = {
+    error: 'badge-danger',
+    warning: 'badge-warning',
+    info: 'badge-info',
+};
 
 // Upload zone interactions
 uploadZone.addEventListener('click', () => fileInput.click());
@@ -181,6 +208,128 @@ uploadZone.addEventListener('drop', e => {
     if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
 });
 fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+ruleSetSelect.addEventListener('change', () => {
+    reviewRulePage = 1;
+    renderSelectedRuleSet();
+});
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function loadReviewRules() {
+    fetch('/rules/api/profiles')
+        .then(r => r.json())
+        .then(data => {
+            reviewRuleGroups = data.groups || [];
+            renderSelectedRuleSet();
+        })
+        .catch(() => {
+            document.getElementById('reviewRuleStats').textContent = '规则加载失败';
+        });
+}
+
+function getSelectedRules() {
+    const source = ruleSetSelect.value;
+    if (source === 'all') {
+        return reviewRuleGroups.flatMap(g => g.rules || []);
+    }
+    const group = reviewRuleGroups.find(g => g.source === source);
+    return group ? (group.rules || []) : [];
+}
+
+function getSelectedRuleSetName() {
+    const source = ruleSetSelect.value;
+    if (source === 'all') return '全部规则';
+    const group = reviewRuleGroups.find(g => g.source === source);
+    return group ? group.display_name : '规则明细';
+}
+
+function renderSelectedRuleSet() {
+    const rules = getSelectedRules();
+    const enabled = rules.filter(r => r.enabled).length;
+    const totalPages = Math.max(1, Math.ceil(rules.length / reviewRulePageSize));
+    reviewRulePage = Math.min(reviewRulePage, totalPages);
+    const start = (reviewRulePage - 1) * reviewRulePageSize;
+    const pageRules = rules.slice(start, start + reviewRulePageSize);
+
+    document.getElementById('reviewRuleTitle').textContent = getSelectedRuleSetName();
+    document.getElementById('reviewRuleStats').textContent = `${enabled}/${rules.length} 已启用`;
+
+    const table = document.getElementById('reviewRuleTable');
+    const hint = document.getElementById('reviewNoRulesHint');
+    const tbody = document.getElementById('reviewRuleTableBody');
+
+    if (!rules.length) {
+        table.style.display = 'none';
+        hint.style.display = '';
+        tbody.innerHTML = '';
+        renderReviewRulePager(0);
+        return;
+    }
+
+    table.style.display = '';
+    hint.style.display = 'none';
+    tbody.innerHTML = pageRules.map(rule => `
+        <tr>
+            <td><span class="status-dot ${rule.enabled ? 'on' : 'off'}" title="${rule.enabled ? '已启用' : '已禁用'}"></span></td>
+            <td>
+                <div class="rule-name-cell" title="${escapeHtml(rule.name)}">${escapeHtml(rule.name)}</div>
+                <div class="rule-id-cell">${escapeHtml(rule.rule_id)}</div>
+            </td>
+            <td>${reviewTypeLabels[rule.review_type] || escapeHtml(rule.review_type)}</td>
+            <td><span class="badge ${severityBadges[rule.severity] || 'badge-default'}">${severityLabels[rule.severity] || escapeHtml(rule.severity)}</span></td>
+            <td>
+                <button class="btn btn-outline review-rule-toggle" onclick="toggleReviewRule('${escapeHtml(rule.rule_id)}', ${!rule.enabled})">
+                    ${rule.enabled ? '禁用' : '启用'}
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    renderReviewRulePager(rules.length);
+}
+
+function changeReviewRulePage(page) {
+    const rules = getSelectedRules();
+    const totalPages = Math.max(1, Math.ceil(rules.length / reviewRulePageSize));
+    reviewRulePage = Math.min(Math.max(1, page), totalPages);
+    renderSelectedRuleSet();
+}
+
+function renderReviewRulePager(totalItems) {
+    const pager = document.getElementById('reviewRulePager');
+    const totalPages = Math.ceil(totalItems / reviewRulePageSize);
+    if (!pager || totalPages <= 1) {
+        if (pager) pager.innerHTML = '';
+        return;
+    }
+
+    pager.innerHTML = `
+        <button class="pager-btn" ${reviewRulePage <= 1 ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage - 1})">上一页</button>
+        <span class="pager-info">${reviewRulePage}/${totalPages}</span>
+        <button class="pager-btn" ${reviewRulePage >= totalPages ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage + 1})">下一页</button>
+    `;
+}
+
+function toggleReviewRule(ruleId, enabled) {
+    fetch('/rules/api/rules/' + encodeURIComponent(ruleId), {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled: enabled}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        loadReviewRules();
+    })
+    .catch(err => alert('规则状态更新失败: ' + err.message));
+}
 
 function handleFile(file) {
     if (!file.name.endsWith('.docx')) {
@@ -192,12 +341,6 @@ function handleFile(file) {
     startBtn.disabled = false;
 }
 
-function selectMode(btn) {
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    reviewMode = btn.dataset.mode;
-}
-
 function startReview() {
     if (!selectedFile) return;
 
@@ -206,9 +349,7 @@ function startReview() {
 
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('mode', reviewMode);
-    formData.append('doc_type', document.getElementById('docTypeSelect').value);
-    formData.append('rule_set', document.getElementById('ruleSetSelect').value);
+    formData.append('rule_set', ruleSetSelect.value);
 
     fetch('/review/upload', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -280,9 +421,12 @@ function showResult(data) {
         (sec.issues || []).forEach(iss => {
             issues.push({
                 section: sec.section_id || '-',
+                rule_id: iss.rule_id || '-',
+                rule_code: iss.rule_code || '',
                 rule: iss.rule_name || '-',
                 severity: iss.severity || 'warning',
                 source: iss.rule_source || 'RULE',
+                reference: iss.rule_reference || '-',
                 message: iss.message || '',
             });
         });
@@ -298,9 +442,11 @@ function showResult(data) {
         issueBody.innerHTML = issues.map(iss => `
             <tr>
                 <td>${iss.section}</td>
+                <td>${iss.rule_code || iss.rule_id}</td>
                 <td>${iss.rule}</td>
                 <td><span class="badge badge-${iss.severity === 'error' ? 'danger' : iss.severity === 'warning' ? 'warning' : 'info'}">${iss.severity === 'error' ? '错误' : iss.severity === 'warning' ? '警告' : '信息'}</span></td>
                 <td>${iss.source}</td>
+                <td>${iss.reference}</td>
                 <td>${iss.message}</td>
             </tr>
         `).join('');
@@ -323,5 +469,7 @@ function resetUI() {
     selectedFile = null;
     uploadText.innerHTML = '拖拽 DOCX 文件到此处，或点击选择';
 }
+
+loadReviewRules();
 </script>
 {% endblock %}

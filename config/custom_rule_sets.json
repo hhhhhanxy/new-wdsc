@@ -1,0 +1,8 @@
+{
+  "requir_doc": {
+    "display_name": "需求文档规则"
+  },
+  "product_rules": {
+    "display_name": "X产品规范检查"
+  }
+}

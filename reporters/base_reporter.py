@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from datetime import datetime
 from pathlib import Path
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
+from docx.shared import Inches
+from web.time_utils import beijing_now_str
 
 from core.executor import DocumentReviewResult, SectionReviewResult
 from rules.base_rule import RuleSeverity
@@ -74,7 +76,7 @@ class MarkdownReporter(BaseReporter):
 
 
         lines.append("---")
-        lines.append(f"*报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+        lines.append(f"*报告生成时间: {beijing_now_str()}*")
         return "\n".join(lines)
 
     def save(self, result: DocumentReviewResult, output_path: str):
@@ -142,74 +144,125 @@ class JsonReporter(BaseReporter):
 # DOCX 报告
 # ----------------------------
 class DocxReporter(BaseReporter):
+    def _severity_label(self, severity: RuleSeverity) -> str:
+        return {
+            RuleSeverity.ERROR: "错误",
+            RuleSeverity.WARNING: "警告",
+            RuleSeverity.INFO: "提示",
+        }.get(severity, str(severity))
+
+    def _source_label(self, source: str) -> str:
+        return {
+            "RULE": "规则引擎",
+            "LLM": "LLM语义审查",
+            "RULE+LLM": "规则引擎+LLM",
+            "BOTH": "规则引擎+LLM",
+        }.get(source or "", source or "未标明")
+
+    def _set_table_style(self, table):
+        table.style = 'Table Grid'
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        for row in table.rows:
+            for cell in row.cells:
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+
+    def _all_issues(self, result: DocumentReviewResult):
+        issues = []
+        for section in result.section_results:
+            for rule_result in section.rule_results:
+                if not rule_result.passed:
+                    issues.append((section, rule_result))
+        return issues
+
     def generate(self, result: DocumentReviewResult) -> Document:
         doc = Document()
+        for section in doc.sections:
+            section.top_margin = Inches(0.7)
+            section.bottom_margin = Inches(0.7)
+            section.left_margin = Inches(0.7)
+            section.right_margin = Inches(0.7)
         
         # 标题
         title = doc.add_heading('文档审查报告', 0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        subtitle = doc.add_paragraph('面向用户的审查结论、问题清单与规则依据')
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # 基本信息
-        doc.add_heading('基本信息', level=1)
-        info_table = doc.add_table(rows=4, cols=2)
-        info_table.style = 'Table Grid'
-        info_table.cell(0, 0).text = '文档标题'
-        info_table.cell(0, 1).text = result.document_title
-        info_table.cell(1, 0).text = '文档路径'
-        info_table.cell(1, 1).text = result.document_path
-        info_table.cell(2, 0).text = '审查时间'
-        info_table.cell(2, 1).text = result.review_time
-        info_table.cell(3, 0).text = '审查结果'
-        info_table.cell(3, 1).text = '通过' if result.overall_passed else '未通过'
-        
-        # 审查统计
-        doc.add_heading('审查统计', level=1)
-        stats_table = doc.add_table(rows=3, cols=2)
-        stats_table.style = 'Table Grid'
-        stats_table.cell(0, 0).text = '总问题数'
-        stats_table.cell(0, 1).text = str(result.total_issues)
-        stats_table.cell(1, 0).text = '错误数'
-        stats_table.cell(1, 1).text = str(result.errors)
-        stats_table.cell(2, 0).text = '警告数'
-        stats_table.cell(2, 1).text = str(result.warnings)
-        
-        # 章节问题
-        doc.add_heading('详细结果', level=1)
-        for section in result.section_results:
-            doc.add_heading(f"章节 {section.section_id}", level=2)
-            doc.add_paragraph(section.section_text[:300] + "...")
-            
-            # 规则问题
-            if any(not r.passed for r in section.rule_results):
-                doc.add_heading("规则问题", level=3)
-                tbl = doc.add_table(rows=1, cols=5)
-                tbl.style = 'Table Grid'
-                hdr = tbl.rows[0].cells
-                hdr[0].text = "规则"
-                hdr[1].text = "来源"
-                hdr[2].text = "严重程度"
-                hdr[3].text = "描述"
-                hdr[4].text = "建议"
-                for r in section.rule_results:
-                    if not r.passed:
-                        row = tbl.add_row().cells
-                        row[0].text = r.rule_name
-                        row[1].text = r.rule_source
-                        row[2].text = r.severity.name
-                        row[3].text = r.message
-                        row[4].text = "; ".join(r.suggestions) if r.suggestions else "-"
-            
+        issues = self._all_issues(result)
 
+        # 一、审查结论
+        doc.add_heading('一、审查结论', level=1)
+        conclusion_table = doc.add_table(rows=6, cols=2)
+        self._set_table_style(conclusion_table)
+        rows = [
+            ('文档名称', result.document_title),
+            ('文档路径', result.document_path),
+            ('审查结论', '通过' if result.overall_passed else '未通过'),
+            ('规则集', getattr(result, 'rule_set', 'all')),
+            ('审查时间', result.review_time or getattr(result, 'completed_at', '') or '-'),
+            ('报告生成时间', beijing_now_str()),
+        ]
+        for idx, (label, value) in enumerate(rows):
+            conclusion_table.cell(idx, 0).text = label
+            conclusion_table.cell(idx, 1).text = str(value or '-')
         
-        # 总结
+        doc.add_paragraph(
+            f"本次审查共发现 {result.total_issues} 个问题，其中错误 {result.errors} 个、"
+            f"警告 {result.warnings} 个、LLM语义审查问题 {getattr(result, 'llm_issues', 0)} 个。"
+        )
         if result.summary:
-            doc.add_heading("审查总结", level=1)
-            doc.add_paragraph(result.summary)
+            doc.add_paragraph(f"审查总结：{result.summary}")
+        
+        # 二、问题总览
+        doc.add_heading('二、问题总览', level=1)
+        if not issues:
+            doc.add_paragraph('未发现不符合项。')
+        else:
+            overview = doc.add_table(rows=1, cols=7)
+            self._set_table_style(overview)
+            headers = ['序号', '位置', '规则', '审查方式', '级别', '问题描述', '建议']
+            for idx, header in enumerate(headers):
+                overview.rows[0].cells[idx].text = header
+            for idx, (section, issue) in enumerate(issues, start=1):
+                row = overview.add_row().cells
+                row[0].text = str(idx)
+                row[1].text = section.section_id or '-'
+                row[2].text = issue.rule_name or issue.rule_id or '-'
+                row[3].text = issue.details.get('source_label') or self._source_label(issue.rule_source)
+                row[4].text = self._severity_label(issue.severity)
+                row[5].text = issue.message or '-'
+                row[6].text = '；'.join(issue.suggestions) if issue.suggestions else '-'
+
+        # 三、本次审查规则依据与定位详情
+        doc.add_heading('三、本次审查规则依据与定位详情', level=1)
+        if issues:
+            for idx, (section, issue) in enumerate(issues, start=1):
+                rule_code = issue.details.get("rule_code") or issue.rule_id or "-"
+                doc.add_heading(f"{idx}. {issue.rule_name or rule_code}", level=2)
+                detail_table = doc.add_table(rows=6, cols=2)
+                self._set_table_style(detail_table)
+                detail_rows = [
+                    ('规则编号', rule_code),
+                    ('审查方式', issue.details.get('source_label') or self._source_label(issue.rule_source)),
+                    ('严重级别', self._severity_label(issue.severity)),
+                    ('标准依据', issue.rule_reference or '-'),
+                    ('问题描述', issue.message or '-'),
+                    ('修改建议', '；'.join(issue.suggestions) if issue.suggestions else '-'),
+                ]
+                for row_idx, (label, value) in enumerate(detail_rows):
+                    detail_table.cell(row_idx, 0).text = label
+                    detail_table.cell(row_idx, 1).text = value
+
+                if issue.details.get("rule_logic"):
+                    doc.add_paragraph(f"检查逻辑：{issue.details['rule_logic']}")
+                snippet = (section.section_text or '').strip()
+                if snippet:
+                    doc.add_paragraph(f"相关片段：{snippet[:500]}{'...' if len(snippet) > 500 else ''}")
         
         # 页脚
         for section in doc.sections:
             footer = section.footer
-            footer.add_paragraph(f"报告生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            footer.add_paragraph(f"报告生成时间: {beijing_now_str()}")
         
         return doc
 

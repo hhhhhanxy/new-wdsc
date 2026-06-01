@@ -1,0 +1,62 @@
+{
+  "check": {
+    "source": "requir_doc",
+    "name": "条例检查",
+    "description": "审查需求条例是否清楚",
+    "category": "custom",
+    "severity": "warning",
+    "review_type": "llm",
+    "enabled": false,
+    "code": "R-001",
+    "logic": "xxxxxxxxxxxxxxxx",
+    "standard_ref": ""
+  },
+  "format": {
+    "enabled": false,
+    "severity": "warning",
+    "review_type": "llm",
+    "code": "FM-001",
+    "logic": "逐字符扫描文本，检测连续标点符号、标点前空格、中英文标点混排、连续多余空格、行尾空格、标题行首空格等格式问题，匹配到任一模式即判定不通过",
+    "standard_ref": "GJB 438B 第6.1节 文档格式要求",
+    "params": {
+      "check_punctuation": {
+        "label": "检查标点符号",
+        "type": "select",
+        "value": "yes"
+      },
+      "max_consecutive_spaces": {
+        "label": "最大连续空格数",
+        "type": "number",
+        "value": 3
+      }
+    }
+  },
+  "grammar": {
+    "enabled": true,
+    "severity": "warning",
+    "code": "GR-001",
+    "logic": "逐词扫描\"的、地、得\"用法，依据语法规则判断其后应接名词、动词或形容词/副词，使用不当即判定不通过",
+    "standard_ref": "GB/T 15834 标点符号用法",
+    "review_type": "llm",
+    "params": {
+      "check_de_di_de": {
+        "label": "检查的地得用法",
+        "type": "select",
+        "value": "yes"
+      }
+    }
+  },
+  "任务来源检查": {
+    "source": "product_rules",
+    "name": "任务来源",
+    "description": "审查任务来源是否存在",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "llm",
+    "enabled": true,
+    "code": "P-001",
+    "logic": "检查文档中是否标明任务来源，检查标准为 ：若存在 根据《XXX技术协议》，则表明审查通过，否则检查未通过",
+    "standard_ref": "",
+    "params": {}
+  }
+}

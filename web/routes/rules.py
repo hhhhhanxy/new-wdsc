@@ -5,8 +5,7 @@ import os
 from flask import Blueprint, render_template, request, jsonify, current_app
 
 from rules.base_rule import (
-    Rule, RuleSeverity, ReviewType, ReviewPhase, PHASE_ORDER,
-    PHASE_DISPLAY_NAMES, RuleCategory,
+    Rule, RuleSeverity, ReviewType, RuleCategory,
 )
 from rules.loaders.rule_loader import RuleLoader
 from config.rule_overrides import update_rule_override, load_overrides, save_overrides
@@ -21,13 +20,11 @@ CUSTOM_SETS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 # 规则集显示名称映射
 SOURCE_DISPLAY = {
     "common": "通用规则",
-    "aviation": "航空作动系统",
     "extension": "扩展规则",
 }
 
 # 规则集排序顺序
-SOURCE_ORDER = {"common": 0, "aviation": 1, "extension": 2}
-
+SOURCE_ORDER = {"common": 0, "extension": 1}
 
 def _load_custom_sets() -> dict:
     """加载自定义规则集定义。"""
@@ -62,8 +59,6 @@ def _serialize_rule(rule: Rule) -> dict:
         "enabled": rule.enabled,
         "source": rule.source,
         "review_type": rule.review_type.value,
-        "phase": rule.phase.value,
-        "phase_display": PHASE_DISPLAY_NAMES.get(rule.phase, rule.phase.value),
         "doc_types": [dt.value for dt in rule.doc_types],
         "params": rule.params,
         "custom": is_custom,
@@ -112,10 +107,17 @@ def _group_rules_by_source(rules: list) -> list:
     return result, total, enabled
 
 
+def _validate_custom_rule_definition(data: dict, require_logic: bool = True):
+    logic = data.get("logic", "")
+    if require_logic and not str(logic).strip():
+        return "检查逻辑不能为空。请写明判定条件、检查重点或通过/不通过标准"
+    return None
+
+
 @bp.route("/")
 def index():
     """渲染规则管理页面。"""
-    rules = RuleLoader.load_all_rules("aviation", include_extensions=False)
+    rules = RuleLoader.load_all_rules("default", include_extensions=False)
     groups, total, enabled = _group_rules_by_source(rules)
     return render_template(
         "rules.html",
@@ -124,7 +126,6 @@ def index():
         total=total,
         enabled_count=enabled,
         disabled_count=total - enabled,
-        phases=[{"value": p.value, "label": PHASE_DISPLAY_NAMES[p]} for p in PHASE_ORDER],
         severities=[{"value": s.value, "label": {"error": "错误", "warning": "警告", "info": "信息"}.get(s.value, s.value)} for s in RuleSeverity],
         review_types=[{"value": t.value, "label": {"rule": "规则引擎", "llm": "LLM", "both": "规则+LLM"}.get(t.value, t.value)} for t in ReviewType],
     )
@@ -133,7 +134,7 @@ def index():
 @bp.route("/api/profiles")
 def api_profiles():
     """返回所有规则集及规则列表。"""
-    rules = RuleLoader.load_all_rules("aviation", include_extensions=False)
+    rules = RuleLoader.load_all_rules("default", include_extensions=False)
     groups, total, enabled = _group_rules_by_source(rules)
     return jsonify({"groups": groups, "total": total, "enabled": enabled})
 
@@ -141,7 +142,7 @@ def api_profiles():
 @bp.route("/api/rules/<rule_id>")
 def api_get_rule(rule_id: str):
     """返回单条规则详情。"""
-    rules = RuleLoader.load_all_rules("aviation", include_extensions=False)
+    rules = RuleLoader.load_all_rules("default", include_extensions=False)
     rule = next((r for r in rules if r.rule_id == rule_id), None)
     if not rule:
         return jsonify({"error": f"规则 {rule_id} 不存在"}), 404
@@ -168,11 +169,16 @@ def api_update_rule(rule_id: str):
         except ValueError:
             return jsonify({"error": f"非法的 review_type 值: {data['review_type']}"}), 400
 
-    if "phase" in data:
-        try:
-            ReviewPhase(data["phase"])
-        except ValueError:
-            return jsonify({"error": f"非法的 phase 值: {data['phase']}"}), 400
+    rules = RuleLoader.load_all_rules("default", include_extensions=False)
+    existing_rule = next((r for r in rules if r.rule_id == rule_id), None)
+    if existing_rule and _serialize_rule(existing_rule).get("custom"):
+        if any(field in data for field in ("logic", "description", "standard_ref")):
+            validation_error = _validate_custom_rule_definition({
+                "logic": data.get("logic", existing_rule.logic),
+            })
+            if validation_error:
+                return jsonify({"error": validation_error}), 400
+        data.pop("review_type", None)
 
     result = update_rule_override(rule_id, data)
     if "error" in result:
@@ -201,6 +207,69 @@ def api_create_set():
     _save_custom_sets(custom_sets)
 
     return jsonify({"ok": True, "source": source, "display_name": display_name})
+
+
+@bp.route("/api/test-rule", methods=["POST"])
+def api_test_rule():
+    """用样例文本试审一条规则定义。"""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    sample_text = data.get("sample_text", "").strip()
+    if not sample_text:
+        return jsonify({"error": "请先输入试审文本"}), 400
+
+    rule_payload = data.get("rule") or {}
+    validation_error = _validate_custom_rule_definition(rule_payload)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
+
+    try:
+        from models.document import ContentType, DocumentSection
+        from rules.base_rule import Rule, RuleCategory, RuleSeverity, ReviewType
+        from llm.client import LLMClientFactory
+        from config.settings import settings
+        from core.executor import ReviewExecutor, ReviewMode
+
+        rule = Rule(
+            rule_id=rule_payload.get("rule_id") or "draft_rule",
+            name=rule_payload.get("name") or "试审规则",
+            description=rule_payload.get("description", ""),
+            category=RuleCategory.CUSTOM,
+            severity=RuleSeverity(rule_payload.get("severity", "warning")),
+            source=rule_payload.get("source", "custom"),
+            review_type=ReviewType.LLM,
+            logic=rule_payload.get("logic", ""),
+            standard_ref=rule_payload.get("standard_ref", ""),
+            code=rule_payload.get("code", ""),
+        )
+        section = DocumentSection("sample", ContentType.PARAGRAPH, sample_text)
+        llm_client = LLMClientFactory.create_client(settings.llm_provider)
+        executor = ReviewExecutor(
+            rule_registry=None,
+            llm_client=llm_client,
+            mode=ReviewMode.LLM_ONLY,
+            enable_cache=False,
+        )
+        results = executor._get_llm_section_review(section, [rule]) or []
+        return jsonify({
+            "ok": True,
+            "issues": [
+                {
+                    "rule_id": r.rule_id,
+                    "rule_name": r.rule_name,
+                    "severity": r.severity.value,
+                    "message": r.message,
+                    "suggestions": r.suggestions,
+                }
+                for r in results
+            ],
+            "passed": len(results) == 0,
+        })
+    except Exception as e:
+        logger.exception("规则试审失败")
+        return jsonify({"error": f"规则试审失败: {e}"}), 500
 
 
 @bp.route("/api/sets/<source>", methods=["DELETE"])
@@ -236,17 +305,19 @@ def api_create_rule():
 
     if not rule_id or not name or not source:
         return jsonify({"error": "rule_id, name, source 不能为空"}), 400
+    validation_error = _validate_custom_rule_definition(data)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
 
     # 检查 rule_id 唯一性
-    existing_rules = RuleLoader.load_all_rules("aviation", include_extensions=False)
+    existing_rules = RuleLoader.load_all_rules("default", include_extensions=False)
     if any(r.rule_id == rule_id for r in existing_rules):
         return jsonify({"error": f"规则 ID '{rule_id}' 已存在"}), 400
 
     # 构建默认值
     try:
         severity = RuleSeverity(data.get("severity", "warning"))
-        review_type = ReviewType(data.get("review_type", "rule"))
-        phase = ReviewPhase(data.get("phase", "format"))
+        review_type = ReviewType.LLM
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
@@ -258,8 +329,11 @@ def api_create_rule():
         "category": data.get("category", "custom"),
         "severity": severity.value,
         "review_type": review_type.value,
-        "phase": phase.value,
         "enabled": data.get("enabled", True),
+        "code": data.get("code", ""),
+        "logic": data.get("logic", ""),
+        "standard_ref": data.get("standard_ref", ""),
+        "params": data.get("params", {}),
     }
 
     overrides = load_overrides()

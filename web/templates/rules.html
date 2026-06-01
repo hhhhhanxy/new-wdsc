@@ -31,6 +31,7 @@
             </div>
             <ul class="rule-set-list" id="ruleSetList">
             </ul>
+            <div class="pager" id="ruleSetPager"></div>
             <div class="rule-stats" id="ruleStats"></div>
         </div>
     </div>
@@ -45,9 +46,9 @@
             <table class="rule-table" id="ruleTable" style="display:none;">
                 <thead>
                     <tr>
+                        <th>编号</th>
                         <th>状态</th>
                         <th>规则名称</th>
-                        <th>阶段</th>
                         <th>类型</th>
                         <th>级别</th>
                         <th>操作</th>
@@ -55,6 +56,7 @@
                 </thead>
                 <tbody id="ruleTableBody"></tbody>
             </table>
+            <div class="pager" id="rulePager" style="display:none;"></div>
             <div class="empty-state" id="noRulesHint">选择左侧规则集查看规则列表</div>
         </div>
     </div>
@@ -120,21 +122,33 @@
                 <label>描述</label>
                 <input type="text" id="newRuleDesc" placeholder="规则描述">
             </div>
+            <div class="modal-field">
+                <label>编号（可选）</label>
+                <input type="text" id="newRuleCode" placeholder="例如 R-001">
+            </div>
+            <div class="modal-field">
+                <label>检查逻辑</label>
+                <textarea id="newRuleLogic" placeholder="写明判定条件、检查步骤、通过/不通过标准"></textarea>
+            </div>
+            <div class="modal-field">
+                <label>标准依据（可选）</label>
+                <textarea id="newRuleStandardRef" placeholder="填写用户可公开维护的依据名称、条款号或内部定义摘要"></textarea>
+            </div>
+            <div class="modal-divider">规则试审</div>
+            <div class="modal-field">
+                <label>试审文本</label>
+                <textarea id="newRuleSampleText" placeholder="输入一段样例文本，验证该规则会如何判断"></textarea>
+            </div>
+            <div class="modal-field">
+                <button class="btn btn-outline" onclick="testRule('newRule')">试审规则</button>
+                <div class="test-result" id="newRuleTestResult"></div>
+            </div>
             <div class="modal-divider">属性配置</div>
-            <div class="modal-field"><label>严重级别</label>
-                <select id="newRuleSeverity">
-                    ${severities.map(s => `<option value="${s.value}">${s.label}</option>`).join('')}
-                </select>
-            </div>
             <div class="modal-field"><label>审查类型</label>
-                <select id="newRuleReviewType">
-                    ${reviewTypes.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
-                </select>
+                <div class="readonly">LLM（用户自定义规则按自然语言定义审查）</div>
             </div>
-            <div class="modal-field"><label>审查阶段</label>
-                <select id="newRulePhase">
-                    ${phases.map(p => `<option value="${p.value}">${p.label}</option>`).join('')}
-                </select>
+            <div class="modal-field"><label>严重级别</label>
+                <select id="newRuleSeverity"></select>
             </div>
         </div>
         <div class="modal-footer">
@@ -151,12 +165,14 @@ const groups = {{ groups | tojson }};
 const totalCount = {{ total }};
 const enabledCount = {{ enabled_count }};
 const disabledCount = {{ disabled_count }};
-const phases = {{ phases | tojson }};
 const severities = {{ severities | tojson }};
 const reviewTypes = {{ review_types | tojson }};
 
 let currentGroup = null;
 let currentRule = null;
+let ruleSetPage = 1;
+let rulePage = 1;
+const pageSize = 10;
 
 const severityLabels = {};
 severities.forEach(s => severityLabels[s.value] = s.label);
@@ -170,12 +186,42 @@ const severityBadges = {
 const reviewTypeLabels = {};
 reviewTypes.forEach(t => reviewTypeLabels[t.value] = t.label);
 
-const phaseLabels = {};
-phases.forEach(p => phaseLabels[p.value] = p.label);
+function renderPager(containerId, totalItems, currentPage, onPageChange) {
+    const pager = document.getElementById(containerId);
+    const totalPages = Math.ceil(totalItems / pageSize);
+    if (!pager || totalPages <= 1) {
+        if (pager) pager.innerHTML = '';
+        return;
+    }
+
+    pager.innerHTML = `
+        <button class="pager-btn" ${currentPage <= 1 ? 'disabled' : ''} onclick="${onPageChange}(${currentPage - 1})">上一页</button>
+        <span class="pager-info">${currentPage}/${totalPages}</span>
+        <button class="pager-btn" ${currentPage >= totalPages ? 'disabled' : ''} onclick="${onPageChange}(${currentPage + 1})">下一页</button>
+    `;
+}
+
+function changeRuleSetPage(page) {
+    const totalPages = Math.max(1, Math.ceil(groups.length / pageSize));
+    ruleSetPage = Math.min(Math.max(1, page), totalPages);
+    renderSetList();
+}
+
+function changeRulePage(page) {
+    if (!currentGroup) return;
+    const totalPages = Math.max(1, Math.ceil(currentGroup.rules.length / pageSize));
+    rulePage = Math.min(Math.max(1, page), totalPages);
+    renderRuleTable(currentGroup.rules);
+}
 
 function renderSetList() {
     const list = document.getElementById('ruleSetList');
-    list.innerHTML = groups.map(g => `
+    const totalPages = Math.max(1, Math.ceil(groups.length / pageSize));
+    ruleSetPage = Math.min(ruleSetPage, totalPages);
+    const start = (ruleSetPage - 1) * pageSize;
+    const pageGroups = groups.slice(start, start + pageSize);
+
+    list.innerHTML = pageGroups.map(g => `
         <li class="rule-set-item" data-source="${g.source}" onclick="selectGroup('${g.source}')">
             <span class="set-name">${g.display_name}</span>
             <span style="display:flex;align-items:center;gap:6px;">
@@ -187,44 +233,61 @@ function renderSetList() {
 
     document.getElementById('ruleStats').innerHTML =
         `共 ${totalCount} 条规则 &middot; 已启用 ${enabledCount} &middot; 已禁用 ${disabledCount}`;
+
+    renderPager('ruleSetPager', groups.length, ruleSetPage, 'changeRuleSetPage');
+
+    if (currentGroup) {
+        const active = document.querySelector(`[data-source="${currentGroup.source}"]`);
+        if (active) active.classList.add('active');
+    }
 }
 
 function selectGroup(source) {
     currentGroup = groups.find(g => g.source === source);
     if (!currentGroup) return;
+    rulePage = 1;
 
     document.querySelectorAll('.rule-set-item').forEach(el => el.classList.remove('active'));
-    document.querySelector(`[data-source="${source}"]`).classList.add('active');
+    const active = document.querySelector(`[data-source="${source}"]`);
+    if (active) active.classList.add('active');
 
     document.getElementById('currentSetTitle').textContent = currentGroup.display_name;
     document.getElementById('noRulesHint').style.display = 'none';
     document.getElementById('ruleTable').style.display = '';
     document.getElementById('addRuleBtn').style.display = '';
+    document.getElementById('rulePager').style.display = '';
 
     renderRuleTable(currentGroup.rules);
 }
 
 function renderRuleTable(rules) {
     const tbody = document.getElementById('ruleTableBody');
-    tbody.innerHTML = rules.map(r => `
+    const totalPages = Math.max(1, Math.ceil(rules.length / pageSize));
+    rulePage = Math.min(rulePage, totalPages);
+    const start = (rulePage - 1) * pageSize;
+    const pageRules = rules.slice(start, start + pageSize);
+
+    tbody.innerHTML = pageRules.map(r => `
         <tr>
+            <td>${r.code || ''}</td>
             <td><span class="status-dot ${r.enabled ? 'on' : 'off'}" title="${r.enabled ? '已启用' : '已禁用'}"></span></td>
             <td>
                 <div class="rule-name-cell" title="${r.name}">${r.name}</div>
                 <div class="rule-id-cell">${r.rule_id}</div>
             </td>
-            <td>${phaseLabels[r.phase] || r.phase}</td>
             <td>${reviewTypeLabels[r.review_type] || r.review_type}</td>
             <td><span class="badge ${severityBadges[r.severity] || 'badge-default'}">${severityLabels[r.severity] || r.severity}</span></td>
             <td>
                 <div class="rule-actions">
                     <button class="btn btn-outline" onclick="openEdit('${r.rule_id}')">编辑</button>
                     <button class="btn btn-outline" onclick="toggleEnabled('${r.rule_id}', ${!r.enabled})">${r.enabled ? '禁用' : '启用'}</button>
-                    ${r.custom ? `<button class="btn btn-outline" style="color:var(--danger);" onclick="deleteRule('${r.rule_id}')">删除</button>` : ''}
+                    <button class="btn btn-outline" style="color:var(--danger);" onclick="deleteRule('${r.rule_id}')">删除</button>
                 </div>
             </td>
         </tr>
     `).join('');
+
+    renderPager('rulePager', rules.length, rulePage, 'changeRulePage');
 }
 
 function toggleEnabled(ruleId, newState) {
@@ -244,9 +307,11 @@ function toggleEnabled(ruleId, newState) {
                 break;
             }
         }
-        selectGroup(currentGroup.source);
+        const source = currentGroup.source;
+        renderRuleTable(currentGroup.rules);
         renderSetList();
-        document.querySelector(`[data-source="${currentGroup.source}"]`).classList.add('active');
+        const active = document.querySelector(`[data-source="${source}"]`);
+        if (active) active.classList.add('active');
     });
 }
 
@@ -280,6 +345,20 @@ function renderModalBody(rule) {
     let html = '';
     html += `<div class="modal-field"><label>规则ID</label><div class="readonly">${rule.rule_id}</div></div>`;
     html += `<div class="modal-field"><label>描述</label><div class="readonly">${rule.description}</div></div>`;
+    html += `<div class="modal-field"><label>编号</label><input type="text" id="editCode" value="${rule.code || ''}"></div>`;
+    html += `<div class="modal-field"><label>检查逻辑</label><textarea id="editLogic">${rule.logic || ''}</textarea></div>`;
+    html += `<div class="modal-field"><label>标准依据</label><textarea id="editStandardRef">${rule.standard_ref || ''}</textarea></div>`;
+    if (rule.custom) {
+        html += `<div class="modal-divider">规则试审</div>
+            <div class="modal-field">
+                <label>试审文本</label>
+                <textarea id="editRuleSampleText" placeholder="输入一段样例文本，验证该规则会如何判断"></textarea>
+            </div>
+            <div class="modal-field">
+                <button class="btn btn-outline" onclick="testRule('editRule')">试审规则</button>
+                <div class="test-result" id="editRuleTestResult"></div>
+            </div>`;
+    }
     html += `<div class="modal-divider">基本属性</div>`;
     html += `<div class="modal-field"><label>启用状态</label>
         <label class="toggle-switch">
@@ -292,18 +371,17 @@ function renderModalBody(rule) {
             ${severities.map(s => `<option value="${s.value}" ${rule.severity === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
         </select>
     </div>`;
-    html += `<div class="modal-field"><label>审查类型</label>
-        <div class="review-type-btns">
-            ${reviewTypes.map(t => `
-                <label><input type="radio" name="editReviewType" value="${t.value}" ${rule.review_type === t.value ? 'checked' : ''}><span>${t.label}</span></label>
-            `).join('')}
-        </div>
-    </div>`;
-    html += `<div class="modal-field"><label>审查阶段</label>
-        <select id="editPhase">
-            ${phases.map(p => `<option value="${p.value}" ${rule.phase === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}
-        </select>
-    </div>`;
+    if (rule.custom) {
+        html += `<div class="modal-field"><label>审查类型</label><div class="readonly">LLM（用户自定义规则按自然语言定义审查）</div></div>`;
+    } else {
+        html += `<div class="modal-field"><label>审查类型</label>
+            <div class="review-type-btns">
+                ${reviewTypes.map(t => `
+                    <label><input type="radio" name="editReviewType" value="${t.value}" ${rule.review_type === t.value ? 'checked' : ''}><span>${t.label}</span></label>
+                `).join('')}
+            </div>
+        </div>`;
+    }
 
     if (rule.params && Object.keys(rule.params).length > 0) {
         html += `<div class="modal-divider">规则参数</div>`;
@@ -367,15 +445,83 @@ function addTag(event, key) {
     input.value = '';
 }
 
+function collectRuleDraft(prefix) {
+    if (prefix === 'newRule') {
+        return {
+            rule_id: document.getElementById('newRuleId').value.trim() || 'draft_rule',
+            name: document.getElementById('newRuleName').value.trim() || '试审规则',
+            description: document.getElementById('newRuleDesc').value.trim(),
+            source: currentGroup ? currentGroup.source : 'custom',
+            severity: document.getElementById('newRuleSeverity').value || 'warning',
+            code: document.getElementById('newRuleCode').value.trim(),
+            logic: document.getElementById('newRuleLogic').value.trim(),
+            standard_ref: document.getElementById('newRuleStandardRef').value.trim(),
+        };
+    }
+
+    return {
+        rule_id: currentRule ? currentRule.rule_id : 'draft_rule',
+        name: currentRule ? currentRule.name : '试审规则',
+        description: currentRule ? currentRule.description : '',
+        source: currentRule ? currentRule.source : 'custom',
+        severity: document.getElementById('editSeverity').value || 'warning',
+        code: document.getElementById('editCode').value.trim(),
+        logic: document.getElementById('editLogic').value.trim(),
+        standard_ref: document.getElementById('editStandardRef').value.trim(),
+    };
+}
+
+function renderTestResult(prefix, data) {
+    const target = document.getElementById(prefix + 'TestResult');
+    if (!target) return;
+    if (data.error) {
+        target.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+        return;
+    }
+    if (data.passed) {
+        target.innerHTML = '<div class="alert alert-success">试审通过：未发现问题</div>';
+        return;
+    }
+    target.innerHTML = `
+        <div class="alert alert-warning">试审发现 ${data.issues.length} 个问题</div>
+        <ul class="test-issue-list">
+            ${data.issues.map(issue => `<li><strong>${issue.rule_name}</strong>：${issue.message}${issue.suggestions && issue.suggestions.length ? `<br><span>${issue.suggestions.join('；')}</span>` : ''}</li>`).join('')}
+        </ul>
+    `;
+}
+
+function testRule(prefix) {
+    const sampleEl = document.getElementById(prefix + 'SampleText');
+    const resultEl = document.getElementById(prefix + 'TestResult');
+    if (!sampleEl || !resultEl) return;
+
+    resultEl.innerHTML = '<div class="empty-state">试审中...</div>';
+    fetch('/rules/api/test-rule', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            rule: collectRuleDraft(prefix),
+            sample_text: sampleEl.value.trim(),
+        }),
+    })
+    .then(r => r.json())
+    .then(data => renderTestResult(prefix, data))
+    .catch(err => renderTestResult(prefix, {error: '试审失败: ' + err.message}));
+}
+
 function saveRule() {
     if (!currentRule) return;
 
     const updates = {
         enabled: document.getElementById('editEnabled').checked,
         severity: document.getElementById('editSeverity').value,
-        review_type: document.querySelector('input[name="editReviewType"]:checked').value,
-        phase: document.getElementById('editPhase').value,
+        code: document.getElementById('editCode').value.trim(),
+        logic: document.getElementById('editLogic').value.trim(),
+        standard_ref: document.getElementById('editStandardRef').value.trim(),
     };
+    if (!currentRule.custom) {
+        updates.review_type = document.querySelector('input[name="editReviewType"]:checked').value;
+    }
 
     if (currentRule.params && Object.keys(currentRule.params).length > 0) {
         const params = {};
@@ -469,6 +615,7 @@ function deleteSet(source) {
             document.getElementById('ruleTable').style.display = 'none';
             document.getElementById('noRulesHint').style.display = '';
             document.getElementById('addRuleBtn').style.display = 'none';
+            document.getElementById('rulePager').style.display = 'none';
         }
         reloadProfiles();
     });
@@ -480,6 +627,13 @@ function openCreateRuleModal() {
     document.getElementById('newRuleId').value = '';
     document.getElementById('newRuleName').value = '';
     document.getElementById('newRuleDesc').value = '';
+    document.getElementById('newRuleCode').value = '';
+    document.getElementById('newRuleLogic').value = '';
+    document.getElementById('newRuleStandardRef').value = '';
+    document.getElementById('newRuleSampleText').value = '';
+    document.getElementById('newRuleTestResult').innerHTML = '';
+    document.getElementById('newRuleSeverity').innerHTML =
+        severities.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
     document.getElementById('createRuleTitle').textContent = '添加新规则 - ' + currentGroup.display_name;
     document.getElementById('createRuleModal').classList.add('open');
 }
@@ -492,7 +646,9 @@ function createRule() {
     const ruleId = document.getElementById('newRuleId').value.trim();
     const name = document.getElementById('newRuleName').value.trim();
     const desc = document.getElementById('newRuleDesc').value.trim();
+    const logic = document.getElementById('newRuleLogic').value.trim();
     if (!ruleId || !name) { alert('规则ID和名称不能为空'); return; }
+    if (!logic) { alert('检查逻辑不能为空'); return; }
 
     fetch('/rules/api/rules', {
         method: 'POST',
@@ -503,8 +659,11 @@ function createRule() {
             description: desc,
             source: currentGroup.source,
             severity: document.getElementById('newRuleSeverity').value,
-            review_type: document.getElementById('newRuleReviewType').value,
-            phase: document.getElementById('newRulePhase').value,
+            review_type: 'llm',
+            code: document.getElementById('newRuleCode').value.trim(),
+            logic: logic,
+            standard_ref: document.getElementById('newRuleStandardRef').value.trim(),
+            params: {},
         }),
     })
     .then(r => r.json())

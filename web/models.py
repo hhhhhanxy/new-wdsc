@@ -43,6 +43,10 @@ class Database:
                 rule_set TEXT DEFAULT 'all',
                 status TEXT NOT NULL DEFAULT 'pending',
                 progress INTEGER DEFAULT 0,
+                progress_stage TEXT,
+                progress_message TEXT,
+                current_section INTEGER DEFAULT 0,
+                total_sections INTEGER DEFAULT 0,
                 result TEXT,
                 error TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -50,6 +54,10 @@ class Database:
             )
         ''')
         self._ensure_column(cursor, 'review_tasks', 'rule_set', "TEXT DEFAULT 'all'")
+        self._ensure_column(cursor, 'review_tasks', 'progress_stage', "TEXT")
+        self._ensure_column(cursor, 'review_tasks', 'progress_message', "TEXT")
+        self._ensure_column(cursor, 'review_tasks', 'current_section', "INTEGER DEFAULT 0")
+        self._ensure_column(cursor, 'review_tasks', 'total_sections', "INTEGER DEFAULT 0")
 
         # Generate tasks table
         cursor.execute('''
@@ -94,7 +102,17 @@ class Database:
 
     def update_review_task(self, task_id: int, **kwargs):
         """Update review task fields"""
-        valid_fields = {'status', 'progress', 'result', 'error', 'completed_at'}
+        valid_fields = {
+            'status',
+            'progress',
+            'progress_stage',
+            'progress_message',
+            'current_section',
+            'total_sections',
+            'result',
+            'error',
+            'completed_at',
+        }
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if not updates:
             return
@@ -143,16 +161,40 @@ class Database:
         ''', values)
         self.conn.commit()
 
-    def get_recent_review_tasks(self, limit: int = 5):
+    def get_recent_review_tasks(self, limit: int = 5, offset: int = 0):
         """Get recent review tasks"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            SELECT id, filename, status, progress, rule_set, created_at
+            SELECT id, filename, status, progress, progress_stage, progress_message,
+                   current_section, total_sections, rule_set, result, error, created_at, completed_at
             FROM review_tasks
             ORDER BY created_at DESC
-            LIMIT ?
-        ''', (limit,))
+            LIMIT ? OFFSET ?
+        ''', (limit, offset))
         return [dict(row) for row in cursor.fetchall()]
+
+    def count_review_tasks(self) -> int:
+        """Count all review tasks."""
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM review_tasks')
+        return int(cursor.fetchone()[0])
+
+    def delete_review_task(self, task_id: int) -> int:
+        """Delete one review task record."""
+        cursor = self.conn.cursor()
+        cursor.execute('DELETE FROM review_tasks WHERE id = ?', (task_id,))
+        self.conn.commit()
+        return cursor.rowcount
+
+    def delete_finished_review_tasks(self) -> int:
+        """Delete review task records that are no longer running."""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            DELETE FROM review_tasks
+            WHERE status NOT IN ('pending', 'processing', 'paused')
+        ''')
+        self.conn.commit()
+        return cursor.rowcount
 
     def close(self):
         """Close database connection"""

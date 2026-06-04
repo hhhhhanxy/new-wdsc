@@ -49,6 +49,8 @@ REVIEW_SYSTEM_PROMPT = """
 - 不要输出任何额外解释或多余内容
 - 确保所有必需字段都存在
 - 使用中文进行描述
+- 只能依据用户本次提供的规则审查，不能新增、改名或推断未提供的规则
+- 输出中的 `rule_id` 必须逐字使用规则清单里的“规则ID”，不能使用编号/code 代替
 """
 
 
@@ -171,11 +173,17 @@ REVIEW_SECTION_PROMPT = """请审查以下文档片段：
    - 说明：{{ rule.description }}
 {% endfor %}
 
+【允许返回的规则ID】
+{% for rule in rules %}
+- {{ rule.rule_id }}{% if rule.code %}（编号：{{ rule.code }}，注意：编号不能作为 rule_id 返回）{% endif %}
+{% endfor %}
+
 【审查要求】
 1. 逐条检查规则，判断文档片段是否符合要求
 2. 识别存在的问题（如果有）
 3. 评估问题严重程度（error/warning/info）
 4. 提供具体可执行的修改建议
+5. 只允许返回【允许返回的规则ID】中列出的 rule_id；不得返回编号、规则简称、历史规则或自己生成的规则
 
 【输出格式】
 请严格按照以下 JSON 格式输出：
@@ -197,9 +205,12 @@ REVIEW_SECTION_PROMPT = """请审查以下文档片段：
 
 **注意事项：**
 - `passed`：所有规则都通过则为 true，否则为 false
+- `rule_id`：必须逐字复制【允许返回的规则ID】中的值，例如规则ID是“任务来源检查”时，不能返回“P-001”
+- `rule_name`：使用规则清单中的规则名称
 - `severity`：error（严重错误）、warning（警告）、info（信息提示）
 - `issues`：按严重程度从高到低排序
 - 如果没有问题，`issues` 数组为空
+- 如果发现的问题不属于本次规则清单，必须忽略，不要写入 `issues`
 
 {few_shot_examples}
 
@@ -234,6 +245,11 @@ REVIEW_DOCUMENT_PROMPT = """请对以下文档进行全面审查：
    - 编号：{{ rule.code or "-" }}
    - 严重级别：{{ rule.severity or "warning" }}
    - 说明：{{ rule.description }}
+{% endfor %}
+
+【允许返回的规则ID】
+{% for rule in rules %}
+- {{ rule.rule_id }}{% if rule.code %}（编号：{{ rule.code }}，注意：编号不能作为 rule_id 返回）{% endif %}
 {% endfor %}
 
 【审查重点】
@@ -275,6 +291,7 @@ REVIEW_DOCUMENT_PROMPT = """请对以下文档进行全面审查：
 **字段说明：**
 - `summary`：简洁的总体评价
 - `issues`：按严重程度排序的问题列表
+- `issues[].rule_id`：必须逐字复制【允许返回的规则ID】中的值，不能使用编号/code 或自造规则ID
 - `suggestions`：整体改进建议
 - `conclusion`：最终结论（通过/不通过/需要修改）
 - `score`：文档质量评分（0-100）

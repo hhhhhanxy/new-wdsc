@@ -3,16 +3,20 @@
 
 {% block content %}
 <style>
-/* 规则管理页面紫色主题 */
-.main-content { --primary: #8e24aa; --primary-dark: #7b1fa2; }
-.sidebar-nav a.active { border-left-color: #8e24aa; }
-.rule-set-item.active { background: #f3e5f5; border-left-color: var(--primary); }
-.tag-item { background: #f3e5f5; color: var(--primary); }
+/* 对应首页“规则管理”模块亮蓝紫主题 */
+:root { --primary: #6f7df2; --primary-dark: #5865d8; }
+.sidebar-nav a.active {
+    color: #5865d8;
+    background: rgba(111, 125, 242, 0.13);
+    border-left-color: #6f7df2;
+}
+.rule-set-item.active { background: #f1f3ff; border-left-color: var(--primary); }
+.tag-item { background: #f1f3ff; color: var(--primary); }
 .tag-item .tag-remove { color: var(--primary); }
 .modal-field select:focus,
 .modal-field input:focus { border-color: var(--primary); }
 .review-type-btns input:checked + span { color: var(--primary); }
-.review-type-btns label:has(input:checked) { border-color: var(--primary); background: #f3e5f5; }
+.review-type-btns label:has(input:checked) { border-color: var(--primary); background: #f1f3ff; }
 .btn-primary { background: var(--primary); }
 .btn-primary:hover { background: var(--primary-dark); }
 </style>
@@ -27,7 +31,7 @@
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>规则集</span>
-                <button class="btn btn-primary" style="padding:4px 12px;font-size:11px;" onclick="openCreateSetModal()">+ 新建规则集</button>
+                <button class="btn btn-primary" style="padding:6px 14px;font-size:14px;" onclick="openCreateSetModal()">+ 新建规则集</button>
             </div>
             <ul class="rule-set-list" id="ruleSetList">
             </ul>
@@ -41,7 +45,7 @@
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span id="currentSetTitle">请选择规则集</span>
-                <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:4px 12px;font-size:11px;" onclick="openCreateRuleModal()">+ 添加规则</button>
+                <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openCreateRuleModal()">+ 添加规则</button>
             </div>
             <table class="rule-table" id="ruleTable" style="display:none;">
                 <thead>
@@ -50,6 +54,7 @@
                         <th>状态</th>
                         <th>规则名称</th>
                         <th>类型</th>
+                        <th>范围</th>
                         <th>级别</th>
                         <th>操作</th>
                     </tr>
@@ -111,8 +116,8 @@
         </div>
         <div class="modal-body">
             <div class="modal-field">
-                <label>规则ID（英文，如 my_check）</label>
-                <input type="text" id="newRuleId" placeholder="my_check">
+                <label>编号</label>
+                <input type="text" id="newRuleCode" placeholder="例如 R-001">
             </div>
             <div class="modal-field">
                 <label>规则名称</label>
@@ -123,12 +128,16 @@
                 <input type="text" id="newRuleDesc" placeholder="规则描述">
             </div>
             <div class="modal-field">
-                <label>编号（可选）</label>
-                <input type="text" id="newRuleCode" placeholder="例如 R-001">
-            </div>
-            <div class="modal-field">
                 <label>检查逻辑</label>
                 <textarea id="newRuleLogic" placeholder="写明判定条件、检查步骤、通过/不通过标准"></textarea>
+            </div>
+            <div class="modal-field">
+                <label>目标章节关键词（可选，逗号分隔）</label>
+                <input type="text" id="newRuleTargetHeadings" placeholder="例如 接口要求，机械接口，电气接口">
+            </div>
+            <div class="modal-field">
+                <label>必需要素（可选，逗号分隔）</label>
+                <input type="text" id="newRuleRequiredElements" placeholder="例如 机械接口，电气接口，电源接口，信号接口">
             </div>
             <div class="modal-field">
                 <label>标准依据（可选）</label>
@@ -146,6 +155,9 @@
             <div class="modal-divider">属性配置</div>
             <div class="modal-field"><label>审查类型</label>
                 <div class="readonly">LLM（用户自定义规则按自然语言定义审查）</div>
+            </div>
+            <div class="modal-field"><label>审查范围</label>
+                <select id="newRuleScope"></select>
             </div>
             <div class="modal-field"><label>严重级别</label>
                 <select id="newRuleSeverity"></select>
@@ -185,6 +197,29 @@ const severityBadges = {
 
 const reviewTypeLabels = {};
 reviewTypes.forEach(t => reviewTypeLabels[t.value] = t.label);
+const scopeLabels = {
+    all: '全文',
+    cover: '封面',
+    signature: '签署页',
+    preface: '前言',
+    body: '正文',
+};
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function parseListInput(value) {
+    return String(value || '')
+        .split(/[,，;；\n]+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+}
 
 function renderPager(containerId, totalItems, currentPage, onPageChange) {
     const pager = document.getElementById(containerId);
@@ -273,9 +308,9 @@ function renderRuleTable(rules) {
             <td><span class="status-dot ${r.enabled ? 'on' : 'off'}" title="${r.enabled ? '已启用' : '已禁用'}"></span></td>
             <td>
                 <div class="rule-name-cell" title="${r.name}">${r.name}</div>
-                <div class="rule-id-cell">${r.rule_id}</div>
             </td>
             <td>${reviewTypeLabels[r.review_type] || r.review_type}</td>
+            <td>${scopeLabels[r.scope] || r.scope || '全文'}</td>
             <td><span class="badge ${severityBadges[r.severity] || 'badge-default'}">${severityLabels[r.severity] || r.severity}</span></td>
             <td>
                 <div class="rule-actions">
@@ -343,11 +378,23 @@ function closeModal() {
 
 function renderModalBody(rule) {
     let html = '';
-    html += `<div class="modal-field"><label>规则ID</label><div class="readonly">${rule.rule_id}</div></div>`;
-    html += `<div class="modal-field"><label>描述</label><div class="readonly">${rule.description}</div></div>`;
-    html += `<div class="modal-field"><label>编号</label><input type="text" id="editCode" value="${rule.code || ''}"></div>`;
-    html += `<div class="modal-field"><label>检查逻辑</label><textarea id="editLogic">${rule.logic || ''}</textarea></div>`;
-    html += `<div class="modal-field"><label>标准依据</label><textarea id="editStandardRef">${rule.standard_ref || ''}</textarea></div>`;
+    if (rule.custom) {
+        html += `<div class="modal-field"><label>规则名称</label><input type="text" id="editName" value="${escapeHtml(rule.name || '')}"></div>`;
+        html += `<div class="modal-field"><label>描述</label><input type="text" id="editDescription" value="${escapeHtml(rule.description || '')}"></div>`;
+    } else {
+        html += `<div class="modal-field"><label>规则名称</label><div class="readonly">${escapeHtml(rule.name)}</div></div>`;
+        html += `<div class="modal-field"><label>描述</label><div class="readonly">${escapeHtml(rule.description)}</div></div>`;
+    }
+    html += `<div class="modal-field"><label>编号</label><input type="text" id="editCode" value="${escapeHtml(rule.code || '')}"></div>`;
+    html += `<div class="modal-field"><label>检查逻辑</label><textarea id="editLogic">${escapeHtml(rule.logic || '')}</textarea></div>`;
+    html += `<div class="modal-field"><label>目标章节关键词（可选，逗号分隔）</label><input type="text" id="editTargetHeadings" value="${escapeHtml((rule.target_headings || []).join('，'))}" placeholder="例如 接口要求，机械接口，电气接口"></div>`;
+    html += `<div class="modal-field"><label>必需要素（可选，逗号分隔）</label><input type="text" id="editRequiredElements" value="${escapeHtml((rule.required_elements || []).join('，'))}" placeholder="例如 机械接口，电气接口，电源接口，信号接口"></div>`;
+    html += `<div class="modal-field"><label>标准依据</label><textarea id="editStandardRef">${escapeHtml(rule.standard_ref || '')}</textarea></div>`;
+    html += `<div class="modal-field"><label>审查范围</label>
+        <select id="editScope">
+            ${Object.entries(scopeLabels).map(([value, label]) => `<option value="${value}" ${(rule.scope || 'all') === value ? 'selected' : ''}>${label}</option>`).join('')}
+        </select>
+    </div>`;
     if (rule.custom) {
         html += `<div class="modal-divider">规则试审</div>
             <div class="modal-field">
@@ -448,7 +495,6 @@ function addTag(event, key) {
 function collectRuleDraft(prefix) {
     if (prefix === 'newRule') {
         return {
-            rule_id: document.getElementById('newRuleId').value.trim() || 'draft_rule',
             name: document.getElementById('newRuleName').value.trim() || '试审规则',
             description: document.getElementById('newRuleDesc').value.trim(),
             source: currentGroup ? currentGroup.source : 'custom',
@@ -456,6 +502,9 @@ function collectRuleDraft(prefix) {
             code: document.getElementById('newRuleCode').value.trim(),
             logic: document.getElementById('newRuleLogic').value.trim(),
             standard_ref: document.getElementById('newRuleStandardRef').value.trim(),
+            scope: document.getElementById('newRuleScope').value || 'all',
+            target_headings: parseListInput(document.getElementById('newRuleTargetHeadings').value),
+            required_elements: parseListInput(document.getElementById('newRuleRequiredElements').value),
         };
     }
 
@@ -468,6 +517,9 @@ function collectRuleDraft(prefix) {
         code: document.getElementById('editCode').value.trim(),
         logic: document.getElementById('editLogic').value.trim(),
         standard_ref: document.getElementById('editStandardRef').value.trim(),
+        scope: document.getElementById('editScope').value || 'all',
+        target_headings: parseListInput(document.getElementById('editTargetHeadings').value),
+        required_elements: parseListInput(document.getElementById('editRequiredElements').value),
     };
 }
 
@@ -518,7 +570,14 @@ function saveRule() {
         code: document.getElementById('editCode').value.trim(),
         logic: document.getElementById('editLogic').value.trim(),
         standard_ref: document.getElementById('editStandardRef').value.trim(),
+        scope: document.getElementById('editScope').value || 'all',
+        target_headings: parseListInput(document.getElementById('editTargetHeadings').value),
+        required_elements: parseListInput(document.getElementById('editRequiredElements').value),
     };
+    if (currentRule.custom) {
+        updates.name = document.getElementById('editName').value.trim();
+        updates.description = document.getElementById('editDescription').value.trim();
+    }
     if (!currentRule.custom) {
         updates.review_type = document.querySelector('input[name="editReviewType"]:checked').value;
     }
@@ -624,16 +683,19 @@ function deleteSet(source) {
 // ---- Create Rule ----
 function openCreateRuleModal() {
     if (!currentGroup) return;
-    document.getElementById('newRuleId').value = '';
     document.getElementById('newRuleName').value = '';
     document.getElementById('newRuleDesc').value = '';
     document.getElementById('newRuleCode').value = '';
     document.getElementById('newRuleLogic').value = '';
+    document.getElementById('newRuleTargetHeadings').value = '';
+    document.getElementById('newRuleRequiredElements').value = '';
     document.getElementById('newRuleStandardRef').value = '';
     document.getElementById('newRuleSampleText').value = '';
     document.getElementById('newRuleTestResult').innerHTML = '';
     document.getElementById('newRuleSeverity').innerHTML =
         severities.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+    document.getElementById('newRuleScope').innerHTML =
+        Object.entries(scopeLabels).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
     document.getElementById('createRuleTitle').textContent = '添加新规则 - ' + currentGroup.display_name;
     document.getElementById('createRuleModal').classList.add('open');
 }
@@ -643,26 +705,29 @@ function closeCreateRuleModal() {
 }
 
 function createRule() {
-    const ruleId = document.getElementById('newRuleId').value.trim();
     const name = document.getElementById('newRuleName').value.trim();
     const desc = document.getElementById('newRuleDesc').value.trim();
+    const code = document.getElementById('newRuleCode').value.trim();
     const logic = document.getElementById('newRuleLogic').value.trim();
-    if (!ruleId || !name) { alert('规则ID和名称不能为空'); return; }
+    if (!code) { alert('编号不能为空'); return; }
+    if (!name) { alert('规则名称不能为空'); return; }
     if (!logic) { alert('检查逻辑不能为空'); return; }
 
     fetch('/rules/api/rules', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            rule_id: ruleId,
             name: name,
             description: desc,
             source: currentGroup.source,
             severity: document.getElementById('newRuleSeverity').value,
             review_type: 'llm',
-            code: document.getElementById('newRuleCode').value.trim(),
+            code: code,
             logic: logic,
             standard_ref: document.getElementById('newRuleStandardRef').value.trim(),
+            scope: document.getElementById('newRuleScope').value || 'all',
+            target_headings: parseListInput(document.getElementById('newRuleTargetHeadings').value),
+            required_elements: parseListInput(document.getElementById('newRuleRequiredElements').value),
             params: {},
         }),
     })

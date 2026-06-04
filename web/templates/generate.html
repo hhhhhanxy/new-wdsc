@@ -2,6 +2,66 @@
 {% block title %}文档生成 - 文档审查与生成平台{% endblock %}
 
 {% block content %}
+<style>
+/* 对应首页“文档生成”模块天蓝主题 */
+:root { --primary: #21a8f3; --primary-dark: #168fd3; --accent-cyan: #21a8f3; }
+.sidebar-nav a.active {
+    background: rgba(33, 168, 243, 0.13);
+    border-left-color: #21a8f3;
+}
+.btn-success { background: #21a8f3; }
+.btn-success:hover { background: #168fd3; }
+.doc-type-card.selected {
+    border-color: #21a8f3;
+    background: #edf9ff;
+}
+.page-header {
+    padding-bottom: 14px;
+    border-bottom: 3px solid rgba(33, 168, 243, 0.28);
+}
+.section-step {
+    position: relative;
+    padding-left: 12px;
+    font-weight: 700;
+}
+.section-step::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.45em;
+    width: 4px;
+    height: 1em;
+    border-radius: 3px;
+    background: #21a8f3;
+}
+.config-section {
+    border-top: 3px solid rgba(33, 168, 243, 0.34);
+}
+.form-control {
+    border-color: #d5e6f2;
+}
+.form-control:focus {
+    border-color: #21a8f3;
+    box-shadow: 0 0 0 2px rgba(33, 168, 243, 0.12);
+}
+.upload-zone {
+    border-color: #b8dff5;
+    background: #f7fcff;
+}
+.upload-zone:hover {
+    background: #eef9ff;
+}
+.progress-bar-fill {
+    background: #21a8f3;
+}
+.result-status-mark {
+    border-color: #b8dff5;
+    background: #edf9ff;
+}
+.alert-warning {
+    border-left-color: var(--warning);
+}
+</style>
 <div class="page-header">
     <h1>文档生成</h1>
     <p>由用户维护生成定义，平台按定义生成技术文档</p>
@@ -41,7 +101,7 @@
             <div class="form-group">
                 <label>参考文档（可选）</label>
                 <div class="upload-zone" id="refUploadZone" style="padding:16px;">
-                    <p style="font-size:12px;" id="refUploadText">点击上传参考文档</p>
+                    <p style="font-size:14px;" id="refUploadText">点击上传参考文档</p>
                     <input type="file" id="refFileInput" accept=".docx" style="display:none">
                 </div>
             </div>
@@ -72,9 +132,9 @@
             <div class="report-section">
                 <p class="section-title">生成结果</p>
                 <div style="text-align:center;padding:16px;" id="genResultIcon">
-                    <div style="font-size:40px;margin-bottom:10px;" id="genResultEmoji">&#9989;</div>
-                    <p style="font-size:14px;font-weight:600;" id="genResultTitle">文档生成完成</p>
-                    <p style="font-size:12px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
+                    <div class="result-status-mark" id="genResultEmoji">OK</div>
+                    <p style="font-size:15px;font-weight:600;" id="genResultTitle">文档生成完成</p>
+                    <p style="font-size:14px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
                 </div>
 
                 <!-- Review result (closed loop) -->
@@ -104,17 +164,12 @@
             </div>
         </div>
 
-        <!-- Security blocked -->
-        <div id="genBlockedSection" class="alert alert-danger" style="display:none;">
-            <strong>安全警告：</strong><span id="genBlockedMsg"></span>
-        </div>
-
         <!-- Info -->
         <div class="panel" style="margin-top:16px;">
             <div class="panel-title">生成说明</div>
-            <ul style="font-size:12px;color:var(--text-secondary);line-height:1.8;padding-left:16px;">
+            <ul style="font-size:14px;color:var(--text-secondary);line-height:1.8;padding-left:16px;">
                 <li>平台只提供生成执行能力，具体章节和内容要求由用户填写</li>
-                <li>生成时会按用户定义组织正文，并执行安全检测</li>
+                <li>生成时会按用户定义组织正文</li>
                 <li>生成后可在 Word 中进一步编辑调整</li>
                 <li>支持导出为 DOCX 格式</li>
             </ul>
@@ -195,13 +250,12 @@ function pollGenProgress() {
                     'reviewing': '正在执行审查...',
                     'completed': '生成并通过审查',
                     'review_failed': '审查未通过',
-                    'blocked': '安全检测拦截',
                     'failed': '生成失败',
                 };
                 document.getElementById('genProgressStatus').textContent =
                     statusTexts[data.status] || data.status;
 
-                if (['completed', 'failed', 'blocked', 'review_failed'].includes(data.status)) {
+                if (['completed', 'failed', 'review_failed'].includes(data.status)) {
                     clearInterval(genPollTimer);
                     handleGenFinalState(data);
                 }
@@ -217,7 +271,7 @@ function handleGenFinalState(data) {
     if (data.status === 'completed') {
         // Success: generated and passed review
         document.getElementById('genResultSection').style.display = 'block';
-        document.getElementById('genResultEmoji').innerHTML = '&#9989;';
+        document.getElementById('genResultEmoji').textContent = 'OK';
         document.getElementById('genResultTitle').textContent = '文档生成完成，已通过审查';
         document.getElementById('genResultName').textContent = data.result_path
             ? data.result_path.split(/[/\\]/).pop() : 'generated_document.docx';
@@ -227,16 +281,11 @@ function handleGenFinalState(data) {
     } else if (data.status === 'review_failed') {
         // Generated but review failed
         document.getElementById('genResultSection').style.display = 'block';
-        document.getElementById('genResultEmoji').innerHTML = '&#9888;';
+        document.getElementById('genResultEmoji').textContent = '!';
         document.getElementById('genResultTitle').textContent = '文档已生成，但未通过审查';
         document.getElementById('genResultName').textContent = data.error || '请查看下方审查结果';
         document.getElementById('retryGenBtn').style.display = 'inline-flex';
         showGenReview(data);
-
-    } else if (data.status === 'blocked') {
-        // Security blocked
-        document.getElementById('genBlockedSection').style.display = 'block';
-        document.getElementById('genBlockedMsg').textContent = data.error || '检测到涉密内容，已停止处理';
 
     } else {
         // Failed
@@ -261,7 +310,7 @@ function showGenReview(data) {
 
     // Show phase results
     if (reviewResult.phases) {
-        let phaseHtml = '<div style="font-size:12px;margin-top:8px;">';
+        let phaseHtml = '<div style="font-size:14px;margin-top:8px;">';
         const phaseNames = {
             'format': '格式检查',
             'completeness': '完整性检查',

@@ -25,6 +25,14 @@ class ReviewType(Enum):
     BOTH = "both"
 
 
+class RuleScope(Enum):
+    ALL = "all"
+    COVER = "cover"
+    SIGNATURE = "signature"
+    PREFACE = "preface"
+    BODY = "body"
+
+
 class ReviewPhase(Enum):
     FORMAT = "format"                         # 格式检查
     COMPLETENESS = "completeness"             # 完整性检查
@@ -102,6 +110,10 @@ class Rule:
     code: str = ""
     logic: str = ""
     standard_ref: str = ""
+    aliases: List[str] = field(default_factory=list)
+    scope: RuleScope = RuleScope.ALL
+    target_headings: List[str] = field(default_factory=list)
+    required_elements: List[str] = field(default_factory=list)
 
     def check(self, section: DocumentSection, context: dict = None) -> RuleResult:
         if not self.enabled:

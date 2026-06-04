@@ -105,12 +105,6 @@ def run_generate_task(task_id, data, upload_folder, db):
             output_dir=output_dir,
         )
 
-        if result.is_blocked:
-            db.update_generate_task(
-                task_id, progress=100, status='blocked', error=result.block_reason
-            )
-            return
-
         # Build review summary for storage
         review_summary = {}
         if result.review_result:

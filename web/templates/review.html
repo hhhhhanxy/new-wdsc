@@ -2,6 +2,15 @@
 {% block title %}文档审查 - 文档审查与生成平台{% endblock %}
 
 {% block content %}
+<style>
+/* 对应首页“文档审查”模块亮蓝主题 */
+:root { --primary: #2f74e0; --primary-dark: #2462c4; }
+.sidebar-nav a.active {
+    color: #1d5fbf;
+    background: rgba(47, 116, 224, 0.13);
+    border-left-color: #2f74e0;
+}
+</style>
 <div class="page-header">
     <h1>文档审查</h1>
     <p>上传 DOCX 文档，按规则库中每条规则的审查类型执行审查</p>
@@ -13,7 +22,7 @@
         <!-- Step 1: Upload -->
         <p class="section-step">1. 上传文档</p>
         <div class="upload-zone" id="uploadZone">
-            <div class="upload-icon">&#128196;</div>
+            <div class="upload-icon">DOCX</div>
             <p id="uploadText">拖拽 DOCX 文件到此处，或点击选择</p>
             <small>支持 .docx 格式，最大 50MB</small>
             <input type="file" id="fileInput" accept=".docx" style="display:none">
@@ -25,7 +34,7 @@
             <div class="config-row">
                 <div class="config-label">规则集</div>
                 <div>
-                    <select class="form-control" id="ruleSetSelect" style="width:auto;padding:4px 8px;font-size:12px;">
+                    <select class="form-control" id="ruleSetSelect" style="width:auto;padding:7px 12px;font-size:15px;">
                         <option value="all">全部规则</option>
                         {% for rs in rule_sets %}
                         <option value="{{ rs.source }}">{{ rs.name }} ({{ rs.count }}条)</option>
@@ -44,6 +53,7 @@
                             <th>状态</th>
                             <th>规则名称</th>
                             <th>审查类型</th>
+                            <th>范围</th>
                             <th>级别</th>
                             <th>操作</th>
                         </tr>
@@ -61,108 +71,96 @@
         </button>
     </div>
 
-    <!-- Right: Progress & Result -->
+    <!-- Right: Result -->
     <div>
-        <!-- Security warning -->
-        <div id="securityWarning" class="alert alert-danger" style="display:none;">
-            <strong>安全警告：</strong><span id="securityMessage"></span>
-        </div>
-
-        <!-- Progress -->
-        <div class="progress-section" id="progressSection" style="display:none;">
-            <p class="section-title">审查进度</p>
-            <div class="progress-info">
-                <span id="progressStatus">正在审查...</span>
-                <span id="progressPercent">0%</span>
-            </div>
-            <div class="progress-bar-wrapper">
-                <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
-            </div>
-        </div>
-
         <!-- Result -->
-        <div id="resultSection" style="display:none;">
+        <div id="resultSection">
             <div class="report-section">
                 <p class="section-title">审查结果</p>
-                <div class="report-stats">
-                    <div class="report-stat">
-                        <div class="value" style="color:var(--primary);" id="resultTotal">0</div>
-                        <div class="label">总问题</div>
+                <div id="resultPlaceholder" class="empty-state">审查完成后将在此显示结果</div>
+                <div id="resultContent" style="display:none;">
+                    <div class="report-stats">
+                        <div class="report-stat">
+                            <div class="value" style="color:var(--primary);" id="resultTotal">0</div>
+                            <div class="label">总问题</div>
+                        </div>
+                        <div class="report-stat">
+                            <div class="value" style="color:var(--danger);" id="resultErrors">0</div>
+                            <div class="label">错误</div>
+                        </div>
+                        <div class="report-stat">
+                            <div class="value" style="color:var(--warning);" id="resultWarnings">0</div>
+                            <div class="label">警告</div>
+                        </div>
                     </div>
-                    <div class="report-stat">
-                        <div class="value" style="color:var(--danger);" id="resultErrors">0</div>
-                        <div class="label">错误</div>
+
+                    <div id="resultStatus"></div>
+
+                    <div id="summarySection" style="display:none; margin-top:14px;">
+                        <p class="section-title">审查总结</p>
+                        <p id="summaryText" style="font-size:15px;color:var(--text-secondary);line-height:1.7;"></p>
                     </div>
-                    <div class="report-stat">
-                        <div class="value" style="color:var(--warning);" id="resultWarnings">0</div>
-                        <div class="label">警告</div>
+
+                    <div id="issueListSection" style="display:none; margin-top:14px;">
+                        <p class="section-title">问题详情</p>
+                        <table class="issue-table">
+                            <thead>
+                                <tr>
+                                    <th>章节</th>
+                                    <th>规则编号</th>
+                                    <th>规则</th>
+                                    <th>级别</th>
+                                    <th>来源</th>
+                                    <th>依据</th>
+                                    <th>问题描述</th>
+                                </tr>
+                            </thead>
+                            <tbody id="issueTableBody"></tbody>
+                        </table>
+                        <div class="pager" id="issuePager"></div>
+                        <div id="noIssuesHint" class="empty-state" style="display:none;">未发现问题</div>
                     </div>
-                </div>
 
-                <div id="resultStatus"></div>
-
-                <div id="summarySection" style="display:none; margin-top:14px;">
-                    <p class="section-title">审查总结</p>
-                    <p id="summaryText" style="font-size:13px;color:var(--text-secondary);line-height:1.6;"></p>
-                </div>
-
-                <div id="issueListSection" style="display:none; margin-top:14px;">
-                    <p class="section-title">问题详情</p>
-                    <table class="issue-table">
-                        <thead>
-                            <tr>
-                                <th>章节</th>
-                                <th>规则编号</th>
-                                <th>规则</th>
-                                <th>级别</th>
-                                <th>来源</th>
-                                <th>依据</th>
-                                <th>问题描述</th>
-                            </tr>
-                        </thead>
-                        <tbody id="issueTableBody"></tbody>
-                    </table>
-                    <div id="noIssuesHint" class="empty-state" style="display:none;">未发现问题</div>
-                </div>
-
-                <div style="margin-top:14px; display:flex; gap:8px;">
-                    <button class="btn btn-success" onclick="downloadReport()">下载 DOCX 报告</button>
+                    <div style="margin-top:14px; display:flex; gap:8px;">
+                        <button class="btn btn-success" onclick="downloadReport()">下载 DOCX 报告</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Recent reviews -->
-        <div class="panel" style="margin-top:16px;">
-            <div class="panel-title">最近审查</div>
-            {% if recent_tasks %}
-            <ul class="task-list">
-                {% for task in recent_tasks %}
-                <li class="task-item">
-                    <div class="task-info">
-                        <div class="task-name">{{ task.filename }}</div>
-                        <div class="task-meta">{{ task.created_at }} &middot;
-                            规则集：{{ task.rule_set_label or '全部规则' }} &middot;
-                            {% if task.status == 'completed' %}审查完成
-                            {% elif task.status == 'processing' %}审查中...
-                            {% elif task.status == 'blocked' %}安全阻断
-                            {% else %}{{ task.status }}{% endif %}
-                        </div>
-                    </div>
-                    <span class="badge badge-{{ 'success' if task.status == 'completed' else 'warning' if task.status == 'processing' else 'danger' if task.status == 'blocked' else 'default' }}">
-                        {{ '已完成' if task.status == 'completed' else '审查中' if task.status == 'processing' else '安全阻断' if task.status == 'blocked' else task.status }}
-                    </span>
-                    {% if task.status == 'completed' %}
-                    <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;" onclick="window.location.href='/review/report/{{ task.id }}'">下载报告</button>
-                    {% endif %}
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <div class="empty-state">暂无审查记录</div>
-            {% endif %}
+    </div>
+</div>
+
+<div class="modal-overlay" id="progressModal">
+    <div class="modal progress-modal">
+        <div class="modal-header">
+            <h3>审查进度</h3>
+            <button class="modal-close" onclick="closeProgressModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="progress-section progress-section-modal" id="progressSection">
+                <div class="progress-info">
+                    <span id="progressStatus">正在审查...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+                </div>
+                <div class="progress-detail" id="progressDetail">等待后端同步进度</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" id="pauseBtn" onclick="togglePause()" style="display:none;">暂停审查</button>
+            <button class="btn btn-outline btn-danger-text" id="cancelBtn" onclick="cancelReview()" style="display:none;">停止审查</button>
+            <button class="btn btn-outline" onclick="closeProgressModal()">收起</button>
         </div>
     </div>
 </div>
+
+<button class="progress-dock" id="progressDock" onclick="openProgressModal()" style="display:none;">
+    <span id="progressDockStatus">审查中</span>
+    <strong id="progressDockPercent">0%</strong>
+</button>
 {% endblock %}
 
 {% block scripts %}
@@ -172,13 +170,23 @@ let currentTaskId = null;
 let pollTimer = null;
 let reviewRuleGroups = [];
 let reviewRulePage = 1;
+let resultIssues = [];
+let resultIssuePage = 1;
+let isPaused = false;
+const initialTaskId = {{ focus_task_id or 'null' }};
 const reviewRulePageSize = 10;
+const resultIssuePageSize = 10;
 
 const uploadZone = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
 const uploadText = document.getElementById('uploadText');
 const startBtn = document.getElementById('startBtn');
 const ruleSetSelect = document.getElementById('ruleSetSelect');
+const progressModal = document.getElementById('progressModal');
+const progressDock = document.getElementById('progressDock');
+const progressDockStatus = document.getElementById('progressDockStatus');
+const progressDockPercent = document.getElementById('progressDockPercent');
+const progressDetail = document.getElementById('progressDetail');
 
 const reviewTypeLabels = {
     rule: '规则引擎',
@@ -197,6 +205,33 @@ const severityBadges = {
     warning: 'badge-warning',
     info: 'badge-info',
 };
+const scopeLabels = {
+    all: '全文',
+    cover: '封面',
+    signature: '签署页',
+    preface: '前言',
+    body: '正文',
+};
+
+function openProgressModal() {
+    if (progressModal) progressModal.classList.add('open');
+    updateProgressDockVisibility();
+}
+
+function closeProgressModal() {
+    if (progressModal) progressModal.classList.remove('open');
+    updateProgressDockVisibility();
+}
+
+function isTaskActive() {
+    return !!currentTaskId && startBtn.textContent !== '开始审查';
+}
+
+function updateProgressDockVisibility() {
+    if (!progressDock) return;
+    const modalOpen = progressModal && progressModal.classList.contains('open');
+    progressDock.style.display = isTaskActive() && !modalOpen ? 'flex' : 'none';
+}
 
 // Upload zone interactions
 uploadZone.addEventListener('click', () => fileInput.click());
@@ -280,9 +315,9 @@ function renderSelectedRuleSet() {
             <td><span class="status-dot ${rule.enabled ? 'on' : 'off'}" title="${rule.enabled ? '已启用' : '已禁用'}"></span></td>
             <td>
                 <div class="rule-name-cell" title="${escapeHtml(rule.name)}">${escapeHtml(rule.name)}</div>
-                <div class="rule-id-cell">${escapeHtml(rule.rule_id)}</div>
             </td>
             <td>${reviewTypeLabels[rule.review_type] || escapeHtml(rule.review_type)}</td>
+            <td>${scopeLabels[rule.scope] || escapeHtml(rule.scope || '全文')}</td>
             <td><span class="badge ${severityBadges[rule.severity] || 'badge-default'}">${severityLabels[rule.severity] || escapeHtml(rule.severity)}</span></td>
             <td>
                 <button class="btn btn-outline review-rule-toggle" onclick="toggleReviewRule('${escapeHtml(rule.rule_id)}', ${!rule.enabled})">
@@ -311,9 +346,9 @@ function renderReviewRulePager(totalItems) {
     }
 
     pager.innerHTML = `
-        <button class="pager-btn" ${reviewRulePage <= 1 ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage - 1})">上一页</button>
-        <span class="pager-info">${reviewRulePage}/${totalPages}</span>
-        <button class="pager-btn" ${reviewRulePage >= totalPages ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage + 1})">下一页</button>
+        <button type="button" class="pager-btn" ${reviewRulePage <= 1 ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage - 1})">上一页</button>
+        <span class="pager-info">${reviewRulePage}/${totalPages}（${(reviewRulePage - 1) * reviewRulePageSize + 1}-${Math.min(totalItems, reviewRulePage * reviewRulePageSize)}/${totalItems}）</span>
+        <button type="button" class="pager-btn" ${reviewRulePage >= totalPages ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage + 1})">下一页</button>
     `;
 }
 
@@ -356,9 +391,24 @@ function startReview() {
         .then(data => {
             if (data.error) { alert(data.error); startBtn.disabled = false; startBtn.textContent = '开始审查'; return; }
             currentTaskId = data.task_id;
-            document.getElementById('progressSection').style.display = 'block';
+            isPaused = false;
+            openProgressModal();
+            document.getElementById('pauseBtn').style.display = '';
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('pauseBtn').textContent = '暂停审查';
+            document.getElementById('cancelBtn').style.display = '';
+            document.getElementById('cancelBtn').disabled = false;
+            document.getElementById('resultPlaceholder').style.display = '';
+            document.getElementById('resultContent').style.display = 'none';
+            document.getElementById('summarySection').style.display = 'none';
+            document.getElementById('issueListSection').style.display = 'none';
+            document.getElementById('issueTableBody').innerHTML = '';
+            document.getElementById('issuePager').innerHTML = '';
+            resultIssues = [];
+            resultIssuePage = 1;
             startBtn.textContent = '审查中...';
-            pollProgress();
+            updateProgressDockVisibility();
+            startPollingProgress();
         })
         .catch(err => {
             alert('上传失败: ' + err.message);
@@ -367,38 +417,146 @@ function startReview() {
         });
 }
 
-function pollProgress() {
+function startPollingProgress() {
+    clearInterval(pollTimer);
+    pollProgress();
     pollTimer = setInterval(() => {
-        fetch('/review/status/' + currentTaskId)
-            .then(r => r.json())
-            .then(data => {
-                updateProgress(data);
-                if (data.status === 'completed' || data.status === 'failed' || data.status === 'blocked') {
-                    clearInterval(pollTimer);
-                    if (data.status === 'completed') showResult(data);
-                    else if (data.status === 'blocked') {
-                        document.getElementById('progressSection').style.display = 'none';
-                        document.getElementById('securityWarning').style.display = 'block';
-                        document.getElementById('securityMessage').textContent = data.error || '检测到涉密内容，已停止处理';
-                        resetUI();
-                    }
-                    else { alert('审查失败: ' + (data.error || '未知错误')); resetUI(); }
-                }
-            });
+        pollProgress();
     }, 2000);
+}
+
+function pollProgress() {
+    if (!currentTaskId) return;
+    fetch('/review/status/' + currentTaskId)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                clearInterval(pollTimer);
+                alert(data.error);
+                resetUI();
+                return;
+            }
+            updateProgress(data);
+            if (['completed', 'failed', 'canceled', 'blocked'].includes(data.status)) {
+                clearInterval(pollTimer);
+                document.getElementById('pauseBtn').style.display = 'none';
+                document.getElementById('cancelBtn').style.display = 'none';
+                closeProgressModal();
+                if (data.status === 'completed') showResult(data);
+                else {
+                    alert(data.status === 'canceled' ? '审查已停止' : '审查失败: ' + (data.error || '未知错误'));
+                    resetUI();
+                    window.location.reload();
+                }
+            }
+        })
+        .catch(err => {
+            clearInterval(pollTimer);
+            alert('进度获取失败: ' + err.message);
+            resetUI();
+        });
 }
 
 function updateProgress(data) {
     const pct = data.progress || 0;
+    isPaused = data.status === 'paused';
+    const detailText = getProgressDetailText(data);
     document.getElementById('progressBar').style.width = pct + '%';
     document.getElementById('progressPercent').textContent = pct + '%';
     document.getElementById('progressStatus').textContent =
-        data.status === 'processing' ? '正在审查...' : data.status === 'completed' ? '审查完成' : '准备中...';
+        data.status === 'paused' ? '已暂停，点击继续后恢复审查' :
+        data.status === 'processing' ? '正在审查...' :
+        data.status === 'completed' ? '审查完成' :
+        data.status === 'canceled' ? '已停止' :
+        data.status === 'failed' ? '审查失败' : '准备中...';
+    if (progressDetail) progressDetail.textContent = detailText;
+    if (progressDockStatus) {
+        const dockStatus =
+            data.status === 'paused' ? '已暂停' :
+            data.status === 'processing' ? '审查中' :
+            data.status === 'pending' ? '等待中' :
+            data.status === 'completed' ? '已完成' :
+            data.status === 'canceled' ? '已停止' :
+            data.status === 'failed' ? '失败' : '审查进度';
+        progressDockStatus.textContent = detailText ? `${dockStatus}：${detailText}` : dockStatus;
+    }
+    if (progressDockPercent) progressDockPercent.textContent = pct + '%';
+    updateProgressDockVisibility();
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+        pauseBtn.textContent = isPaused ? '继续审查' : '暂停审查';
+        pauseBtn.disabled = false;
+    }
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) {
+        cancelBtn.style.display = ['pending', 'processing', 'paused'].includes(data.status) ? '' : 'none';
+        cancelBtn.disabled = false;
+    }
+}
+
+function getProgressDetailText(data) {
+    if (data.progress_message) return data.progress_message;
+    const current = Number(data.current_section || 0);
+    const total = Number(data.total_sections || 0);
+    if (total > 0) {
+        if (current > 0) return `正在审查章节 ${current}/${total}`;
+        return `共 ${total} 个章节`;
+    }
+    return '';
+}
+
+function togglePause() {
+    if (!currentTaskId) return;
+    const pauseBtn = document.getElementById('pauseBtn');
+    pauseBtn.disabled = true;
+    const endpoint = isPaused ? '/review/resume/' : '/review/pause/';
+    fetch(endpoint + currentTaskId, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                pauseBtn.disabled = false;
+                return;
+            }
+            isPaused = data.status === 'paused';
+            pauseBtn.textContent = isPaused ? '继续审查' : '暂停审查';
+            pauseBtn.disabled = false;
+        })
+        .catch(err => {
+            alert((isPaused ? '继续失败: ' : '暂停失败: ') + err.message);
+            pauseBtn.disabled = false;
+        });
+}
+
+function cancelReview() {
+    if (!currentTaskId) return;
+    if (!confirm('确定停止当前审查？停止后可在首页审查记录中删除该记录。')) return;
+    const cancelBtn = document.getElementById('cancelBtn');
+    cancelBtn.disabled = true;
+    fetch('/review/cancel/' + currentTaskId, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                cancelBtn.disabled = false;
+                return;
+            }
+            updateProgress({status: 'canceled', progress: data.progress || 100});
+            clearInterval(pollTimer);
+            alert('审查已停止');
+            resetUI();
+            window.location.reload();
+        })
+        .catch(err => {
+            alert('停止失败: ' + err.message);
+            cancelBtn.disabled = false;
+        });
 }
 
 function showResult(data) {
-    document.getElementById('progressSection').style.display = 'none';
-    document.getElementById('resultSection').style.display = 'block';
+    closeProgressModal();
+    document.getElementById('resultPlaceholder').style.display = 'none';
+    document.getElementById('resultContent').style.display = 'block';
 
     const result = data.result ? JSON.parse(data.result) : {};
     document.getElementById('resultTotal').textContent = result.total_issues || 0;
@@ -432,31 +590,59 @@ function showResult(data) {
         });
     });
 
+    resultIssues = issues;
+    resultIssuePage = 1;
+    renderIssuePage();
+    resetUI();
+}
+
+function changeIssuePage(page) {
+    const totalPages = Math.max(1, Math.ceil(resultIssues.length / resultIssuePageSize));
+    resultIssuePage = Math.min(Math.max(1, page), totalPages);
+    renderIssuePage();
+}
+
+function renderIssuePage() {
     const issueSection = document.getElementById('issueListSection');
     const issueBody = document.getElementById('issueTableBody');
     const noIssues = document.getElementById('noIssuesHint');
+    const pager = document.getElementById('issuePager');
 
-    if (issues.length > 0) {
-        issueSection.style.display = 'block';
-        noIssues.style.display = 'none';
-        issueBody.innerHTML = issues.map(iss => `
-            <tr>
-                <td>${iss.section}</td>
-                <td>${iss.rule_code || iss.rule_id}</td>
-                <td>${iss.rule}</td>
-                <td><span class="badge badge-${iss.severity === 'error' ? 'danger' : iss.severity === 'warning' ? 'warning' : 'info'}">${iss.severity === 'error' ? '错误' : iss.severity === 'warning' ? '警告' : '信息'}</span></td>
-                <td>${iss.source}</td>
-                <td>${iss.reference}</td>
-                <td>${iss.message}</td>
-            </tr>
-        `).join('');
-    } else {
-        issueSection.style.display = 'block';
+    issueSection.style.display = 'block';
+    if (!resultIssues.length) {
         noIssues.style.display = '';
         issueBody.innerHTML = '';
+        pager.innerHTML = '';
+        return;
     }
 
-    resetUI();
+    noIssues.style.display = 'none';
+    const totalPages = Math.max(1, Math.ceil(resultIssues.length / resultIssuePageSize));
+    resultIssuePage = Math.min(resultIssuePage, totalPages);
+    const start = (resultIssuePage - 1) * resultIssuePageSize;
+    const pageIssues = resultIssues.slice(start, start + resultIssuePageSize);
+
+    issueBody.innerHTML = pageIssues.map(iss => `
+        <tr>
+            <td>${escapeHtml(iss.section)}</td>
+            <td>${escapeHtml(iss.rule_code || iss.rule_id)}</td>
+            <td>${escapeHtml(iss.rule)}</td>
+            <td><span class="badge badge-${iss.severity === 'error' ? 'danger' : iss.severity === 'warning' ? 'warning' : 'info'}">${iss.severity === 'error' ? '错误' : iss.severity === 'warning' ? '警告' : '信息'}</span></td>
+            <td>${escapeHtml(iss.source)}</td>
+            <td>${escapeHtml(iss.reference)}</td>
+            <td>${escapeHtml(iss.message)}</td>
+        </tr>
+    `).join('');
+
+    if (totalPages > 1) {
+        pager.innerHTML = `
+            <button type="button" class="pager-btn" ${resultIssuePage <= 1 ? 'disabled' : ''} onclick="changeIssuePage(${resultIssuePage - 1})">上一页</button>
+            <span class="pager-info">${resultIssuePage}/${totalPages}（${start + 1}-${Math.min(resultIssues.length, start + resultIssuePageSize)}/${resultIssues.length}）</span>
+            <button type="button" class="pager-btn" ${resultIssuePage >= totalPages ? 'disabled' : ''} onclick="changeIssuePage(${resultIssuePage + 1})">下一页</button>
+        `;
+    } else {
+        pager.innerHTML = '';
+    }
 }
 
 function downloadReport() {
@@ -466,10 +652,27 @@ function downloadReport() {
 function resetUI() {
     startBtn.disabled = false;
     startBtn.textContent = '开始审查';
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) pauseBtn.style.display = 'none';
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    closeProgressModal();
+    updateProgressDockVisibility();
+    isPaused = false;
     selectedFile = null;
     uploadText.innerHTML = '拖拽 DOCX 文件到此处，或点击选择';
 }
 
 loadReviewRules();
+if (initialTaskId) {
+    currentTaskId = initialTaskId;
+    openProgressModal();
+    document.getElementById('pauseBtn').style.display = '';
+    document.getElementById('cancelBtn').style.display = '';
+    startBtn.disabled = true;
+    startBtn.textContent = '查看进度中...';
+    updateProgressDockVisibility();
+    startPollingProgress();
+}
 </script>
 {% endblock %}

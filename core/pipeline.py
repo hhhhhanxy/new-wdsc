@@ -1,15 +1,13 @@
 """
 审查-生成闭环编排器。
 
-生成文档后自动执行五阶段审查，确保输出质量。
+生成文档后自动执行审查，确保输出质量。
 """
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
 from core.executor import PhasedDocumentReviewResult
-from security.classification_detector import ClassificationDetector
-
 logger = logging.getLogger(__name__)
 
 
@@ -19,16 +17,14 @@ class PipelineResult:
     generated_path: Optional[str] = None
     review_result: Optional[PhasedDocumentReviewResult] = None
     passed_review: bool = False
-    is_blocked: bool = False
-    block_reason: str = ""
-    status: str = "pending"  # pending, generated, reviewing, passed, failed, blocked
+    error: str = ""
+    status: str = "pending"  # pending, generated, reviewing, passed, failed
 
     def to_dict(self) -> dict:
         return {
             "generated_path": self.generated_path,
             "passed_review": self.passed_review,
-            "is_blocked": self.is_blocked,
-            "block_reason": self.block_reason,
+            "error": self.error,
             "status": self.status,
         }
 
@@ -43,11 +39,9 @@ def generate_and_review(
 ) -> PipelineResult:
     """
     审查-生成闭环：
-    1. 安全检测（输入参数）
-    2. 生成文档
-    3. 安全检测（生成内容）
-    4. 五阶段审查
-    5. 返回结果
+    1. 生成文档
+    2. 审查生成结果
+    3. 返回结果
     """
     from generators.base_generator import GeneratorFactory
     from parsers.docx_parser import ParserFactory
@@ -55,20 +49,7 @@ def generate_and_review(
 
     result = PipelineResult()
 
-    # Step 1: 安全检测（输入）
-    detector = ClassificationDetector(llm_client=llm_client)
-    input_text = (
-        f"{title} {params.get('description', '')} "
-        f"{params.get('technical_params', '')} {params.get('generation_definition', '')}"
-    )
-    input_check = detector.check_text(input_text)
-    if input_check.is_classified:
-        result.is_blocked = True
-        result.block_reason = input_check.warning_message
-        result.status = "blocked"
-        return result
-
-    # Step 2: 生成文档
+    # Step 1: 生成文档
     import os
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f"{title}.docx")
@@ -86,27 +67,16 @@ def generate_and_review(
         result.status = "generated"
     except Exception as e:
         result.status = "failed"
-        result.block_reason = f"生成失败: {e}"
+        result.error = f"生成失败: {e}"
         return result
 
-    # Step 3: 安全检测（输出）
+    # Step 2: 解析生成内容
     parser = ParserFactory.get_parser(".docx")
     document = parser.parse(output_path)
     if hasattr(doc_type, "value"):
         document.doc_type = doc_type
 
-    output_check = detector.check(document)
-    if output_check.is_classified:
-        result.is_blocked = True
-        result.block_reason = f"生成内容安全问题: {output_check.warning_message}"
-        result.status = "blocked"
-        # 删除不安全文件
-        import os
-        if os.path.exists(output_path):
-            os.remove(output_path)
-        return result
-
-    # Step 4: 五阶段审查
+    # Step 3: 审查生成内容
     result.status = "reviewing"
     executor = PhasedReviewExecutor(
         rule_registry=rule_registry,

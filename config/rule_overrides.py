@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 
 OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "rule_overrides.json")
 
-VALID_OVERRIDE_FIELDS = {"enabled", "severity", "review_type", "params", "code", "logic", "standard_ref"}
+VALID_OVERRIDE_FIELDS = {
+    "enabled", "severity", "review_type", "params", "code", "logic", "standard_ref",
+    "description", "name", "aliases", "scope", "target_headings", "required_elements",
+}
 CUSTOM_RULE_FIELDS = {"source", "name", "description", "category"}
 
 
@@ -54,6 +57,9 @@ def _deserialize_value(field_name, value):
     elif field_name == "category":
         from rules.base_rule import RuleCategory
         return RuleCategory(value)
+    elif field_name == "scope":
+        from rules.base_rule import RuleScope
+        return RuleScope(value)
     return value
 
 
@@ -89,7 +95,7 @@ def apply_overrides(rules: List) -> List:
                 logger.warning("无法设置字段 %s.%s", rule.rule_id, field_name)
 
     # 创建自定义规则（override 中有 name + source 但不在已有规则中）
-    from rules.base_rule import Rule, RuleCategory, RuleSeverity, ReviewType, ReviewPhase
+    from rules.base_rule import Rule, RuleCategory, RuleSeverity, ReviewType, ReviewPhase, RuleScope
 
     for rule_id, rule_data in overrides.items():
         if rule_id in existing_ids:
@@ -106,12 +112,16 @@ def apply_overrides(rules: List) -> List:
                 severity=RuleSeverity(rule_data.get("severity", "warning")),
                 enabled=rule_data.get("enabled", True),
                 source=rule_data["source"],
-                review_type=ReviewType.LLM,
+                review_type=ReviewType(rule_data.get("review_type", "llm")),
                 phase=ReviewPhase(rule_data.get("phase", "format")),
                 params=rule_data.get("params", {}),
                 code=rule_data.get("code", ""),
                 logic=rule_data.get("logic", ""),
                 standard_ref=rule_data.get("standard_ref", ""),
+                aliases=rule_data.get("aliases", []),
+                scope=RuleScope(rule_data.get("scope", "all")),
+                target_headings=rule_data.get("target_headings", []),
+                required_elements=rule_data.get("required_elements", []),
             )
             rules.append(rule)
         except (ValueError, TypeError) as e:
@@ -128,7 +138,7 @@ def update_rule_override(rule_id: str, updates: Dict[str, Any]) -> Dict[str, Any
         return {"error": "没有有效的更新字段"}
 
     # 序列化枚举值
-    for key in ("severity", "review_type"):
+    for key in ("severity", "review_type", "scope"):
         if key in filtered and hasattr(filtered[key], "value"):
             filtered[key] = filtered[key].value
 

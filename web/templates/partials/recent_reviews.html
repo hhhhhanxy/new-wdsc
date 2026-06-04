@@ -1,0 +1,133 @@
+{% if recent_tasks %}
+<ul class="recent-review-list">
+    {% for task in recent_tasks %}
+    <li class="recent-review-item">
+        <div class="recent-review-main">
+            <div class="recent-review-top">
+                <div class="recent-review-title" title="{{ task.filename }}">{{ task.filename }}</div>
+                <span class="badge badge-{{ task.badge_class }}">{{ task.status_label }}</span>
+            </div>
+            <div class="recent-review-meta">
+                <span>规则集：{{ task.rule_set_label or '全部规则' }}</span>
+                <span>创建：{{ task.created_at_display or task.created_at }}</span>
+                {% if task.completed_at_display %}
+                <span>完成：{{ task.completed_at_display }}</span>
+                {% endif %}
+            </div>
+            {% if task.stale %}
+            <div class="recent-review-error" title="{{ task.error_preview }}">{{ task.error_preview }}</div>
+            {% elif task.status in ['processing', 'paused', 'pending'] %}
+            <div class="recent-review-progress">
+                <div class="recent-review-progress-bar" style="width:{{ task.progress or 0 }}%"></div>
+            </div>
+            <div class="recent-review-progress-text">{{ task.progress or 0 }}%</div>
+            {% elif task.status == 'completed' %}
+            <div class="recent-review-summary">
+                <span>{{ '通过' if task.passed else '未通过' }}</span>
+                <span>问题 {{ task.total_issues if task.total_issues is not none else 0 }}</span>
+                <span>错误 {{ task.errors if task.errors is not none else 0 }}</span>
+                <span>警告 {{ task.warnings if task.warnings is not none else 0 }}</span>
+            </div>
+            {% elif task.error_preview %}
+            <div class="recent-review-error" title="{{ task.error_preview }}">{{ task.error_preview }}</div>
+            {% endif %}
+        </div>
+        <div class="recent-review-actions">
+            {% if task.status == 'completed' %}
+            <button class="btn btn-outline btn-sm" onclick="window.location.href='/review/report/{{ task.id }}'">下载报告</button>
+            {% elif task.status in ['processing', 'paused', 'pending'] and not task.stale %}
+            <button class="btn btn-outline btn-sm" onclick="window.location.href='/review/?task_id={{ task.id }}'">查看进度</button>
+            <button class="btn btn-outline btn-sm btn-danger-text" onclick="cancelReviewRecord({{ task.id }})">停止</button>
+            {% elif task.status == 'failed' and task.error_preview %}
+            <span class="recent-review-hint">查看错误</span>
+            {% endif %}
+            <button class="btn btn-outline btn-sm btn-danger-text" onclick="deleteReviewRecord({{ task.id }}, {{ 'true' if task.status in ['processing', 'paused', 'pending'] else 'false' }})">删除</button>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% if recent_pagination and recent_pagination.total_pages > 1 %}
+<div class="recent-review-pager">
+    <button class="pager-btn" onclick="window.location.href='{{ recent_pagination.prev_url }}'" {% if not recent_pagination.has_prev %}disabled{% endif %}>上一页</button>
+    <span class="pager-info">
+        {{ recent_pagination.page }}/{{ recent_pagination.total_pages }}
+        （{{ recent_pagination.start }}-{{ recent_pagination.end }}/{{ recent_pagination.total }}）
+    </span>
+    <button class="pager-btn" onclick="window.location.href='{{ recent_pagination.next_url }}'" {% if not recent_pagination.has_next %}disabled{% endif %}>下一页</button>
+</div>
+{% endif %}
+{% else %}
+<div class="empty-state">暂无审查记录</div>
+{% endif %}
+
+{% if recent_pagination and recent_pagination.total > 0 %}
+<div class="recent-review-clear">
+    {% if recent_pagination.stale_count > 0 %}
+    <button class="btn btn-outline btn-sm btn-danger-text" onclick="deleteStaleReviewRecords()">清理卡住记录</button>
+    {% endif %}
+    <button class="btn btn-outline btn-sm btn-danger-text" onclick="deleteAllReviewRecords()">清空可删除记录</button>
+</div>
+{% endif %}
+
+<script>
+function deleteReviewRecord(taskId, isRunning) {
+    const message = isRunning
+        ? '这条记录仍显示为审查中。删除时会先停止该任务，再删除记录。确定继续？'
+        : '确定删除这条审查记录？';
+    if (!confirm(message)) return;
+    fetch('/review/delete/' + taskId, {method: 'DELETE'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('删除失败: ' + data.error);
+                return;
+            }
+            window.location.reload();
+        })
+        .catch(err => alert('删除失败: ' + err.message));
+}
+
+function cancelReviewRecord(taskId) {
+    if (!confirm('确定停止这条审查任务？停止后可删除该记录。')) return;
+    fetch('/review/cancel/' + taskId, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('停止失败: ' + data.error);
+                return;
+            }
+            window.location.reload();
+        })
+        .catch(err => alert('停止失败: ' + err.message));
+}
+
+function deleteAllReviewRecords() {
+    if (!confirm('确定清空全部可删除审查记录？正常审查中的记录会保留，已卡住记录会被清理。')) return;
+    fetch('/review/delete-all', {method: 'DELETE'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('清空失败: ' + data.error);
+                return;
+            }
+            alert('已删除 ' + (data.deleted || 0) + ' 条记录');
+            window.location.reload();
+        })
+        .catch(err => alert('清空失败: ' + err.message));
+}
+
+function deleteStaleReviewRecords() {
+    if (!confirm('确定清理所有已卡住的审查记录？')) return;
+    fetch('/review/delete-stale', {method: 'DELETE'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('清理失败: ' + data.error);
+                return;
+            }
+            alert('已清理 ' + (data.deleted || 0) + ' 条卡住记录');
+            window.location.reload();
+        })
+        .catch(err => alert('清理失败: ' + err.message));
+}
+</script>

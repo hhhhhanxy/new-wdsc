@@ -9,22 +9,58 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from core.executor import ReviewExecutor, ReviewMode
 from rules.base_rule import RuleRegistry
 from rules.loaders.rule_loader import RuleLoader
+from core.utils import should_use_llm_check
 from llm.client import LLMClientFactory
 from parsers.docx_parser import ParserFactory
 from config.settings import settings
 from web.time_utils import beijing_now_str
 import json
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
 
-def update_task_progress(db, task_id: int, progress: int, status: str = None):
+class ReviewTaskCanceled(Exception):
+    """Raised when a review task is canceled by the user."""
+
+
+def wait_if_paused(db, task_id: int):
+    """Block the worker while the task is paused by the user."""
+    while True:
+        task = db.get_review_task(task_id)
+        if not task:
+            raise ReviewTaskCanceled("审查任务已删除")
+        if task.get('status') == 'canceled':
+            raise ReviewTaskCanceled("审查已停止")
+        if task.get('status') != 'paused':
+            return
+        time.sleep(1)
+
+
+def update_task_progress(
+    db,
+    task_id: int,
+    progress: int,
+    status: str = None,
+    stage: str = None,
+    message: str = None,
+    current_section: int = None,
+    total_sections: int = None,
+):
     """Update task progress in database"""
+    wait_if_paused(db, task_id)
+    payload = {
+        'progress': progress,
+        'progress_stage': stage,
+        'progress_message': message,
+        'current_section': current_section,
+        'total_sections': total_sections,
+    }
+    payload = {k: v for k, v in payload.items() if v is not None}
     if status:
-        db.update_review_task(task_id, progress=progress, status=status)
-    else:
-        db.update_review_task(task_id, progress=progress)
+        payload['status'] = status
+    db.update_review_task(task_id, **payload)
 
 
 def run_review_task(task_id: int, filepath: str, rule_set: str, db):
@@ -33,9 +69,19 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
         logger.info(f"Starting review task {task_id} for {filepath} (rule_set={rule_set})")
 
         # Update status to processing
-        update_task_progress(db, task_id, 0, 'processing')
+        update_task_progress(
+            db,
+            task_id,
+            0,
+            'processing',
+            stage='init',
+            message='正在初始化审查任务',
+            current_section=0,
+            total_sections=0,
+        )
 
         # Initialize components
+        update_task_progress(db, task_id, 5, stage='rules', message='正在加载审查规则')
         all_rules = RuleLoader.load_all_rules(profile="default")
 
         # 按规则集筛选
@@ -54,48 +100,90 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
                 "review_type": r.review_type.value,
                 "source": r.source,
                 "enabled": r.enabled,
+                "scope": r.scope.value if hasattr(r.scope, "value") else str(r.scope or "all"),
+                "target_headings": r.target_headings,
+                "required_elements": r.required_elements,
+                "params": r.params,
             }
             for r in enabled_rules
         }
 
-        llm_client = LLMClientFactory.create_client(settings.llm_provider)
+        llm_rules = [r for r in enabled_rules if should_use_llm_check(r)]
+        llm_client = None
+        if llm_rules:
+            update_task_progress(db, task_id, 8, stage='llm', message='正在初始化大模型客户端')
+            llm_client = LLMClientFactory.create_client(settings.llm_provider)
+        else:
+            update_task_progress(db, task_id, 8, stage='rules', message='本次审查不需要调用大模型')
 
         registry = RuleRegistry()
         for rule in all_rules:
             registry.register(rule)
 
         # Parse document
-        update_task_progress(db, task_id, 10)
+        update_task_progress(db, task_id, 10, stage='parse', message='正在解析文档')
         parser = ParserFactory.get_parser(".docx")
         document = parser.parse(filepath)
 
-        # Security classification check (pre-processing gate)
-        update_task_progress(db, task_id, 15)
-        from security.classification_detector import ClassificationDetector
-        detector = ClassificationDetector(llm_client=llm_client)
-        sec_result = detector.check(document)
-        if sec_result.is_classified:
-            logger.warning("Task %d blocked: classified content detected", task_id)
-            db.update_review_task(
-                task_id,
-                status='blocked',
-                error=sec_result.warning_message,
-                completed_at=beijing_now_str()
-            )
-            return
+        total_sections = len(document.sections)
+        update_task_progress(
+            db,
+            task_id,
+            15,
+            stage='parsed',
+            message=f'文档解析完成，共 {total_sections} 个章节',
+            current_section=0,
+            total_sections=total_sections,
+        )
 
         executor = ReviewExecutor(
             rule_registry=registry,
             llm_client=llm_client,
-            mode=ReviewMode.BOTH
+            mode=ReviewMode.BOTH if llm_rules else ReviewMode.RULE_ONLY
         )
 
         # Execute review
-        update_task_progress(db, task_id, 50)
-        result = executor.review_document(document)
+        update_task_progress(
+            db,
+            task_id,
+            50,
+            stage='review',
+            message=f'正在执行审查，共 {total_sections} 个章节',
+            current_section=0,
+            total_sections=total_sections,
+        )
+        def update_section_progress(done: int, total: int):
+            if total <= 0:
+                return
+            progress = 50 + int((done / total) * 38)
+            update_task_progress(
+                db,
+                task_id,
+                min(progress, 88),
+                stage='review',
+                message=f'正在审查章节 {done}/{total}',
+                current_section=done,
+                total_sections=total,
+            )
+
+        result = executor.review_document(
+            document,
+            context={
+                "pause_callback": lambda: wait_if_paused(db, task_id),
+                "progress_callback": update_section_progress,
+            }
+        )
 
         # Prepare result data
-        update_task_progress(db, task_id, 90)
+        update_task_progress(
+            db,
+            task_id,
+            90,
+            stage='report',
+            message='正在整理审查结果',
+            current_section=total_sections,
+            total_sections=total_sections,
+        )
         sections_data = []
         for sr in result.section_results:
             issues = []
@@ -139,10 +227,27 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
             result=json.dumps(result_data),
             status='completed',
             progress=100,
+            progress_stage='completed',
+            progress_message='审查完成',
+            current_section=total_sections,
+            total_sections=total_sections,
             completed_at=result_data['review_time']
         )
 
         logger.info(f"Review task {task_id} completed successfully")
+
+    except ReviewTaskCanceled as e:
+        logger.info(f"Review task {task_id} canceled: {str(e)}")
+        task = db.get_review_task(task_id)
+        if task and task.get('status') != 'canceled':
+            db.update_review_task(
+                task_id,
+                status='canceled',
+                error=str(e),
+                progress_stage='canceled',
+                progress_message=str(e),
+                completed_at=beijing_now_str()
+            )
 
     except Exception as e:
         logger.error(f"Review task {task_id} failed: {str(e)}")
@@ -153,6 +258,9 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
         db.update_review_task(
             task_id,
             status='failed',
+            progress=100,
             error=str(e),
+            progress_stage='failed',
+            progress_message='审查失败',
             completed_at=beijing_now_str()
         )

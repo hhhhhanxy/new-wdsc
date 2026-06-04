@@ -5,11 +5,14 @@
 """
 import logging
 from typing import List, Dict, Any, Optional, Callable
+import json
+from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from core.executor import (
     ReviewExecutor, ReviewMode, DocumentReviewResult, SectionReviewResult,
     PhaseResult, PhasedDocumentReviewResult, _rule_prompt_description,
 )
+from core.retry_utils import llm_retry, LLMRetryError
 from models.document import ParsedDocument, DocumentType
 from rules.base_rule import (
     Rule, RuleResult, RuleRegistry, RuleSeverity,
@@ -134,6 +137,7 @@ class PhasedReviewExecutor(ReviewExecutor):
 
         return phase_result
 
+    @llm_retry(retry_on=(ConnectionError, TimeoutError, json.JSONDecodeError, LLMRetryError, APIConnectionError, APITimeoutError, RateLimitError))
     def _get_llm_section_review_phased(
         self,
         document: ParsedDocument,
@@ -150,36 +154,31 @@ class PhasedReviewExecutor(ReviewExecutor):
             rules_info,
         )
 
-        try:
-            response = self.llm_client.generate(prompt)
-            llm_result = self.parser.parse(response.content)
+        response = self.llm_client.generate(prompt)
+        llm_result = self.parser.parse(response.content)
 
-            if not isinstance(llm_result, dict):
-                return None
-
-            results = []
-            for issue in llm_result.get("issues", []):
-                severity_str = issue.get("severity", "warning")
-                try:
-                    severity = RuleSeverity(severity_str)
-                except ValueError:
-                    severity = RuleSeverity.WARNING
-
-                rr = RuleResult(
-                    rule_id=issue.get("rule_id", "llm_generated"),
-                    rule_name=issue.get("rule_name", "LLM 审查"),
-                    passed=False,
-                    severity=severity,
-                    message=issue.get("description", ""),
-                    section_id=issue.get("section_id"),
-                    suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else [],
-                    rule_source="LLM",
-                    phase=phase,
-                )
-                results.append(rr)
-
-            return results
-
-        except Exception as e:
-            logger.error("LLM 阶段审查失败 (%s): %s", phase.value, e)
+        if not isinstance(llm_result, dict):
             return None
+
+        results = []
+        for issue in llm_result.get("issues", []):
+            severity_str = issue.get("severity", "warning")
+            try:
+                severity = RuleSeverity(severity_str)
+            except ValueError:
+                severity = RuleSeverity.WARNING
+
+            rr = RuleResult(
+                rule_id=issue.get("rule_id", "llm_generated"),
+                rule_name=issue.get("rule_name", "LLM 审查"),
+                passed=False,
+                severity=severity,
+                message=issue.get("description", ""),
+                section_id=issue.get("section_id"),
+                suggestions=[issue.get("suggestion", "")] if issue.get("suggestion") else [],
+                rule_source="LLM",
+                phase=phase,
+            )
+            results.append(rr)
+
+        return results

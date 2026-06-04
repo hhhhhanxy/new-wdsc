@@ -2,10 +2,12 @@
 import json
 import logging
 import os
+import re
+import uuid
 from flask import Blueprint, render_template, request, jsonify, current_app
 
 from rules.base_rule import (
-    Rule, RuleSeverity, ReviewType, RuleCategory,
+    Rule, RuleSeverity, ReviewType, RuleCategory, RuleScope,
 )
 from rules.loaders.rule_loader import RuleLoader
 from config.rule_overrides import update_rule_override, load_overrides, save_overrides
@@ -65,6 +67,10 @@ def _serialize_rule(rule: Rule) -> dict:
         "code": rule.code,
         "logic": rule.logic,
         "standard_ref": rule.standard_ref,
+        "aliases": rule.aliases,
+        "scope": rule.scope.value if hasattr(rule.scope, "value") else str(rule.scope or "all"),
+        "target_headings": rule.target_headings,
+        "required_elements": rule.required_elements,
     }
 
 
@@ -112,6 +118,33 @@ def _validate_custom_rule_definition(data: dict, require_logic: bool = True):
     if require_logic and not str(logic).strip():
         return "检查逻辑不能为空。请写明判定条件、检查重点或通过/不通过标准"
     return None
+
+
+def _normalize_list(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        raw_items = value
+    else:
+        raw_items = re.split(r"[,，;；\n]+", str(value))
+    return [str(item).strip() for item in raw_items if str(item).strip()]
+
+
+def _make_rule_id(data: dict, existing_ids: set) -> str:
+    """为用户创建的规则生成内部唯一 ID，不暴露给用户填写。"""
+    base_text = str(data.get("code") or data.get("name") or "").strip().lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", base_text).strip("_")
+    if not slug:
+        slug = f"rule_{uuid.uuid4().hex[:8]}"
+    if not slug.startswith("rule_"):
+        slug = f"rule_{slug}"
+
+    candidate = slug
+    counter = 2
+    while candidate in existing_ids:
+        candidate = f"{slug}_{counter}"
+        counter += 1
+    return candidate
 
 
 @bp.route("/")
@@ -168,10 +201,17 @@ def api_update_rule(rule_id: str):
             ReviewType(data["review_type"])
         except ValueError:
             return jsonify({"error": f"非法的 review_type 值: {data['review_type']}"}), 400
+    if "scope" in data:
+        try:
+            RuleScope(data["scope"])
+        except ValueError:
+            return jsonify({"error": f"非法的 scope 值: {data['scope']}"}), 400
 
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
     existing_rule = next((r for r in rules if r.rule_id == rule_id), None)
     if existing_rule and _serialize_rule(existing_rule).get("custom"):
+        if "name" in data and not str(data.get("name", "")).strip():
+            return jsonify({"error": "规则名称不能为空"}), 400
         if any(field in data for field in ("logic", "description", "standard_ref")):
             validation_error = _validate_custom_rule_definition({
                 "logic": data.get("logic", existing_rule.logic),
@@ -179,6 +219,9 @@ def api_update_rule(rule_id: str):
             if validation_error:
                 return jsonify({"error": validation_error}), 400
         data.pop("review_type", None)
+    else:
+        data.pop("name", None)
+        data.pop("description", None)
 
     result = update_rule_override(rule_id, data)
     if "error" in result:
@@ -233,7 +276,7 @@ def api_test_rule():
         from core.executor import ReviewExecutor, ReviewMode
 
         rule = Rule(
-            rule_id=rule_payload.get("rule_id") or "draft_rule",
+            rule_id="draft_rule",
             name=rule_payload.get("name") or "试审规则",
             description=rule_payload.get("description", ""),
             category=RuleCategory.CUSTOM,
@@ -243,6 +286,9 @@ def api_test_rule():
             logic=rule_payload.get("logic", ""),
             standard_ref=rule_payload.get("standard_ref", ""),
             code=rule_payload.get("code", ""),
+            scope=RuleScope(rule_payload.get("scope", "all")),
+            target_headings=_normalize_list(rule_payload.get("target_headings")),
+            required_elements=_normalize_list(rule_payload.get("required_elements")),
         )
         section = DocumentSection("sample", ContentType.PARAGRAPH, sample_text)
         llm_client = LLMClientFactory.create_client(settings.llm_provider)
@@ -299,20 +345,21 @@ def api_create_rule():
     if not data:
         return jsonify({"error": "请求体不能为空"}), 400
 
-    rule_id = data.get("rule_id", "").strip()
     name = data.get("name", "").strip()
+    code = data.get("code", "").strip()
     source = data.get("source", "").strip()
 
-    if not rule_id or not name or not source:
-        return jsonify({"error": "rule_id, name, source 不能为空"}), 400
+    if not code or not name or not source:
+        return jsonify({"error": "编号、规则名称和所属规则集不能为空"}), 400
     validation_error = _validate_custom_rule_definition(data)
     if validation_error:
         return jsonify({"error": validation_error}), 400
 
-    # 检查 rule_id 唯一性
     existing_rules = RuleLoader.load_all_rules("default", include_extensions=False)
-    if any(r.rule_id == rule_id for r in existing_rules):
-        return jsonify({"error": f"规则 ID '{rule_id}' 已存在"}), 400
+    if any((r.code or "").strip() == code for r in existing_rules):
+        return jsonify({"error": f"编号 '{code}' 已存在"}), 400
+    existing_ids = {r.rule_id for r in existing_rules}
+    rule_id = _make_rule_id(data, existing_ids)
 
     # 构建默认值
     try:
@@ -330,10 +377,14 @@ def api_create_rule():
         "severity": severity.value,
         "review_type": review_type.value,
         "enabled": data.get("enabled", True),
-        "code": data.get("code", ""),
+        "code": code,
         "logic": data.get("logic", ""),
         "standard_ref": data.get("standard_ref", ""),
+        "aliases": [value for value in (code, name) if value],
         "params": data.get("params", {}),
+        "scope": data.get("scope", "all"),
+        "target_headings": _normalize_list(data.get("target_headings")),
+        "required_elements": _normalize_list(data.get("required_elements")),
     }
 
     overrides = load_overrides()

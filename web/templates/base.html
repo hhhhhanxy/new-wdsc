@@ -18,21 +18,27 @@
 
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <h2>文档审查平台</h2>
-            <small>用户定义规则与生成定义</small>
+            <div class="sidebar-brand-title">
+                <h2>文档审查与辅助生成平台</h2>
+                <img src="{{ url_for('static', filename='images/sidebar-aviation-doc.svg') }}" alt="">
+            </div>
+            <small>面向航空机载产品赋能</small>
         </div>
         <nav class="sidebar-nav">
             <a href="/" class="{{ 'active' if active_page == 'index' else '' }}" onclick="closeSidebarMobile()">
-                <span class="nav-icon">&#9776;</span> <span>首页</span>
+                <span>首页</span>
             </a>
             <a href="/review/" class="{{ 'active' if active_page == 'review' else '' }}" onclick="closeSidebarMobile()">
-                <span class="nav-icon">&#128269;</span> <span>文档审查</span>
+                <span>文档审查</span>
             </a>
             <a href="/generate/" class="{{ 'active' if active_page == 'generate' else '' }}" onclick="closeSidebarMobile()">
-                <span class="nav-icon">&#9997;</span> <span>文档生成</span>
+                <span>文档生成</span>
             </a>
             <a href="/rules/" class="{{ 'active' if active_page == 'rules' else '' }}" onclick="closeSidebarMobile()">
-                <span class="nav-icon">&#128295;</span> <span>规则管理</span>
+                <span>审查规则管理</span>
+            </a>
+            <a href="/knowledge/" class="{{ 'active' if active_page == 'knowledge' else '' }}" onclick="closeSidebarMobile()">
+                <span>知识库</span>
             </a>
         </nav>
     </aside>

@@ -1,35 +1,46 @@
 {
-  "check": {
+  "rule_r_001": {
     "source": "requir_doc",
     "name": "条例检查",
     "description": "审查需求条例是否清楚",
     "category": "custom",
     "severity": "warning",
-    "review_type": "llm",
-    "enabled": false,
+    "review_type": "rule",
+    "enabled": true,
     "code": "R-001",
+    "aliases": [
+      "check",
+      "R-001",
+      "条例检查"
+    ],
     "logic": "xxxxxxxxxxxxxxxx",
-    "standard_ref": ""
+    "standard_ref": "",
+    "scope": "all"
   },
   "format": {
-    "enabled": false,
+    "enabled": true,
     "severity": "warning",
     "review_type": "llm",
     "code": "FM-001",
+    "aliases": [
+      "FM-001",
+      "格式检查"
+    ],
     "logic": "逐字符扫描文本，检测连续标点符号、标点前空格、中英文标点混排、连续多余空格、行尾空格、标题行首空格等格式问题，匹配到任一模式即判定不通过",
     "standard_ref": "GJB 438B 第6.1节 文档格式要求",
     "params": {
       "check_punctuation": {
         "label": "检查标点符号",
         "type": "select",
-        "value": "yes"
+        "value": ""
       },
       "max_consecutive_spaces": {
         "label": "最大连续空格数",
         "type": "number",
         "value": 3
       }
-    }
+    },
+    "scope": "all"
   },
   "grammar": {
     "enabled": true,
@@ -38,6 +49,10 @@
     "logic": "逐词扫描\"的、地、得\"用法，依据语法规则判断其后应接名词、动词或形容词/副词，使用不当即判定不通过",
     "standard_ref": "GB/T 15834 标点符号用法",
     "review_type": "llm",
+    "aliases": [
+      "GR-001",
+      "语法检查"
+    ],
     "params": {
       "check_de_di_de": {
         "label": "检查的地得用法",
@@ -46,17 +61,155 @@
       }
     }
   },
-  "任务来源检查": {
+  "rule_p_001": {
     "source": "product_rules",
     "name": "任务来源",
-    "description": "审查任务来源是否存在",
+    "description": "审查文档是否说明任务来源，避免技术文件缺少立项或协议依据。",
     "category": "custom",
     "severity": "error",
     "review_type": "llm",
     "enabled": true,
     "code": "P-001",
-    "logic": "检查文档中是否标明任务来源，检查标准为 ：若存在 根据《XXX技术协议》，则表明审查通过，否则检查未通过",
+    "aliases": [
+      "任务来源检查",
+      "P-001",
+      "任务来源"
+    ],
+    "logic": "若文档前言或概述中包含“根据《XXX技术协议》”等任务来源表述，则通过；否则不通过。",
     "standard_ref": "",
-    "params": {}
+    "params": {},
+    "scope": "preface"
+  },
+  "rule_p_002": {
+    "source": "product_rules",
+    "name": "产品简述",
+    "description": "产品简述是否存在",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "llm",
+    "enabled": true,
+    "code": "P-002",
+    "aliases": [
+      "P-002",
+      "产品简述"
+    ],
+    "logic": "文章中前言部分是否描述出某产品的主要功能、在飞机上的安装部位等内容。",
+    "standard_ref": "",
+    "params": {
+      "check_type": "table_field_regex",
+      "field_labels": [
+        "阶段标识",
+        "审查阶段标识"
+      ],
+      "pattern": "^[A-Za-z0-9]+-AB$"
+    },
+    "scope": "preface",
+    "target_headings": [],
+    "required_elements": []
+  },
+  "rule_p_003": {
+    "source": "product_rules",
+    "name": "寿命要求",
+    "description": "审查寿命要求是否完整",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "llm",
+    "enabled": true,
+    "code": "P-003",
+    "aliases": [
+      "P-003",
+      "寿命要求"
+    ],
+    "logic": "若文档中寿命要求包括贮存期、首翻期、总寿命的信息内容，则通过；否则，不通过",
+    "standard_ref": "",
+    "params": {},
+    "scope": "body",
+    "target_headings": [
+      "寿命要求"
+    ],
+    "required_elements": [
+      "贮存期",
+      "首翻期",
+      "总寿命"
+    ]
+  },
+  "rule_p_004": {
+    "source": "product_rules",
+    "name": "接口要求",
+    "description": "检查文档接口要求是否存在、完整",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "llm",
+    "enabled": true,
+    "code": "P-004",
+    "logic": "若文档中包含机械接口、电气接口的描述，则通过；否则，不通过。",
+    "standard_ref": "",
+    "aliases": [
+      "P-004",
+      "接口要求"
+    ],
+    "params": {},
+    "scope": "body",
+    "target_headings": [
+      "接口要求"
+    ],
+    "required_elements": [
+      "机械接口",
+      "电气接口",
+      "电源接口",
+      "信号接口"
+    ]
+  },
+  "rule_p_005": {
+    "source": "product_rules",
+    "name": "电气性能",
+    "description": "审查电气性能章节中是否包括零位电压、极性等，保证文档的完整性。",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "llm",
+    "enabled": true,
+    "code": "P-005",
+    "logic": "文档中是否存在电气性能这一章节且该章节是否包含零位电压、极性等因素，若有，通过；否则不通过",
+    "standard_ref": "",
+    "aliases": [
+      "P-005",
+      "电气性能"
+    ],
+    "params": {},
+    "scope": "body",
+    "target_headings": [
+      "电气性能"
+    ],
+    "required_elements": [
+      "零位电压",
+      "极性"
+    ]
+  },
+  "rule_p_006": {
+    "source": "product_rules",
+    "name": "阶段标识",
+    "description": "检查阶段标识是否正确",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "rule",
+    "enabled": true,
+    "code": "P-006",
+    "logic": "审查时如果阶段标识对应的编号为 XXX-AB，则通过；否则，不通过。",
+    "standard_ref": "",
+    "aliases": [
+      "P-006",
+      "阶段标识"
+    ],
+    "params": {
+      "check_type": "table_field_regex",
+      "field_labels": [
+        "阶段标识",
+        "审查阶段标识"
+      ],
+      "pattern": "^[A-Za-z0-9]+-AB$"
+    },
+    "scope": "cover",
+    "target_headings": [],
+    "required_elements": []
   }
 }

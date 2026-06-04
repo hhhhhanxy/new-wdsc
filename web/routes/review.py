@@ -5,11 +5,14 @@ import os
 import json
 import threading
 import uuid
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, send_file, current_app
 from web.tasks import run_review_task
-from web.time_utils import format_beijing_time
+from web.time_utils import BEIJING_TZ, beijing_now, beijing_now_str, format_beijing_time
 
 bp = Blueprint('review', __name__)
+RUNNING_STATUSES = {'pending', 'processing', 'paused'}
+STALE_RUNNING_HOURS = 2
 
 
 def _current_rule_lookup():
@@ -21,8 +24,14 @@ def _current_rule_lookup():
         if r.enabled
     ]
 
-    by_id = {r.rule_id: r for r in rules if r.rule_id}
-    by_name = {r.name: r for r in rules if r.name}
+    by_id = {}
+    by_name = {}
+    for rule in rules:
+        for key in (rule.rule_id, rule.code, *(getattr(rule, "aliases", []) or [])):
+            if key:
+                by_id[str(key)] = rule
+        if rule.name:
+            by_name[rule.name] = rule
     return by_id, by_name
 
 
@@ -37,8 +46,13 @@ def _snapshot_lookup(snapshot: dict):
             continue
         normalized = dict(info)
         normalized.setdefault("rule_id", rule_id)
-        if normalized.get("rule_id"):
-            by_id[normalized["rule_id"]] = normalized
+        for key in (
+            normalized.get("rule_id"),
+            normalized.get("code"),
+            *(normalized.get("aliases") or []),
+        ):
+            if key:
+                by_id[str(key)] = normalized
         if normalized.get("name"):
             by_name[normalized["name"]] = normalized
     return by_id, by_name
@@ -79,6 +93,113 @@ def _rule_set_label(rule_set: str, groups: list = None, enabled_count: int = Non
     return rule_set
 
 
+def _status_display(status: str) -> tuple[str, str]:
+    labels = {
+        "pending": ("等待中", "default"),
+        "processing": ("审查中", "warning"),
+        "paused": ("已暂停", "warning"),
+        "completed": ("已完成", "success"),
+        "failed": ("失败", "danger"),
+        "canceled": ("已停止", "default"),
+        "blocked": ("安全阻断", "danger"),
+    }
+    return labels.get(status or "", (status or "未知", "default"))
+
+
+def _parse_task_time(value: str):
+    if not value:
+        return None
+    text = str(value).strip()
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        try:
+            parsed = datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=BEIJING_TZ)
+    return parsed.astimezone(BEIJING_TZ)
+
+
+def _is_stale_running_task(task: dict) -> bool:
+    if task.get("status") not in RUNNING_STATUSES:
+        return False
+    created_at = _parse_task_time(task.get("created_at"))
+    if not created_at:
+        return False
+    return beijing_now() - created_at > timedelta(hours=STALE_RUNNING_HOURS)
+
+
+def decorate_recent_review_tasks(tasks: list, groups: list = None) -> list:
+    """为最近审查列表补充展示字段，供首页和审查页共用。"""
+    decorated = []
+    for task in tasks:
+        item = dict(task)
+        status_label, badge_class = _status_display(item.get("status"))
+        item["status_label"] = status_label
+        item["badge_class"] = badge_class
+        item["error_preview"] = (item.get("error") or "").strip()
+        item["stale"] = _is_stale_running_task(item)
+        if item["stale"]:
+            item["status_label"] = "已卡住"
+            item["badge_class"] = "danger"
+            item["error_preview"] = f"任务超过 {STALE_RUNNING_HOURS} 小时未完成，后台进程可能已退出"
+        item["progress"] = int(item.get("progress") or 0)
+        item["rule_set_label"] = _rule_set_label(item.get("rule_set"), groups)
+        item["created_at_display"] = format_beijing_time(item.get("created_at", "") or "")
+        item["completed_at_display"] = format_beijing_time(item.get("completed_at", "") or "")
+        item["total_issues"] = None
+        item["errors"] = None
+        item["warnings"] = None
+        item["passed"] = None
+
+        result_data = item.get("result")
+        if result_data:
+            try:
+                parsed = json.loads(result_data) if isinstance(result_data, str) else result_data
+            except (TypeError, json.JSONDecodeError):
+                parsed = {}
+            if isinstance(parsed, dict):
+                item["total_issues"] = parsed.get("total_issues")
+                item["errors"] = parsed.get("errors")
+                item["warnings"] = parsed.get("warnings")
+                item["passed"] = parsed.get("passed")
+                item["rule_set_label"] = _rule_set_label(parsed.get("rule_set") or item.get("rule_set"), groups)
+
+        decorated.append(item)
+    return decorated
+
+
+RECENT_REVIEW_PAGE_SIZE = 5
+
+
+def _recent_review_page_data(db, page: int = 1, groups: list = None, base_url: str = "/review/") -> tuple[list, dict]:
+    page = max(1, int(page or 1))
+    total = db.count_review_tasks()
+    total_pages = max(1, (total + RECENT_REVIEW_PAGE_SIZE - 1) // RECENT_REVIEW_PAGE_SIZE)
+    page = min(page, total_pages)
+    offset = (page - 1) * RECENT_REVIEW_PAGE_SIZE
+    recent = decorate_recent_review_tasks(
+        db.get_recent_review_tasks(limit=RECENT_REVIEW_PAGE_SIZE, offset=offset),
+        groups,
+    )
+    pagination = {
+        "page": page,
+        "page_size": RECENT_REVIEW_PAGE_SIZE,
+        "total": total,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+        "prev_url": f"{base_url}?recent_page={page - 1}",
+        "next_url": f"{base_url}?recent_page={page + 1}",
+        "start": offset + 1 if total else 0,
+        "end": min(offset + RECENT_REVIEW_PAGE_SIZE, total),
+        "stale_count": sum(1 for task in db.get_recent_review_tasks(limit=total or 1) if _is_stale_running_task(task)),
+    }
+    return recent, pagination
+
+
 @bp.route('/')
 def index():
     db = current_app.db
@@ -89,13 +210,18 @@ def index():
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
     groups, _, _ = _group_rules_by_source(rules)
     rule_sets = [{"source": g["source"], "name": g["display_name"], "count": g["total"]} for g in groups]
-    recent = []
-    for task in db.get_recent_review_tasks(limit=5):
-        task_data = dict(task)
-        task_data["rule_set_label"] = _rule_set_label(task_data.get("rule_set"), groups)
-        recent.append(task_data)
+    recent_page = request.args.get("recent_page", 1, type=int)
+    focus_task_id = request.args.get("task_id", type=int)
+    recent, recent_pagination = _recent_review_page_data(db, recent_page, groups, "/review/")
 
-    return render_template('review.html', active_page='review', recent_tasks=recent, rule_sets=rule_sets)
+    return render_template(
+        'review.html',
+        active_page='review',
+        recent_tasks=recent,
+        recent_pagination=recent_pagination,
+        rule_sets=rule_sets,
+        focus_task_id=focus_task_id,
+    )
 
 
 @bp.route('/upload', methods=['POST'])
@@ -134,6 +260,92 @@ def status(task_id):
     if not task:
         return jsonify({'error': '任务不存在'}), 404
     return jsonify(dict(task))
+
+
+@bp.route('/pause/<int:task_id>', methods=['POST'])
+def pause(task_id):
+    db = current_app.db
+    task = db.get_review_task(task_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    if task.get('status') != 'processing':
+        return jsonify({'error': '只有审查中的任务可以暂停'}), 400
+    db.update_review_task(task_id, status='paused')
+    return jsonify({'ok': True, 'status': 'paused'})
+
+
+@bp.route('/resume/<int:task_id>', methods=['POST'])
+def resume(task_id):
+    db = current_app.db
+    task = db.get_review_task(task_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    if task.get('status') != 'paused':
+        return jsonify({'error': '只有已暂停的任务可以继续'}), 400
+    db.update_review_task(task_id, status='processing')
+    return jsonify({'ok': True, 'status': 'processing'})
+
+
+@bp.route('/cancel/<int:task_id>', methods=['POST'])
+def cancel(task_id):
+    db = current_app.db
+    task = db.get_review_task(task_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    if task.get('status') not in RUNNING_STATUSES:
+        return jsonify({'error': '只有等待中、审查中或已暂停的任务可以停止'}), 400
+    db.update_review_task(
+        task_id,
+        status='canceled',
+        error='用户手动停止审查',
+        progress_stage='canceled',
+        progress_message='用户手动停止审查',
+        completed_at=beijing_now_str(),
+    )
+    return jsonify({'ok': True, 'status': 'canceled'})
+
+
+@bp.route('/delete/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    db = current_app.db
+    task = db.get_review_task(task_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    stopped = False
+    if task.get('status') in RUNNING_STATUSES:
+        db.update_review_task(
+            task_id,
+            status='canceled',
+            error='删除记录时自动停止审查',
+            progress_stage='canceled',
+            progress_message='删除记录时自动停止审查',
+            completed_at=beijing_now_str(),
+        )
+        stopped = True
+    deleted = db.delete_review_task(task_id)
+    return jsonify({'ok': True, 'deleted': deleted, 'stopped': stopped})
+
+
+@bp.route('/delete-all', methods=['DELETE'])
+def delete_all_tasks():
+    db = current_app.db
+    all_tasks = db.get_recent_review_tasks(limit=max(db.count_review_tasks(), 1))
+    delete_ids = [
+        task['id'] for task in all_tasks
+        if task.get('status') not in RUNNING_STATUSES or _is_stale_running_task(task)
+    ]
+    deleted = sum(db.delete_review_task(task_id) for task_id in delete_ids)
+    remaining = db.count_review_tasks()
+    return jsonify({'ok': True, 'deleted': deleted, 'remaining': remaining})
+
+
+@bp.route('/delete-stale', methods=['DELETE'])
+def delete_stale_tasks():
+    db = current_app.db
+    all_tasks = db.get_recent_review_tasks(limit=max(db.count_review_tasks(), 1))
+    stale_ids = [task['id'] for task in all_tasks if _is_stale_running_task(task)]
+    deleted = sum(db.delete_review_task(task_id) for task_id in stale_ids)
+    return jsonify({'ok': True, 'deleted': deleted})
 
 
 @bp.route('/report/<int:task_id>')

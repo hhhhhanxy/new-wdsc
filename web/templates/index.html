@@ -2,38 +2,38 @@
 {% block title %}首页 - 文档审查与生成平台{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>航空航天技术文档审查与生成平台</h1>
-    <p>覆盖需求文档、通用特性文档、技术说明书、验证文档四大类型</p>
-</div>
+<div class="home-page">
+<section class="home-hero">
+    <div class="home-hero-copy">
+        <div class="home-badge"><span></span> 文档审查工作台</div>
+        <h1>航空作动技术文档<br><span>审查与生成平台</span></h1>
+        <p>面向用户自定义规则、结构化章节定位、要素检查与报告归档的一体化文档处理工作台。</p>
+    </div>
+</section>
 
 <div class="quick-actions">
     <a href="/review/" class="quick-card blue">
-        <div class="card-icon">&#128196;</div>
         <div class="card-body">
-            <h3>上传文档审查</h3>
-            <p>上传DOCX文件，自动进行规则+LLM混合审查</p>
+            <h3>文档审查</h3>
+            <p>上传 DOCX 文件，按选定规则集执行审查</p>
         </div>
     </a>
     <a href="/generate/" class="quick-card green">
-        <div class="card-icon">&#10024;</div>
         <div class="card-body">
-            <h3>生成新文档</h3>
-            <p>选择模板，输入需求，自动生成技术文档</p>
+            <h3>文档生成</h3>
+            <p>按用户维护的生成定义组织文档内容</p>
         </div>
     </a>
     <a href="/review/" class="quick-card orange">
-        <div class="card-icon">&#128203;</div>
         <div class="card-body">
-            <h3>查看历史</h3>
-            <p>浏览审查历史记录和报告</p>
+            <h3>审查记录</h3>
+            <p>查看审查任务状态、结论和报告下载</p>
         </div>
     </a>
     <a href="/rules/" class="quick-card purple">
-        <div class="card-icon">&#9881;</div>
         <div class="card-body">
             <h3>规则管理</h3>
-            <p>配置审查规则和行业规范</p>
+            <p>维护规则集、审查范围、章节定位和要素要求</p>
         </div>
     </a>
 </div>
@@ -59,22 +59,7 @@
 
 <div class="panel">
     <div class="panel-title">最近审查记录</div>
-    {% if recent_tasks %}
-    <ul class="task-list">
-        {% for task in recent_tasks %}
-        <li class="task-item">
-            <div class="task-info">
-                <div class="task-name">{{ task.filename }}</div>
-                <div class="task-meta">{{ task.created_at }}</div>
-            </div>
-            <span class="badge badge-{{ 'success' if task.status == 'completed' else 'warning' if task.status == 'processing' else 'danger' if task.status in ('failed', 'blocked') else 'default' }}">
-                {{ '已完成' if task.status == 'completed' else '审查中' if task.status == 'processing' else '失败' if task.status == 'failed' else '安全阻断' if task.status == 'blocked' else task.status }}
-            </span>
-        </li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <div class="empty-state">暂无审查记录</div>
-    {% endif %}
+    {% include "partials/recent_reviews.html" %}
+</div>
 </div>
 {% endblock %}

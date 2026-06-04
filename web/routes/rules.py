@@ -117,7 +117,59 @@ def _validate_custom_rule_definition(data: dict, require_logic: bool = True):
     logic = data.get("logic", "")
     if require_logic and not str(logic).strip():
         return "检查逻辑不能为空。请写明判定条件、检查重点或通过/不通过标准"
+    review_type = data.get("review_type")
+    params = _normalize_rule_params(data.get("params") or {})
+    data["params"] = params
+    if review_type in ("rule", "both") and params.get("check_type") == "table_field_regex":
+        labels = _normalize_list(params.get("field_labels"))
+        pattern = str(params.get("pattern", "") or "").strip()
+        if not labels:
+            return "规则引擎检查需要填写字段名称"
+        if not pattern:
+            return "规则引擎检查需要填写匹配格式"
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            return f"匹配格式不是有效正则表达式: {exc}"
     return None
+
+
+def _plain_param_value(value):
+    if isinstance(value, dict) and "value" in value:
+        return value.get("value")
+    return value
+
+
+def _escape_regex_literal(value: str) -> str:
+    return re.sub(r"([.*+?^${}()|[\]\\])", r"\\\1", str(value or ""))
+
+
+def _build_match_pattern(match_mode: str, match_value: str) -> str:
+    escaped = _escape_regex_literal(str(match_value or "").strip())
+    if not escaped:
+        return ""
+    if match_mode == "starts_with":
+        return f"^{escaped}.+"
+    if match_mode == "ends_with":
+        return f"^.+{escaped}$"
+    if match_mode == "contains":
+        return f"^.*{escaped}.*$"
+    if match_mode == "equals":
+        return f"^{escaped}$"
+    return escaped
+
+
+def _normalize_rule_params(params: dict) -> dict:
+    if not isinstance(params, dict):
+        return {}
+    normalized = {key: _plain_param_value(value) for key, value in params.items()}
+    if normalized.get("check_type") == "table_field_regex":
+        normalized["field_labels"] = _normalize_list(normalized.get("field_labels"))
+        match_mode = str(normalized.get("match_mode", "") or "").strip()
+        match_value = str(normalized.get("match_value", "") or "").strip()
+        if match_mode and match_value:
+            normalized["pattern"] = _build_match_pattern(match_mode, match_value)
+    return normalized
 
 
 def _normalize_list(value) -> list[str]:
@@ -212,13 +264,17 @@ def api_update_rule(rule_id: str):
     if existing_rule and _serialize_rule(existing_rule).get("custom"):
         if "name" in data and not str(data.get("name", "")).strip():
             return jsonify({"error": "规则名称不能为空"}), 400
-        if any(field in data for field in ("logic", "description", "standard_ref")):
-            validation_error = _validate_custom_rule_definition({
+        if any(field in data for field in ("logic", "description", "standard_ref", "review_type", "params")):
+            validation_payload = {
                 "logic": data.get("logic", existing_rule.logic),
-            })
+                "review_type": data.get("review_type", existing_rule.review_type.value),
+                "params": data.get("params", existing_rule.params),
+            }
+            validation_error = _validate_custom_rule_definition(validation_payload)
             if validation_error:
                 return jsonify({"error": validation_error}), 400
-        data.pop("review_type", None)
+            if "params" in data:
+                data["params"] = validation_payload["params"]
     else:
         data.pop("name", None)
         data.pop("description", None)
@@ -282,10 +338,11 @@ def api_test_rule():
             category=RuleCategory.CUSTOM,
             severity=RuleSeverity(rule_payload.get("severity", "warning")),
             source=rule_payload.get("source", "custom"),
-            review_type=ReviewType.LLM,
+            review_type=ReviewType(rule_payload.get("review_type", "llm")),
             logic=rule_payload.get("logic", ""),
             standard_ref=rule_payload.get("standard_ref", ""),
             code=rule_payload.get("code", ""),
+            params=rule_payload.get("params", {}),
             scope=RuleScope(rule_payload.get("scope", "all")),
             target_headings=_normalize_list(rule_payload.get("target_headings")),
             required_elements=_normalize_list(rule_payload.get("required_elements")),
@@ -364,7 +421,7 @@ def api_create_rule():
     # 构建默认值
     try:
         severity = RuleSeverity(data.get("severity", "warning"))
-        review_type = ReviewType.LLM
+        review_type = ReviewType(data.get("review_type", "llm"))
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 

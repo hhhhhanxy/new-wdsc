@@ -154,7 +154,34 @@
             </div>
             <div class="modal-divider">属性配置</div>
             <div class="modal-field"><label>审查类型</label>
-                <div class="readonly">LLM（用户自定义规则按自然语言定义审查）</div>
+                <div class="review-type-btns" id="newRuleReviewTypes">
+                    <label><input type="radio" name="newRuleReviewType" value="llm" checked onchange="toggleNewRuleParams()"><span>LLM</span></label>
+                    <label><input type="radio" name="newRuleReviewType" value="rule" onchange="toggleNewRuleParams()"><span>规则引擎</span></label>
+                </div>
+            </div>
+            <div id="newRuleEngineParams" style="display:none;">
+                <div class="modal-divider">规则参数</div>
+                <div class="modal-field">
+                    <label>检查类型</label>
+                    <div class="readonly">表格字段格式检查</div>
+                </div>
+                <div class="modal-field">
+                    <label>字段名称</label>
+                    <input type="text" id="newRuleParamFieldLabels" placeholder="例如 阶段标识，审查阶段标识">
+                </div>
+                <div class="modal-field">
+                    <label>匹配方式</label>
+                    <select id="newRuleParamMatchMode">
+                        <option value="starts_with">开头是</option>
+                        <option value="ends_with">结尾是</option>
+                        <option value="contains">包含</option>
+                        <option value="equals">完全等于</option>
+                    </select>
+                </div>
+                <div class="modal-field">
+                    <label>匹配内容</label>
+                    <input type="text" id="newRuleParamMatchValue" placeholder="例如 JB- 或 -CD">
+                </div>
             </div>
             <div class="modal-field"><label>审查范围</label>
                 <select id="newRuleScope"></select>
@@ -204,6 +231,23 @@ const scopeLabels = {
     preface: '前言',
     body: '正文',
 };
+const paramLabels = {
+    check_type: '检查类型',
+    field_labels: '字段名称',
+    pattern: '匹配格式',
+    match_mode: '匹配方式',
+    match_value: '匹配内容',
+};
+const paramPlaceholders = {
+    check_type: '例如 table_field_regex',
+    field_labels: '例如 阶段标识，审查阶段标识',
+    pattern: '例如 ^.+-AB$',
+};
+const paramValueLabels = {
+    check_type: {
+        table_field_regex: '表格字段格式检查',
+    },
+};
 
 function escapeHtml(value) {
     return String(value || '')
@@ -219,6 +263,85 @@ function parseListInput(value) {
         .split(/[,，;；\n]+/)
         .map(item => item.trim())
         .filter(Boolean);
+}
+
+function paramValue(param) {
+    return param && typeof param === 'object' && !Array.isArray(param) && Object.prototype.hasOwnProperty.call(param, 'value')
+        ? param.value
+        : param;
+}
+
+function paramType(param) {
+    if (param && typeof param === 'object' && !Array.isArray(param) && param.type) return param.type;
+    return Array.isArray(param) ? 'tag_list' : 'text';
+}
+
+function paramLabel(key, param) {
+    if (param && typeof param === 'object' && !Array.isArray(param) && param.label) return param.label;
+    return paramLabels[key] || key;
+}
+
+function escapeRegex(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function unescapeRegex(value) {
+    return String(value || '').replace(/\\([.*+?^${}()|[\]\\])/g, '$1');
+}
+
+function buildPattern(matchMode, matchValue) {
+    const escaped = escapeRegex(matchValue);
+    if (!escaped) return '';
+    if (matchMode === 'starts_with') return '^' + escaped + '.+';
+    if (matchMode === 'ends_with') return '^.+' + escaped + '$';
+    if (matchMode === 'contains') return '^.*' + escaped + '.*$';
+    if (matchMode === 'equals') return '^' + escaped + '$';
+    return escaped;
+}
+
+function inferMatchConfig(pattern) {
+    pattern = String(pattern || '');
+    let match;
+    if ((match = pattern.match(/^\^(.+)\.\+$/))) return {mode: 'starts_with', value: unescapeRegex(match[1])};
+    if ((match = pattern.match(/^\^\.\+(.+)\$$/))) return {mode: 'ends_with', value: unescapeRegex(match[1])};
+    if ((match = pattern.match(/^\^\.\*(.+)\.\*\$$/))) return {mode: 'contains', value: unescapeRegex(match[1])};
+    if ((match = pattern.match(/^\^(.+)\$$/))) return {mode: 'equals', value: unescapeRegex(match[1])};
+    return {mode: 'ends_with', value: ''};
+}
+
+function tableFieldParamsFromInputs(prefix) {
+    const labelsEl = document.getElementById(prefix + 'ParamFieldLabels');
+    const matchModeEl = document.getElementById(prefix + 'ParamMatchMode');
+    const matchValueEl = document.getElementById(prefix + 'ParamMatchValue');
+    const matchMode = matchModeEl ? matchModeEl.value : 'ends_with';
+    const matchValue = matchValueEl ? matchValueEl.value.trim() : '';
+    return {
+        check_type: 'table_field_regex',
+        field_labels: parseListInput(labelsEl ? labelsEl.value : ''),
+        match_mode: matchMode,
+        match_value: matchValue,
+        pattern: buildPattern(matchMode, matchValue),
+    };
+}
+
+function tableFieldParamsForForm(params) {
+    params = params || {};
+    const pattern = String(paramValue(params.pattern) || '');
+    const inferred = inferMatchConfig(pattern);
+    return {
+        fieldLabels: parseListInput(paramValue(params.field_labels)).join('，'),
+        matchMode: String(paramValue(params.match_mode) || inferred.mode),
+        matchValue: String(paramValue(params.match_value) || inferred.value),
+    };
+}
+
+function isTableFieldRegexParams(params) {
+    return paramValue((params || {}).check_type) === 'table_field_regex';
+}
+
+function selectedReviewType(name) {
+    const checked = document.querySelector(`input[name="${name}"]:checked`);
+    return checked ? checked.value : 'llm';
 }
 
 function renderPager(containerId, totalItems, currentPage, onPageChange) {
@@ -418,19 +541,41 @@ function renderModalBody(rule) {
             ${severities.map(s => `<option value="${s.value}" ${rule.severity === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
         </select>
     </div>`;
-    if (rule.custom) {
-        html += `<div class="modal-field"><label>审查类型</label><div class="readonly">LLM（用户自定义规则按自然语言定义审查）</div></div>`;
-    } else {
-        html += `<div class="modal-field"><label>审查类型</label>
-            <div class="review-type-btns">
-                ${reviewTypes.map(t => `
-                    <label><input type="radio" name="editReviewType" value="${t.value}" ${rule.review_type === t.value ? 'checked' : ''}><span>${t.label}</span></label>
-                `).join('')}
-            </div>
-        </div>`;
-    }
+    html += `<div class="modal-field"><label>审查类型</label>
+        <div class="review-type-btns">
+            ${reviewTypes.map(t => `
+                <label><input type="radio" name="editReviewType" value="${t.value}" ${rule.review_type === t.value ? 'checked' : ''} onchange="toggleEditRuleParams()"><span>${t.label}</span></label>
+            `).join('')}
+        </div>
+    </div>`;
 
-    if (rule.params && Object.keys(rule.params).length > 0) {
+    const tableParams = tableFieldParamsForForm(rule.params);
+    html += `<div id="editRuleEngineParams" style="${(rule.review_type === 'rule' || rule.review_type === 'both') ? '' : 'display:none;'}">
+        <div class="modal-divider">规则参数</div>
+        <div class="modal-field">
+            <label>检查类型</label>
+            <div class="readonly">表格字段格式检查</div>
+        </div>
+        <div class="modal-field">
+            <label>字段名称</label>
+            <input type="text" id="editRuleParamFieldLabels" value="${escapeHtml(tableParams.fieldLabels)}" placeholder="例如 阶段标识，审查阶段标识">
+        </div>
+        <div class="modal-field">
+            <label>匹配方式</label>
+            <select id="editRuleParamMatchMode">
+                <option value="starts_with" ${tableParams.matchMode === 'starts_with' ? 'selected' : ''}>开头是</option>
+                <option value="ends_with" ${tableParams.matchMode === 'ends_with' ? 'selected' : ''}>结尾是</option>
+                <option value="contains" ${tableParams.matchMode === 'contains' ? 'selected' : ''}>包含</option>
+                <option value="equals" ${tableParams.matchMode === 'equals' ? 'selected' : ''}>完全等于</option>
+            </select>
+        </div>
+        <div class="modal-field">
+            <label>匹配内容</label>
+            <input type="text" id="editRuleParamMatchValue" value="${escapeHtml(tableParams.matchValue)}" placeholder="例如 JB- 或 -CD">
+        </div>
+    </div>`;
+
+    if (rule.params && Object.keys(rule.params).length > 0 && !isTableFieldRegexParams(rule.params)) {
         html += `<div class="modal-divider">规则参数</div>`;
         for (const [key, param] of Object.entries(rule.params)) {
             html += renderParamField(key, param);
@@ -441,11 +586,21 @@ function renderModalBody(rule) {
 }
 
 function renderParamField(key, param) {
-    const label = param.label || key;
-    const type = param.type || 'text';
+    const label = paramLabel(key, param);
+    const type = paramType(param);
+    const value = paramValue(param);
+    const placeholder = paramPlaceholders[key] || '';
+
+    if (key === 'check_type') {
+        return `<div class="modal-field">
+            <label>${label}</label>
+            <div class="readonly">${escapeHtml((paramValueLabels.check_type || {})[value] || value || '')}</div>
+            <input type="hidden" id="param_${key}" value="${escapeHtml(value || '')}">
+        </div>`;
+    }
 
     if (type === 'tag_list') {
-        const values = param.value || [];
+        const values = Array.isArray(value) ? value : parseListInput(value);
         return `<div class="modal-field">
             <label>${label}</label>
             <div class="tag-list" id="param_${key}">
@@ -460,7 +615,7 @@ function renderParamField(key, param) {
         const max = param.max !== undefined ? `max="${param.max}"` : '';
         return `<div class="modal-field">
             <label>${label}</label>
-            <input type="number" id="param_${key}" value="${param.value !== undefined ? param.value : ''}" ${min} ${max}>
+            <input type="number" id="param_${key}" value="${value !== undefined ? value : ''}" ${min} ${max}>
         </div>`;
     }
 
@@ -469,14 +624,14 @@ function renderParamField(key, param) {
         return `<div class="modal-field">
             <label>${label}</label>
             <select id="param_${key}">
-                ${options.map(o => `<option value="${o}" ${param.value === o ? 'selected' : ''}>${o}</option>`).join('')}
+                ${options.map(o => `<option value="${o}" ${value === o ? 'selected' : ''}>${o}</option>`).join('')}
             </select>
         </div>`;
     }
 
     return `<div class="modal-field">
         <label>${label}</label>
-        <input type="text" id="param_${key}" value="${param.value !== undefined ? param.value : ''}">
+        <input type="text" id="param_${key}" value="${value !== undefined ? escapeHtml(value) : ''}" placeholder="${placeholder}">
     </div>`;
 }
 
@@ -492,34 +647,52 @@ function addTag(event, key) {
     input.value = '';
 }
 
+function toggleNewRuleParams() {
+    const panel = document.getElementById('newRuleEngineParams');
+    const type = selectedReviewType('newRuleReviewType');
+    if (panel) panel.style.display = (type === 'rule' || type === 'both') ? '' : 'none';
+}
+
+function toggleEditRuleParams() {
+    const panel = document.getElementById('editRuleEngineParams');
+    const type = selectedReviewType('editReviewType');
+    if (panel) panel.style.display = (type === 'rule' || type === 'both') ? '' : 'none';
+}
+
 function collectRuleDraft(prefix) {
     if (prefix === 'newRule') {
+        const reviewType = selectedReviewType('newRuleReviewType');
         return {
             name: document.getElementById('newRuleName').value.trim() || '试审规则',
             description: document.getElementById('newRuleDesc').value.trim(),
             source: currentGroup ? currentGroup.source : 'custom',
             severity: document.getElementById('newRuleSeverity').value || 'warning',
+            review_type: reviewType,
             code: document.getElementById('newRuleCode').value.trim(),
             logic: document.getElementById('newRuleLogic').value.trim(),
             standard_ref: document.getElementById('newRuleStandardRef').value.trim(),
             scope: document.getElementById('newRuleScope').value || 'all',
             target_headings: parseListInput(document.getElementById('newRuleTargetHeadings').value),
             required_elements: parseListInput(document.getElementById('newRuleRequiredElements').value),
+            params: (reviewType === 'rule' || reviewType === 'both') ? tableFieldParamsFromInputs('newRule') : {},
         };
     }
 
+    const editReviewType = selectedReviewType('editReviewType');
     return {
         rule_id: currentRule ? currentRule.rule_id : 'draft_rule',
         name: currentRule ? currentRule.name : '试审规则',
         description: currentRule ? currentRule.description : '',
         source: currentRule ? currentRule.source : 'custom',
         severity: document.getElementById('editSeverity').value || 'warning',
+        review_type: editReviewType,
         code: document.getElementById('editCode').value.trim(),
         logic: document.getElementById('editLogic').value.trim(),
         standard_ref: document.getElementById('editStandardRef').value.trim(),
         scope: document.getElementById('editScope').value || 'all',
         target_headings: parseListInput(document.getElementById('editTargetHeadings').value),
         required_elements: parseListInput(document.getElementById('editRequiredElements').value),
+        params: (editReviewType === 'rule' || editReviewType === 'both') ? tableFieldParamsFromInputs('editRule') : {},
     };
 }
 
@@ -567,6 +740,7 @@ function saveRule() {
     const updates = {
         enabled: document.getElementById('editEnabled').checked,
         severity: document.getElementById('editSeverity').value,
+        review_type: selectedReviewType('editReviewType'),
         code: document.getElementById('editCode').value.trim(),
         logic: document.getElementById('editLogic').value.trim(),
         standard_ref: document.getElementById('editStandardRef').value.trim(),
@@ -578,27 +752,29 @@ function saveRule() {
         updates.name = document.getElementById('editName').value.trim();
         updates.description = document.getElementById('editDescription').value.trim();
     }
-    if (!currentRule.custom) {
-        updates.review_type = document.querySelector('input[name="editReviewType"]:checked').value;
-    }
-
-    if (currentRule.params && Object.keys(currentRule.params).length > 0) {
+    if (updates.review_type === 'rule' || updates.review_type === 'both') {
+        updates.params = tableFieldParamsFromInputs('editRule');
+    } else if (currentRule.params && Object.keys(currentRule.params).length > 0 && !isTableFieldRegexParams(currentRule.params)) {
         const params = {};
         for (const [key, param] of Object.entries(currentRule.params)) {
-            const type = param.type || 'text';
+            const type = paramType(param);
+            const structured = param && typeof param === 'object' && !Array.isArray(param) && (param.label || param.type || Object.prototype.hasOwnProperty.call(param, 'value'));
             if (type === 'tag_list') {
                 const container = document.getElementById('param_' + key);
                 const tags = container.querySelectorAll('.tag-item');
-                params[key] = {label: param.label, type: param.type, value: Array.from(tags).map(t => t.textContent.replace('×', '').trim())};
+                const value = Array.from(tags).map(t => t.textContent.replace('×', '').trim());
+                params[key] = structured ? {label: param.label, type: param.type, value: value} : value;
             } else if (type === 'number') {
                 const val = parseFloat(document.getElementById('param_' + key).value);
-                params[key] = {label: param.label, type: param.type, value: val};
+                params[key] = structured ? {label: param.label, type: param.type, value: val} : val;
             } else {
                 const el = document.getElementById('param_' + key);
-                params[key] = {label: param.label, type: param.type, value: el.value};
+                params[key] = structured ? {label: param.label, type: param.type, value: el.value} : el.value;
             }
         }
         updates.params = params;
+    } else {
+        updates.params = {};
     }
 
     fetch('/rules/api/rules/' + currentRule.rule_id, {
@@ -692,6 +868,12 @@ function openCreateRuleModal() {
     document.getElementById('newRuleStandardRef').value = '';
     document.getElementById('newRuleSampleText').value = '';
     document.getElementById('newRuleTestResult').innerHTML = '';
+    const defaultReviewType = document.querySelector('input[name="newRuleReviewType"][value="llm"]');
+    if (defaultReviewType) defaultReviewType.checked = true;
+    document.getElementById('newRuleParamFieldLabels').value = '';
+    document.getElementById('newRuleParamMatchMode').value = 'starts_with';
+    document.getElementById('newRuleParamMatchValue').value = '';
+    toggleNewRuleParams();
     document.getElementById('newRuleSeverity').innerHTML =
         severities.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
     document.getElementById('newRuleScope').innerHTML =
@@ -709,9 +891,15 @@ function createRule() {
     const desc = document.getElementById('newRuleDesc').value.trim();
     const code = document.getElementById('newRuleCode').value.trim();
     const logic = document.getElementById('newRuleLogic').value.trim();
+    const reviewType = selectedReviewType('newRuleReviewType');
     if (!code) { alert('编号不能为空'); return; }
     if (!name) { alert('规则名称不能为空'); return; }
     if (!logic) { alert('检查逻辑不能为空'); return; }
+    const params = (reviewType === 'rule' || reviewType === 'both') ? tableFieldParamsFromInputs('newRule') : {};
+    if (reviewType === 'rule' || reviewType === 'both') {
+        if (!params.field_labels.length) { alert('规则引擎检查需要填写字段名称'); return; }
+        if (!params.match_value) { alert('规则引擎检查需要填写匹配内容'); return; }
+    }
 
     fetch('/rules/api/rules', {
         method: 'POST',
@@ -721,14 +909,14 @@ function createRule() {
             description: desc,
             source: currentGroup.source,
             severity: document.getElementById('newRuleSeverity').value,
-            review_type: 'llm',
+            review_type: reviewType,
             code: code,
             logic: logic,
             standard_ref: document.getElementById('newRuleStandardRef').value.trim(),
             scope: document.getElementById('newRuleScope').value || 'all',
             target_headings: parseListInput(document.getElementById('newRuleTargetHeadings').value),
             required_elements: parseListInput(document.getElementById('newRuleRequiredElements').value),
-            params: {},
+            params: params,
         }),
     })
     .then(r => r.json())

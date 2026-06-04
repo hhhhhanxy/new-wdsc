@@ -296,7 +296,7 @@ def test_table_field_regex_rule_passes_for_cover_table_value():
         params={
             "check_type": "table_field_regex",
             "field_labels": ["阶段标识", "审查阶段标识"],
-            "pattern": r"^[A-Za-z0-9]+-AB$",
+            "pattern": r"^.+-AB$",
         },
     ))
     document = ParsedDocument(
@@ -306,12 +306,12 @@ def test_table_field_regex_rule_passes_for_cover_table_value():
             DocumentSection(
                 "cover",
                 ContentType.TABLE,
-                "[0] 阶段标识 | [1] 123-AB",
+                "[0] 阶段标识 | [1] XXX-AB",
                 metadata={
                     "region": "cover",
                     "table_cells": [
                         {"row": 0, "col": 0, "text": "阶段标识"},
-                        {"row": 0, "col": 1, "text": "123-AB"},
+                        {"row": 0, "col": 1, "text": "XXX-AB"},
                     ],
                 },
             ),
@@ -339,7 +339,7 @@ def test_table_field_regex_rule_fails_for_invalid_cover_table_value():
         params={
             "check_type": "table_field_regex",
             "field_labels": ["阶段标识", "审查阶段标识"],
-            "pattern": r"^[A-Za-z0-9]+-AB$",
+            "pattern": r"^.+-AB$",
         },
     ))
     document = ParsedDocument(
@@ -384,7 +384,7 @@ def test_table_field_regex_rule_supports_label_and_value_in_same_cell():
         params={
             "check_type": "table_field_regex",
             "field_labels": ["阶段标识", "审查阶段标识"],
-            "pattern": r"^[A-Za-z0-9]+-AB$",
+            "pattern": r"^.+-AB$",
         },
     ))
     document = ParsedDocument(

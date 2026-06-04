@@ -4,5 +4,8 @@
   },
   "product_rules": {
     "display_name": "X产品规范检查"
+  },
+  "requir_doc1": {
+    "display_name": "需求文档规则1"
   }
 }

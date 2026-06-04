@@ -95,14 +95,7 @@
     ],
     "logic": "文章中前言部分是否描述出某产品的主要功能、在飞机上的安装部位等内容。",
     "standard_ref": "",
-    "params": {
-      "check_type": "table_field_regex",
-      "field_labels": [
-        "阶段标识",
-        "审查阶段标识"
-      ],
-      "pattern": "^[A-Za-z0-9]+-AB$"
-    },
+    "params": {},
     "scope": "preface",
     "target_headings": [],
     "required_elements": []
@@ -201,12 +194,24 @@
       "阶段标识"
     ],
     "params": {
-      "check_type": "table_field_regex",
-      "field_labels": [
-        "阶段标识",
-        "审查阶段标识"
-      ],
-      "pattern": "^[A-Za-z0-9]+-AB$"
+      "check_type": {
+        "value": "table_field_regex"
+      },
+      "field_labels": {
+        "value": [
+          "阶段标识",
+          "审查阶段标识"
+        ]
+      },
+      "match_mode": {
+        "value": "ends_with"
+      },
+      "match_value": {
+        "value": "-AB"
+      },
+      "pattern": {
+        "value": "^.+-AB$"
+      }
     },
     "scope": "cover",
     "target_headings": [],

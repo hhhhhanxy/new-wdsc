@@ -88,6 +88,37 @@ def api_update_template(template_id: str):
     return jsonify({"ok": True, "template": manager.serialize_template(template)})
 
 
+@bp.route("/api/templates/<template_id>/source", methods=["POST"])
+def api_replace_template_source(template_id: str):
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"error": "请上传新的 DOCX 模板文件"}), 400
+    if not file.filename.lower().endswith(".docx"):
+        return jsonify({"error": "仅支持 DOCX 模板文件"}), 400
+
+    manager = TemplateManager()
+    template = manager.get_template(template_id)
+    if not template or template.source_type == "built_in":
+        return jsonify({"error": "模板不存在或内置模板不可替换源文件"}), 404
+
+    template_dir = Path(current_app.config["UPLOAD_FOLDER"]) / "templates" / template_id
+    template_dir.mkdir(parents=True, exist_ok=True)
+    path = template_dir / "source.docx"
+    file.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    metadata = {
+        "template_asset_id": template_id,
+        "source_filename": file.filename,
+        "source_path": os.path.relpath(path, Path(current_app.root_path).parent),
+        "source_docx_path": os.path.relpath(path, Path(current_app.root_path).parent),
+    }
+    updated = manager.replace_template_source(template_id, parsed, metadata)
+    if not updated:
+        return jsonify({"error": "模板不存在或不可替换源文件"}), 404
+    return jsonify({"ok": True, "template": manager.serialize_template(updated)})
+
+
 @bp.route("/api/templates/<template_id>", methods=["DELETE"])
 def api_delete_template(template_id: str):
     manager = TemplateManager()

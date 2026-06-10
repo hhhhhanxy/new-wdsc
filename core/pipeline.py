@@ -20,6 +20,8 @@ class PipelineResult:
     """文档生成结果。"""
     generated_path: Optional[str] = None
     review_result: Optional[Any] = None
+    quality_result: Optional[Any] = None
+    generation_meta: Optional[dict] = None
     passed_review: bool = False
     error: str = ""
     status: str = "pending"  # pending, generated, reviewing, passed, failed
@@ -27,6 +29,8 @@ class PipelineResult:
     def to_dict(self) -> dict:
         return {
             "generated_path": self.generated_path,
+            "quality_result": self.quality_result,
+            "generation_meta": self.generation_meta,
             "passed_review": self.passed_review,
             "error": self.error,
             "status": self.status,
@@ -64,7 +68,16 @@ def generate_document_only(
             output_path=output_path,
             progress_callback=progress_callback,
         )
+        result.generation_meta = params.get("_generation_meta") or {}
         result.generated_path = output_path
+        from generators.quality_checker import GeneratedDocxQualityChecker
+
+        result.quality_result = GeneratedDocxQualityChecker().check(
+            output_path,
+            template=getattr(generator, "last_template", None),
+            inputs=params.get("inputs") or {},
+            title=title,
+        )
         result.passed_review = True
         result.status = "generated"
     except Exception as e:

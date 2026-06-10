@@ -62,11 +62,12 @@
 }
 .template-editor-meta {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin-top: 8px;
 }
-.template-editor-meta input {
+.template-editor-meta input,
+.template-editor-meta select {
     min-width: 0;
     font-size: 13px;
 }
@@ -183,6 +184,8 @@
                 <div style="display:flex;gap:8px;">
                     <button class="btn btn-outline" id="copyTemplateBtn" onclick="copyCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">复制编辑</button>
                     <button class="btn btn-outline btn-danger-text" id="deleteTemplateBtn" onclick="deleteCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">删除模板</button>
+                    <button class="btn btn-outline" id="replaceSourceBtn" onclick="document.getElementById('replaceTemplateFile').click()" style="display:none;padding:6px 14px;font-size:14px;">替换源文件</button>
+                    <input type="file" id="replaceTemplateFile" accept=".docx" style="display:none">
                     <button class="btn btn-outline" id="addRootBtn" onclick="addRootChapter()" style="display:none;padding:6px 14px;font-size:14px;">+ 章节</button>
                     <button class="btn btn-primary" id="saveTemplateBtn" onclick="saveCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">保存模板</button>
                 </div>
@@ -280,6 +283,29 @@ document.getElementById('templateFile').addEventListener('change', e => {
         });
 });
 
+document.getElementById('replaceTemplateFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file || !currentTemplate || !currentTemplate.id) return;
+    if (!confirm('替换源文件会重新解析章节结构，并覆盖当前章节解析结果。已保存的模板名称会保留，确定继续？')) return;
+    const form = new FormData();
+    form.append('file', file);
+    fetch('/template-library/api/templates/' + encodeURIComponent(currentTemplate.id) + '/source', {
+        method: 'POST',
+        body: form
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            currentTemplate = data.template;
+            currentMode = 'edit';
+            loadTemplates();
+            renderEditor();
+            alert('源模板已替换并重新解析');
+        })
+        .catch(err => alert('替换失败: ' + err.message));
+});
+
 function renderEditor() {
     const editor = document.getElementById('templateEditor');
     const hint = document.getElementById('templateHint');
@@ -287,6 +313,7 @@ function renderEditor() {
     const addBtn = document.getElementById('addRootBtn');
     const deleteBtn = document.getElementById('deleteTemplateBtn');
     const copyBtn = document.getElementById('copyTemplateBtn');
+    const replaceBtn = document.getElementById('replaceSourceBtn');
     if (!currentTemplate) {
         editor.style.display = 'none';
         hint.style.display = '';
@@ -294,6 +321,7 @@ function renderEditor() {
         addBtn.style.display = 'none';
         deleteBtn.style.display = 'none';
         copyBtn.style.display = 'none';
+        replaceBtn.style.display = 'none';
         return;
     }
     editor.style.display = '';
@@ -302,6 +330,7 @@ function renderEditor() {
     addBtn.style.display = currentMode === 'view' ? 'none' : '';
     deleteBtn.style.display = currentTemplate.id ? '' : 'none';
     copyBtn.style.display = currentMode === 'view' ? '' : 'none';
+    replaceBtn.style.display = currentMode === 'view' || !currentTemplate.id ? 'none' : '';
     document.getElementById('editorTitle').textContent = currentMode === 'create' ? '解析结果编辑' : '模板结构';
     document.getElementById('templateName').value = currentTemplate.name || '';
     document.getElementById('templateDescription').value = currentTemplate.description || '';
@@ -319,6 +348,7 @@ function renderTemplateAssetMeta() {
     target.innerHTML = `
         <div>原始模板文件：${escapeHtml(sourceName)}</div>
         <div>格式来源：${sourcePath ? escapeHtml(sourcePath) : '内置模板或复制模板，暂无原始格式文件'}</div>
+        <div>模板版本：v${escapeHtml(metadata.version || 1)}${metadata.updated_at ? ' · 更新时间：' + escapeHtml(metadata.updated_at) : ''}</div>
     `;
 }
 
@@ -349,12 +379,27 @@ function renderChapter(chapter, path) {
             <textarea class="template-editor-guidance" ${disabled} placeholder="章节生成说明（可选）" oninput="updateChapter('${pathValue}', 'guidance_prompt', this.value)">${escapeHtml(chapter.guidance_prompt || chapter.description || '')}</textarea>
             ${renderTemplateBlocks(chapter)}
             <div class="template-editor-meta">
+                <select ${disabled} onchange="updateChapter('${pathValue}', 'generation_strategy', this.value)">
+                    ${renderStrategyOptions(chapter.generation_strategy || 'smart_generate')}
+                </select>
                 <input type="text" value="${escapeHtml(chapter.style_name || '')}" placeholder="标题样式，例如 标题 1" ${disabled} oninput="updateChapter('${pathValue}', 'style_name', this.value)">
                 <input type="text" value="${escapeHtml(chapter.body_style_name || '')}" placeholder="正文样式，例如 正文 / Normal" ${disabled} oninput="updateChapter('${pathValue}', 'body_style_name', this.value)">
             </div>
             ${(chapter.sub_chapters || []).length ? `<ul>${chapter.sub_chapters.map((child, idx) => renderChapter(child, path.concat(idx))).join('')}</ul>` : ''}
         </li>
     `;
+}
+
+function renderStrategyOptions(value) {
+    const options = [
+        ['fixed_keep', '固定保留'],
+        ['placeholder_replace', '占位替换'],
+        ['smart_generate', '智能生成'],
+        ['table_fill', '表格填充'],
+    ];
+    return options.map(([key, label]) =>
+        `<option value="${key}" ${value === key ? 'selected' : ''}>${label}</option>`
+    ).join('');
 }
 
 function renderTemplateBlocks(chapter) {
@@ -427,7 +472,7 @@ function getChapter(path) {
 }
 
 function makeChapter(number, title) {
-    return { number, title, description: '', required: true, guidance_prompt: '', style_name: '', body_style_name: '', sub_chapters: [] };
+    return { number, title, description: '', required: true, guidance_prompt: '', generation_strategy: 'smart_generate', style_name: '', body_style_name: '', sub_chapters: [] };
 }
 
 function saveCurrentTemplate() {

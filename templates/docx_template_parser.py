@@ -126,6 +126,7 @@ class DocxTemplateParser:
                 "body_style_name": item.get("body_style_name", ""),
                 "template_blocks": item.get("template_blocks", []),
                 "placeholders": sorted(set(item.get("placeholders", []))),
+                "generation_strategy": item.get("generation_strategy", "") or self._infer_generation_strategy(item),
                 "sub_chapters": [],
             }
             level = int(item.get("level") or 1)
@@ -144,6 +145,17 @@ class DocxTemplateParser:
             return item.get("description", "")
         text = "\n".join(parts)
         return text[:2000]
+
+    def _infer_generation_strategy(self, item: dict) -> str:
+        blocks = item.get("template_blocks", []) or []
+        block_types = {block.get("type") for block in blocks}
+        if "template_table" in block_types and not item.get("placeholders"):
+            return "table_fill"
+        if item.get("placeholders"):
+            return "smart_generate"
+        if {"instruction", "example", "instruction_table", "example_table"} & block_types:
+            return "smart_generate"
+        return "placeholder_replace"
 
     def _paragraph_block(self, paragraph, current_context: str = "") -> dict[str, Any]:
         text = paragraph.text.strip()

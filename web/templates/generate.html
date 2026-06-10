@@ -223,6 +223,20 @@
     color: var(--text-secondary);
     font-size: 14px;
 }
+.field-action-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.field-action-row label {
+    margin-bottom: 0;
+}
+.field-action-row .btn {
+    padding: 5px 10px;
+    font-size: 12px;
+}
 </style>
 <div class="page-header">
     <h1>文档生成</h1>
@@ -255,16 +269,23 @@
                 <input type="text" class="form-control" id="docTitle" placeholder="请输入生成文档的标题">
             </div>
             <div class="form-group">
+                <label>生成模式</label>
+                <select class="form-control" id="generationMode">
+                    <option value="smart">智能生成：逐章节调用大模型并回填模板</option>
+                    <option value="template_fill">模板填充：仅删除说明并替换占位符</option>
+                </select>
+            </div>
+            <div class="form-group">
                 <label>产品名称</label>
-                <input type="text" class="form-control" id="productName" placeholder="例如：某型电动作动器">
+                <input type="text" class="form-control" id="productName" placeholder="输入产品、系统或设备名称">
             </div>
             <div class="form-group">
                 <label>项目名称</label>
-                <input type="text" class="form-control" id="projectName" placeholder="例如：某型电动作动器鉴定试验项目">
+                <input type="text" class="form-control" id="projectName" placeholder="输入项目、任务或文件适用对象名称">
             </div>
             <div class="form-group">
                 <label>试验项目/受试对象</label>
-                <input type="text" class="form-control" id="testItem" placeholder="例如：温度、高度、湿热等自然环境鉴定试验">
+                <input type="text" class="form-control" id="testItem" placeholder="输入试验范围、受试对象或适用场景">
             </div>
             <div class="form-group">
                 <label>背景说明</label>
@@ -275,19 +296,25 @@
                 <textarea class="form-control" id="docParams" placeholder="输入可用于生成的参数、条目、约束、数据或参考摘要..." style="min-height:80px;"></textarea>
             </div>
             <div class="form-group">
-                <label>引用文件</label>
-                <textarea class="form-control" id="references" placeholder="输入标准、规范、设计依据或参考文件..."></textarea>
+                <label>补充信息/其他素材</label>
+                <textarea class="form-control" id="additionalContext" placeholder="输入除以上字段外的业务背景、约束条件、术语口径、特殊章节要求等..." style="min-height:80px;"></textarea>
+                <div class="upload-zone" id="supplementUploadZone" style="padding:14px;margin-top:10px;">
+                    <p style="font-size:14px;" id="supplementUploadText">上传补充材料 Word 文档</p>
+                    <input type="file" id="supplementFileInput" accept=".docx" style="display:none">
+                </div>
+                <div class="form-hint" id="supplementUploadHint">补充信息较多时可上传 .docx，系统会解析正文和表格内容作为生成素材。</div>
+            </div>
+            <div class="form-group">
+                <div class="field-action-row">
+                    <label>引用文件</label>
+                    <button type="button" class="btn btn-outline" onclick="fillReferenceExample()">填入示例</button>
+                </div>
+                <textarea class="form-control" id="references" placeholder="请逐行填写引用文件；有编号可写“编号 + 文件名称”，无编号可只写文件名称。例如：&#10;GJB 150A-2009 军用装备实验室环境试验方法&#10;某型电动作动器总体设计方案" style="min-height:96px;"></textarea>
+                <div class="form-hint">编号不是必填项；仅填写正式文档需要列出的标准、规范、设计依据或技术协议，不需要上传文件原文。</div>
             </div>
             <div class="form-group">
                 <label>生成要求</label>
                 <textarea class="form-control" id="generationRequirements" placeholder="输入写作口径、禁止事项、输出风格、重点章节要求等..." style="min-height:80px;"></textarea>
-            </div>
-            <div class="form-group">
-                <label>参考文档（可选）</label>
-                <div class="upload-zone" id="refUploadZone" style="padding:16px;">
-                    <p style="font-size:14px;" id="refUploadText">点击上传参考文档</p>
-                    <input type="file" id="refFileInput" accept=".docx" style="display:none">
-                </div>
             </div>
         </div>
 
@@ -353,6 +380,7 @@
             <div class="panel-title">生成说明</div>
             <ul style="font-size:14px;color:var(--text-secondary);line-height:1.8;padding-left:16px;">
                 <li>生成时会保留上传 DOCX 模板的正文、样式、页眉页脚和页面设置</li>
+                <li>智能生成模式会按章节组织模板说明、示例和用户素材调用大模型</li>
                 <li>平台会删除说明/举例内容，并替换模板中的占位内容</li>
                 <li>生成后自动审查功能已预留，当前版本暂不执行</li>
                 <li>生成后可在 Word 中进一步编辑调整</li>
@@ -413,6 +441,9 @@ let expandedChapterKeys = new Set();
 let chapterSearchQuery = '';
 let generationRequirementsTouched = false;
 let recentGenerationPage = 1;
+let supplementDocText = '';
+let supplementDocName = '';
+let supplementDocUploading = false;
 const genProgressModal = document.getElementById('genProgressModal');
 const genProgressDock = document.getElementById('genProgressDock');
 const genProgressDetail = document.getElementById('genProgressDetail');
@@ -421,14 +452,82 @@ generationRequirementsInput.addEventListener('input', () => {
     generationRequirementsTouched = true;
 });
 
-// Reference file upload
-const refZone = document.getElementById('refUploadZone');
-const refInput = document.getElementById('refFileInput');
-const refText = document.getElementById('refUploadText');
-refZone.addEventListener('click', () => refInput.click());
-refInput.addEventListener('change', e => {
-    if (e.target.files.length) refText.innerHTML = '<span style="color:var(--primary);">' + e.target.files[0].name + '</span>';
+// Supplement material upload
+const supplementZone = document.getElementById('supplementUploadZone');
+const supplementInput = document.getElementById('supplementFileInput');
+const supplementText = document.getElementById('supplementUploadText');
+const supplementHint = document.getElementById('supplementUploadHint');
+supplementZone.addEventListener('click', () => supplementInput.click());
+supplementInput.addEventListener('change', e => {
+    if (!e.target.files.length) return;
+    uploadSupplementDoc(e.target.files[0]);
 });
+
+function uploadSupplementDoc(file) {
+    supplementDocText = '';
+    supplementDocName = '';
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+        supplementInput.value = '';
+        supplementText.textContent = '上传补充材料 Word 文档';
+        supplementHint.textContent = '当前仅支持 .docx 格式的 Word 文档。';
+        supplementHint.style.color = 'var(--danger)';
+        return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    supplementDocUploading = true;
+    supplementText.innerHTML = '<span style="color:var(--primary);">正在解析：' + escapeHtml(file.name) + '</span>';
+    supplementHint.textContent = '正在提取段落和表格内容...';
+    supplementHint.style.color = 'var(--text-secondary)';
+    fetch('/generate/api/supplement-doc', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            supplementDocText = '';
+            supplementDocName = '';
+            supplementDocUploading = false;
+            supplementInput.value = '';
+            supplementText.textContent = '上传补充材料 Word 文档';
+            supplementHint.textContent = data.error;
+            supplementHint.style.color = 'var(--danger)';
+            return;
+        }
+        supplementDocText = data.text || '';
+        supplementDocName = data.filename || file.name;
+        supplementDocUploading = false;
+        supplementText.innerHTML = '<span style="color:var(--primary);">' + escapeHtml(supplementDocName) + '</span>';
+        supplementHint.textContent = `已解析 ${Number(data.chars || 0)} 字，将作为补充素材使用。`;
+        supplementHint.style.color = 'var(--text-secondary)';
+    })
+    .catch(err => {
+        supplementDocText = '';
+        supplementDocName = '';
+        supplementDocUploading = false;
+        supplementInput.value = '';
+        supplementText.textContent = '上传补充材料 Word 文档';
+        supplementHint.textContent = '补充材料上传失败：' + err.message;
+        supplementHint.style.color = 'var(--danger)';
+    });
+}
+
+function fillReferenceExample() {
+    const referencesInput = document.getElementById('references');
+    const example = [
+        'GJB 150A-2009 军用装备实验室环境试验方法',
+        'GJB 899A-2009 可靠性鉴定和验收试验',
+        'Q/XXX-001 某型电动作动器产品规范',
+        '某型电动作动器技术协议',
+        '某型电动作动器总体设计方案',
+    ].join('\n');
+    if (referencesInput.value.trim() && !confirm('当前引用文件已有内容，是否用示例覆盖？')) {
+        return;
+    }
+    referencesInput.value = example;
+    referencesInput.focus();
+}
 
 function loadTemplates() {
     fetch('/generate/api/templates')
@@ -469,13 +568,60 @@ function applyDefaultGenerationRequirements(template) {
 
 function getDefaultGenerationRequirements(template) {
     const templateName = template && template.name ? template.name : '所选模板';
-    return [
+    const signals = collectTemplateGenerationSignals(template);
+    const lines = [
         `请基于“${templateName}”的原始 DOCX 模板生成正式文档。`,
-        '保留模板正文和原有 Word 格式，删除说明与举例内容。',
-        '将 NNNNN、XXX、X项目、斜体占位等内容替换为用户输入素材。',
+        '保留模板中可直接用于正式文件的正文、样式、页眉页脚和页面设置。',
+        '删除模板中的说明、填写要求、示例、举例等辅助内容，正式文档中不保留这些提示性文字。',
+    ];
+    if (signals.placeholders.length) {
+        lines.push(`将模板中识别到的占位内容（${signals.placeholders.join('、')}）替换为用户输入素材。`);
+    } else {
+        lines.push('将模板中的占位内容、斜体待替换内容或明显待补充内容替换为用户输入素材。');
+    }
+    if (signals.hasGuidance) {
+        lines.push('遵循模板库中解析出的各章节生成说明；说明和示例仅作为写作依据，不作为正式正文直接保留。');
+    }
+    if (signals.hasTables) {
+        lines.push('涉及表格时，保留模板表格结构和表头，按用户输入素材填写；缺少依据的数据填写为“待补充”。');
+    }
+    lines.push(
         '不编造未提供的试验数据、编号、结论或标准条款。',
         '未提供的信息保留为“待补充”。'
-    ].join('\n');
+    );
+    return lines.join('\n');
+}
+
+function collectTemplateGenerationSignals(template) {
+    const placeholders = new Set();
+    let hasGuidance = false;
+    let hasTables = false;
+    function visit(chapters) {
+        (chapters || []).forEach(chapter => {
+            (chapter.placeholders || []).forEach(item => {
+                const text = String(item || '').trim();
+                if (text) placeholders.add(text);
+            });
+            if (String(chapter.guidance_prompt || chapter.description || '').trim()) {
+                hasGuidance = true;
+            }
+            (chapter.template_blocks || []).forEach(block => {
+                const type = String(block.type || '');
+                if (type.includes('table')) hasTables = true;
+                (block.placeholders || []).forEach(item => {
+                    const text = String(item || '').trim();
+                    if (text) placeholders.add(text);
+                });
+            });
+            visit(chapter.sub_chapters || []);
+        });
+    }
+    visit(template ? template.chapters || [] : []);
+    return {
+        placeholders: Array.from(placeholders).slice(0, 8),
+        hasGuidance,
+        hasTables,
+    };
 }
 
 function renderTemplatePreview(template) {
@@ -630,6 +776,7 @@ function startGenerate() {
     if (!selectedTemplate) { alert('请选择文档模板'); return; }
     const productName = document.getElementById('productName').value.trim();
     if (!productName) { alert('请输入产品名称'); return; }
+    if (supplementDocUploading) { alert('补充材料仍在解析，请稍后再生成'); return; }
 
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
@@ -644,8 +791,12 @@ function startGenerate() {
             test_item: document.getElementById('testItem').value.trim(),
             background: document.getElementById('docDesc').value.trim(),
             technical_params: document.getElementById('docParams').value.trim(),
+            additional_context: document.getElementById('additionalContext').value.trim(),
+            supplement_doc_name: supplementDocName,
+            supplement_doc_text: supplementDocText,
             references: document.getElementById('references').value.trim(),
-            generation_requirements: document.getElementById('generationRequirements').value.trim()
+            generation_requirements: document.getElementById('generationRequirements').value.trim(),
+            generation_mode: document.getElementById('generationMode').value
         }
     };
 
@@ -778,10 +929,18 @@ function handleGenFinalState(data) {
 function showGenReview(data) {
     // Try to extract review result from params
     let reviewResult = null;
+    let qualityResult = null;
     try {
         const params = JSON.parse(data.params || '{}');
         reviewResult = params.review_result;
+        qualityResult = params.quality_result;
     } catch (e) {}
+
+    if (qualityResult) {
+        document.getElementById('genReviewSection').style.display = 'block';
+        document.getElementById('genReviewSection').innerHTML = renderQualityResult(qualityResult, reviewResult);
+        return;
+    }
 
     if (!reviewResult) return;
     if (reviewResult.reserved) {
@@ -818,6 +977,26 @@ function showGenReview(data) {
         phaseHtml += '</div>';
         document.getElementById('genPhaseResults').innerHTML = phaseHtml;
     }
+}
+
+function renderQualityResult(qualityResult, reviewResult) {
+    const checks = qualityResult.checks || [];
+    const checkHtml = checks.length ? checks.map(item => `
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
+            <span>${escapeHtml(item.label || item.code)}</span>
+            <span class="badge badge-${item.passed ? 'success' : 'warning'}">${escapeHtml(item.passed ? '通过' : '待确认')}</span>
+        </div>
+        ${item.passed ? '' : `<div class="generation-record-error" style="white-space:normal;">${escapeHtml(item.message || '')}</div>`}
+    `).join('') : '<div class="empty-state">暂无基础检查结果</div>';
+    const reviewMessage = reviewResult && reviewResult.message
+        ? reviewResult.message
+        : '生成后自动审查功能已预留，当前版本暂不执行。';
+    return `
+        <p class="section-title">基础检查</p>
+        <div style="font-size:14px;margin-top:8px;">${checkHtml}</div>
+        <p class="section-title" style="margin-top:14px;">审查预留</p>
+        <div class="empty-state">${escapeHtml(reviewMessage)}</div>
+    `;
 }
 
 function retryGenerate() {
@@ -871,6 +1050,7 @@ function renderRecentGenerations(tasks, pagination) {
                     ${task.status === 'failed' && task.error ? `<div class="generation-record-error" title="${escapeHtml(task.error)}">${escapeHtml(task.error)}</div>` : ''}
                 </div>
                 <div class="generation-record-actions">
+                    ${canDelete ? `<button type="button" class="btn btn-outline" onclick="rerunGeneration(${task.id})">重新生成</button>` : ''}
                     ${canDownload ? `<button type="button" class="btn btn-outline" onclick="window.location.href='/generate/download/${task.id}'">下载</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="deleteGenerateRecord(${task.id})">删除</button>` : ''}
                 </div>
@@ -910,6 +1090,29 @@ function getGenBadgeClass(status) {
         review_failed: 'danger',
         canceled: 'default',
     }[status] || 'default';
+}
+
+function rerunGeneration(taskId) {
+    if (!confirm('确定基于这条记录的模板和输入素材重新生成？')) return;
+    fetch('/generate/rerun/' + taskId, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('重新生成失败: ' + data.error);
+                return;
+            }
+            currentGenTaskId = data.task_id;
+            document.getElementById('genProgressSection').style.display = 'block';
+            openGenProgressModal();
+            updateGenProgress({
+                status: 'processing',
+                progress: 0,
+                progress_message: '重新生成任务已创建'
+            });
+            pollGenProgress();
+            loadRecentGenerations();
+        })
+        .catch(err => alert('重新生成失败: ' + err.message));
 }
 
 function deleteGenerateRecord(taskId) {

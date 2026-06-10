@@ -4,8 +4,11 @@ Generate routes for the web application.
 import os
 import json
 import threading
+import uuid
 from datetime import datetime
+from pathlib import Path
 from flask import Blueprint, render_template, request, jsonify, send_file, current_app
+from werkzeug.utils import secure_filename
 
 bp = Blueprint('generate', __name__)
 
@@ -41,55 +44,45 @@ def template_detail(template_id):
     return jsonify(manager.serialize_template(template))
 
 
+@bp.route('/api/supplement-doc', methods=['POST'])
+@bp.route('/api/reference-doc', methods=['POST'])
+def upload_supplement_doc():
+    """Upload and extract text from a DOCX supplement material file."""
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'error': '请选择要上传的 Word 文档'}), 400
+
+    filename = secure_filename(file.filename)
+    if not filename.lower().endswith('.docx'):
+        return jsonify({'error': '当前仅支持 .docx 格式的 Word 文档'}), 400
+
+    reference_dir = Path(current_app.config['UPLOAD_FOLDER']) / 'generation_references'
+    reference_dir.mkdir(parents=True, exist_ok=True)
+    saved_name = f"{uuid.uuid4().hex}_{filename}"
+    saved_path = reference_dir / saved_name
+    file.save(saved_path)
+
+    try:
+        extracted = _extract_docx_reference_text(saved_path)
+    except Exception as exc:
+        saved_path.unlink(missing_ok=True)
+        return jsonify({'error': f'补充材料解析失败：{exc}'}), 400
+
+    if not extracted.strip():
+        return jsonify({'error': '补充材料未解析到可用文本'}), 400
+
+    return jsonify({
+        'filename': filename,
+        'saved_path': str(saved_path),
+        'text': extracted,
+        'chars': len(extracted),
+    })
+
+
 @bp.route('/start', methods=['POST'])
 def start():
-    db = current_app.db
     data = request.get_json()
-    if not data or not data.get('title'):
-        return jsonify({'error': '请输入文档标题'}), 400
-    if not data.get('template_id'):
-        return jsonify({'error': '请选择文档模板'}), 400
-
-    from templates.template_manager import TemplateManager
-
-    manager = TemplateManager()
-    template = manager.get_template(data['template_id'])
-    if not template:
-        return jsonify({'error': f"模板不存在: {data['template_id']}"}), 400
-
-    inputs = data.get('inputs') or {}
-    if not str(inputs.get('product_name', '')).strip():
-        return jsonify({'error': '请输入产品名称'}), 400
-    template_dict = manager.serialize_template(template)
-    if not _has_source_docx(template_dict):
-        return jsonify({'error': '该模板没有原始 DOCX 文件，请先在生成模板库中上传模板'}), 400
-
-    params = {
-        'title': data['title'],
-        'template_id': template.template_id,
-        'template_name': template.name,
-        'inputs': inputs,
-        'auto_review': False,
-        'review_result': {
-            'reserved': True,
-            'message': '生成后自动审查功能已预留，当前版本暂不执行。',
-        },
-    }
-
-    task_id = db.create_generate_task(
-        doc_type=template.doc_type.value if template.doc_type else template.template_id,
-        template_name=template.name,
-        params=params
-    )
-
-    thread = threading.Thread(
-        target=run_generate_task,
-        args=(task_id, data, current_app.config['UPLOAD_FOLDER'], db)
-    )
-    thread.daemon = True
-    thread.start()
-
-    return jsonify({'task_id': task_id})
+    return _create_generation_task(data)
 
 
 @bp.route('/status/<int:task_id>')
@@ -128,6 +121,29 @@ def recent():
     })
 
 
+@bp.route('/rerun/<int:task_id>', methods=['POST'])
+def rerun(task_id):
+    task = current_app.db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成记录不存在'}), 404
+    if task.get('status') in ('pending', 'processing'):
+        return jsonify({'error': '该生成任务仍在执行，不能重新生成'}), 400
+    try:
+        params_data = json.loads(task.get('params') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        return jsonify({'error': '原始生成参数不可用，不能重新生成'}), 400
+    template_id = params_data.get('template_id') or task.get('doc_type')
+    title = params_data.get('title') or f"{task.get('template_name') or '生成文档'}_重新生成"
+    inputs = params_data.get('inputs') or {}
+    rerun_data = {
+        'template_id': template_id,
+        'title': title,
+        'inputs': inputs,
+        'rerun_from': task_id,
+    }
+    return _create_generation_task(rerun_data)
+
+
 @bp.route('/download/<int:task_id>')
 def download(task_id):
     task = current_app.db.get_generate_task(task_id)
@@ -150,6 +166,57 @@ def delete_task(task_id):
         return jsonify({'error': '生成任务仍在执行，完成或失败后再删除'}), 400
     deleted = current_app.db.delete_generate_task(task_id)
     return jsonify({'ok': True, 'deleted': deleted})
+
+
+def _create_generation_task(data: dict):
+    db = current_app.db
+    if not data or not data.get('title'):
+        return jsonify({'error': '请输入文档标题'}), 400
+    if not data.get('template_id'):
+        return jsonify({'error': '请选择文档模板'}), 400
+
+    from templates.template_manager import TemplateManager
+
+    manager = TemplateManager()
+    template = manager.get_template(data['template_id'])
+    if not template:
+        return jsonify({'error': f"模板不存在: {data['template_id']}"}), 400
+
+    inputs = data.get('inputs') or {}
+    if not str(inputs.get('product_name', '')).strip():
+        return jsonify({'error': '请输入产品名称'}), 400
+    template_dict = manager.serialize_template(template)
+    if not _has_source_docx(template_dict):
+        return jsonify({'error': '该模板没有原始 DOCX 文件，请先在生成模板库中上传模板'}), 400
+
+    params = {
+        'title': data['title'],
+        'template_id': template.template_id,
+        'template_name': template.name,
+        'template_version': (template.metadata or {}).get('version', 1),
+        'inputs': inputs,
+        'rerun_from': data.get('rerun_from'),
+        'auto_review': False,
+        'review_result': {
+            'reserved': True,
+            'message': '生成后自动审查功能已预留，当前版本暂不执行。',
+        },
+    }
+
+    new_task_id = db.create_generate_task(
+        doc_type=template.doc_type.value if template.doc_type else template.template_id,
+        template_name=template.name,
+        params=params
+    )
+
+    thread = threading.Thread(
+        target=run_generate_task,
+        args=(new_task_id, data, current_app.config['UPLOAD_FOLDER'], db)
+    )
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({'task_id': new_task_id, 'rerun_from': data.get('rerun_from')})
 
 
 def run_generate_task(task_id, data, upload_folder, db):
@@ -176,14 +243,24 @@ def run_generate_task(task_id, data, upload_folder, db):
 
         template_id = data.get('template_id')
         inputs = data.get('inputs') or {}
+        generation_mode = str(inputs.get('generation_mode') or 'smart')
 
-        db.update_generate_task(
-            task_id,
-            progress=18,
-            progress_stage='llm',
-            progress_message=f'正在初始化大模型客户端：{settings.llm_model}',
-        )
-        llm_client = LLMClientFactory.create_client(settings.llm_provider)
+        llm_client = None
+        if generation_mode == 'smart':
+            db.update_generate_task(
+                task_id,
+                progress=18,
+                progress_stage='llm',
+                progress_message=f'正在初始化大模型客户端：{settings.llm_model}',
+            )
+            llm_client = LLMClientFactory.create_client(settings.llm_provider)
+        else:
+            db.update_generate_task(
+                task_id,
+                progress=18,
+                progress_stage='prepare',
+                progress_message='已选择模板填充模式，本次不调用大模型',
+            )
 
         def update_chapter_progress(current, total, chapter):
             percent = 20 + int((current - 1) / max(total, 1) * 75)
@@ -215,20 +292,11 @@ def run_generate_task(task_id, data, upload_folder, db):
         if result.error:
             raise RuntimeError(result.error)
 
-        db.update_generate_task(
-            task_id,
-            progress=100,
-            status='completed',
-            progress_stage='completed',
-            progress_message='文档生成完成，自动审查暂未执行',
-            result_path=result.generated_path,
-            error=None,
-            completed_at=datetime.now().isoformat(timespec='seconds'),
-        )
-
         task = db.get_generate_task(task_id)
         if task:
             params_data = json.loads(task['params']) if isinstance(task['params'], str) else task['params']
+            params_data['quality_result'] = result.quality_result
+            params_data['generation_meta'] = result.generation_meta
             params_data['review_result'] = {
                 'reserved': True,
                 'message': '生成后自动审查功能已预留，当前版本暂不执行。',
@@ -240,6 +308,17 @@ def run_generate_task(task_id, data, upload_folder, db):
                 (json.dumps(params_data, ensure_ascii=False), task_id)
             )
             db.conn.commit()
+
+        db.update_generate_task(
+            task_id,
+            progress=100,
+            status='completed',
+            progress_stage='completed',
+            progress_message='文档生成完成，自动审查暂未执行',
+            result_path=result.generated_path,
+            error=None,
+            completed_at=datetime.now().isoformat(timespec='seconds'),
+        )
 
     except Exception as e:
         import traceback
@@ -257,6 +336,29 @@ def run_generate_task(task_id, data, upload_folder, db):
 def _has_source_docx(template: dict) -> bool:
     metadata = template.get("metadata") or {}
     return bool(metadata.get("source_docx_path") or metadata.get("source_path"))
+
+
+def _extract_docx_reference_text(path: Path, max_chars: int = 12000) -> str:
+    from docx import Document
+
+    doc = Document(str(path))
+    parts = []
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if text:
+            parts.append(text)
+    for table_index, table in enumerate(doc.tables, start=1):
+        rows = []
+        for row in table.rows:
+            cells = [cell.text.strip().replace('\n', ' ') for cell in row.cells]
+            if any(cells):
+                rows.append(' | '.join(cells))
+        if rows:
+            parts.append(f"表格{table_index}：\n" + "\n".join(rows))
+    text = "\n".join(parts)
+    if len(text) > max_chars:
+        text = text[:max_chars] + "\n...（补充材料内容较长，已截取前12000字）"
+    return text
 
 
 def _decorate_generate_task(task: dict) -> dict:

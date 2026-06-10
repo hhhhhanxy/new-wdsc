@@ -8,6 +8,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import List, Dict, Optional, Union
 from pathlib import Path
 
@@ -32,6 +33,7 @@ class ChapterTemplate:
     body_style_name: str = ""       # 模板中识别到的正文样式名称
     template_blocks: List[dict] = field(default_factory=list)  # 章节内模板正文/说明块
     placeholders: List[str] = field(default_factory=list)      # 章节内识别到的占位符
+    generation_strategy: str = "smart_generate"  # fixed_keep/placeholder_replace/smart_generate/table_fill
 
 
 @dataclass
@@ -233,6 +235,7 @@ class TemplateManager:
             body_style_name=data.get("body_style_name", ""),
             template_blocks=data.get("template_blocks", []),
             placeholders=data.get("placeholders", []),
+            generation_strategy=data.get("generation_strategy", "smart_generate"),
         )
 
     def get_template(self, doc_type: Union[DocumentType, str]) -> Optional[DocumentTemplate]:
@@ -263,12 +266,19 @@ class TemplateManager:
         template_id: Optional[str] = None,
     ) -> DocumentTemplate:
         """创建并保存用户模板。"""
+        now = datetime.now().isoformat(timespec="seconds")
+        merged_metadata = {
+            "version": 1,
+            "created_at": now,
+            "updated_at": now,
+            **(metadata or {}),
+        }
         data = {
             "id": template_id or self._make_template_id(name),
             "name": name,
             "description": description,
             "chapters": chapters,
-            "metadata": metadata or {},
+            "metadata": merged_metadata,
             "source_type": source_type,
         }
         while data["id"] in self._templates:
@@ -287,6 +297,32 @@ class TemplateManager:
         if "chapters" in data:
             template.chapters = [self._parse_chapter(ch) for ch in data.get("chapters", [])]
         template.metadata.update(data.get("metadata", {}))
+        template.metadata["updated_at"] = datetime.now().isoformat(timespec="seconds")
+        self._templates[template.template_id] = template
+        self._save_custom_templates()
+        return template
+
+    def replace_template_source(
+        self,
+        template_id: str,
+        parsed: dict,
+        metadata: dict,
+        preserve_name: bool = True,
+    ) -> Optional[DocumentTemplate]:
+        """Replace a custom template source DOCX and parsed chapter structure."""
+        template = self.get_template(template_id)
+        if not template or template.source_type == "built_in":
+            return None
+        previous_metadata = dict(template.metadata or {})
+        next_version = int(previous_metadata.get("version") or 1) + 1
+        template.name = template.name if preserve_name else parsed.get("name", template.name)
+        template.description = parsed.get("description", template.description)
+        template.chapters = [self._parse_chapter(ch) for ch in parsed.get("chapters", [])]
+        template.metadata.update(metadata or {})
+        template.metadata["version"] = next_version
+        template.metadata["updated_at"] = datetime.now().isoformat(timespec="seconds")
+        if previous_metadata.get("source_docx_path"):
+            template.metadata["previous_source_docx_path"] = previous_metadata.get("source_docx_path")
         self._templates[template.template_id] = template
         self._save_custom_templates()
         return template
@@ -317,6 +353,7 @@ class TemplateManager:
             "body_style_name": chapter.body_style_name,
             "template_blocks": chapter.template_blocks,
             "placeholders": chapter.placeholders,
+            "generation_strategy": chapter.generation_strategy,
             "sub_chapters": [self.serialize_chapter(ch) for ch in chapter.sub_chapters],
         }
 

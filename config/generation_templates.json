@@ -23,6 +23,7 @@
           "body_style_name": "",
           "template_blocks": [],
           "placeholders": [],
+          "generation_strategy": "smart_generate",
           "sub_chapters": []
         },
         {
@@ -102,6 +103,7 @@
             "NNNNN",
             "X项目"
           ],
+          "generation_strategy": "smart_generate",
           "sub_chapters": []
         },
         {
@@ -146,6 +148,7 @@
           "placeholders": [
             "NNNNN"
           ],
+          "generation_strategy": "smart_generate",
           "sub_chapters": []
         },
         {
@@ -282,6 +285,7 @@
             "XXX",
             "XXXX"
           ],
+          "generation_strategy": "smart_generate",
           "sub_chapters": []
         }
       ]

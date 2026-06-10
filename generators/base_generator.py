@@ -13,6 +13,7 @@ from docx.table import Table
 from docx.text.paragraph import Paragraph
 
 from templates.docx_block_classifier import DocxBlockClassifier
+from .prompt_builder import ChapterPromptBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ class TemplateDocxGenerator(BaseGenerator):
 
     def __init__(self):
         self.classifier = DocxBlockClassifier()
+        self.prompt_builder = ChapterPromptBuilder()
 
     def generate(
         self,
@@ -83,6 +85,7 @@ class TemplateDocxGenerator(BaseGenerator):
         template = TemplateManager().get_template(template_id)
         if not template:
             raise ValueError(f"模板不存在: {template_id}")
+        self.last_template = template
 
         inputs = params.get("inputs") or {}
         template_path = self._resolve_template_docx_path(template)
@@ -91,6 +94,8 @@ class TemplateDocxGenerator(BaseGenerator):
                 template=template,
                 title=title,
                 inputs=inputs,
+                params=params,
+                llm_client=llm_client,
                 output_path=output_path,
                 progress_callback=progress_callback,
             )
@@ -118,6 +123,8 @@ class TemplateDocxGenerator(BaseGenerator):
         template,
         title: str,
         inputs: Dict[str, Any],
+        params: Dict[str, Any],
+        llm_client,
         output_path: str,
         progress_callback: Optional[Callable[[int, int, Any], None]] = None,
     ) -> str:
@@ -130,17 +137,44 @@ class TemplateDocxGenerator(BaseGenerator):
         doc = Document(str(template_path))
         replacements = self._build_replacements(title, inputs)
         chapters = self._flatten_chapters(template.chapters)
+        section_details: Dict[str, dict] = {}
+        generated_sections = self._generate_sections(
+            template=template,
+            title=title,
+            inputs=inputs,
+            chapters=chapters,
+            llm_client=llm_client,
+            enabled=str(inputs.get("generation_mode") or "smart") == "smart",
+            section_details=section_details,
+        )
+        params["_generation_meta"] = {
+            "mode": str(inputs.get("generation_mode") or "smart"),
+            "llm_enabled": bool(llm_client),
+            "generated_sections": len(generated_sections),
+            "sections": list(section_details.values()),
+        }
         for index, chapter in enumerate(chapters, start=1):
             if progress_callback:
                 progress_callback(index, len(chapters), chapter)
 
         delete_context = ""
+        current_chapter_key = ""
+        applied_generated_sections: set[str] = set()
+        chapter_needs_target = {
+            self._chapter_key(chapter): self._chapter_needs_specific_target(chapter)
+            for chapter in chapters
+        }
+        chapter_strategies = {
+            self._chapter_key(chapter): self._chapter_strategy(chapter)
+            for chapter in chapters
+        }
         for block in list(self._iter_block_items(doc)):
             if isinstance(block, Paragraph):
                 text = block.text.strip()
                 if self.classifier.heading_level(block) and not (
                     delete_context and self.classifier.is_context_continuation(text)
                 ):
+                    current_chapter_key = self._match_chapter_key(text, chapters)
                     delete_context = ""
                     self._replace_paragraph_runs(block, replacements)
                     continue
@@ -149,11 +183,38 @@ class TemplateDocxGenerator(BaseGenerator):
                     delete_context = self.classifier.next_context(block_type, text, delete_context)
                     self._remove_paragraph(block)
                     continue
+                if chapter_strategies.get(current_chapter_key) == "fixed_keep":
+                    delete_context = ""
+                    continue
+                should_apply_generated = (
+                    current_chapter_key
+                    and current_chapter_key in generated_sections
+                    and current_chapter_key not in applied_generated_sections
+                    and (
+                        not chapter_needs_target.get(current_chapter_key)
+                        or self._is_replacement_target(block)
+                    )
+                )
+                if should_apply_generated:
+                    self._replace_paragraph_text(block, generated_sections[current_chapter_key])
+                    applied_generated_sections.add(current_chapter_key)
+                    if current_chapter_key in section_details:
+                        section_details[current_chapter_key]["applied"] = True
+                        section_details[current_chapter_key]["apply_target"] = (
+                            "占位符/斜体/待补充段落"
+                            if chapter_needs_target.get(current_chapter_key)
+                            else "章节首个正文段落"
+                        )
+                    delete_context = ""
+                    continue
                 self._replace_paragraph_runs(block, replacements)
                 delete_context = ""
             elif isinstance(block, Table):
                 if delete_context == "example" or self._is_red_table(block):
                     self._remove_table(block)
+                    delete_context = ""
+                    continue
+                if chapter_strategies.get(current_chapter_key) == "fixed_keep":
                     delete_context = ""
                     continue
                 self._fill_known_table(block, inputs, replacements)
@@ -163,6 +224,100 @@ class TemplateDocxGenerator(BaseGenerator):
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         doc.save(output_path)
         return output_path
+
+    def _generate_sections(
+        self,
+        *,
+        template,
+        title: str,
+        inputs: Dict[str, Any],
+        chapters: List[Any],
+        llm_client,
+        enabled: bool,
+        section_details: Dict[str, dict],
+    ) -> Dict[str, str]:
+        generated = {}
+        for chapter in chapters:
+            key = self._chapter_key(chapter)
+            strategy = self._chapter_strategy(chapter)
+            detail = {
+                "chapter_key": key,
+                "chapter": self._chapter_label(chapter),
+                "strategy": strategy,
+                "llm_called": False,
+                "success": False,
+                "prompt_summary": "",
+                "prompt": "",
+                "response": "",
+                "error": "",
+                "applied": False,
+                "apply_target": "",
+            }
+            section_details[key] = detail
+            if not enabled or not llm_client or not self._chapter_should_generate(chapter):
+                continue
+            try:
+                prompt = self.prompt_builder.build(
+                    title=title,
+                    template_name=getattr(template, "name", ""),
+                    chapter=chapter,
+                    inputs=inputs,
+                )
+                detail["llm_called"] = True
+                detail["prompt_summary"] = self._prompt_summary(prompt)
+                detail["prompt"] = prompt
+                response = llm_client.generate(prompt, system_prompt=self.prompt_builder.system_prompt)
+                raw_content = getattr(response, "content", "") or ""
+                detail["response"] = raw_content
+                content = self._clean_generated_content(raw_content)
+                if content:
+                    generated[key] = content
+                    detail["success"] = True
+            except Exception as exc:
+                detail["error"] = str(exc)
+                logger.warning("章节智能生成失败，回退模板填充 - chapter=%s error=%s", key, exc)
+        return generated
+
+    def _chapter_should_generate(self, chapter) -> bool:
+        if self._chapter_strategy(chapter) != "smart_generate":
+            return False
+        if getattr(chapter, "guidance_prompt", ""):
+            return True
+        blocks = getattr(chapter, "template_blocks", []) or []
+        if any(block.get("type") in {"instruction", "example", "instruction_table", "example_table"} for block in blocks):
+            return True
+        return bool(getattr(chapter, "placeholders", []) or blocks)
+
+    def _chapter_strategy(self, chapter) -> str:
+        value = str(getattr(chapter, "generation_strategy", "") or "smart_generate")
+        if value not in {"fixed_keep", "placeholder_replace", "smart_generate", "table_fill"}:
+            return "smart_generate"
+        return value
+
+    def _chapter_label(self, chapter) -> str:
+        return f"{getattr(chapter, 'number', '')} {getattr(chapter, 'title', '')}".strip()
+
+    def _prompt_summary(self, prompt: str) -> str:
+        lines = [line.strip() for line in str(prompt or "").splitlines() if line.strip()]
+        return " / ".join(lines[:6])[:500]
+
+    def _chapter_needs_specific_target(self, chapter) -> bool:
+        return bool(getattr(chapter, "placeholders", []) or self._chapter_strategy(chapter) == "placeholder_replace")
+
+    def _is_replacement_target(self, paragraph) -> bool:
+        text = paragraph.text.strip()
+        if not text:
+            return True
+        if any(run.italic and run.text.strip() for run in paragraph.runs):
+            return True
+        if any(token in text for token in ("NNN", "XXX", "X项目", "X 项目", "待补充", "待填写", "待替换", "____", "＿")):
+            return True
+        return False
+
+    def _clean_generated_content(self, content: str) -> str:
+        lines = [line.strip() for line in str(content or "").splitlines()]
+        cleaned = [line for line in lines if line and not self.classifier.is_example_marker(line)]
+        return "\n".join(cleaned).strip()
 
     def _build_replacements(self, title: str, inputs: Dict[str, Any]) -> Dict[str, str]:
         product_name = str(inputs.get("product_name", "")).strip()
@@ -193,6 +348,14 @@ class TemplateDocxGenerator(BaseGenerator):
                         run.italic = False
             if replaced != original:
                 run.text = replaced
+
+    def _replace_paragraph_text(self, paragraph, text: str):
+        if paragraph.runs:
+            paragraph.runs[0].text = text
+            for run in paragraph.runs[1:]:
+                run.text = ""
+            return
+        paragraph.add_run(text)
 
     def _replace_text(self, text: str, replacements: Dict[str, str]) -> str:
         result = text
@@ -297,6 +460,25 @@ class TemplateDocxGenerator(BaseGenerator):
         element = table._element
         parent = element.getparent()
         parent.remove(element)
+
+    def _chapter_key(self, chapter) -> str:
+        return f"{getattr(chapter, 'number', '')}::{getattr(chapter, 'title', '')}".strip(":")
+
+    def _match_chapter_key(self, heading_text: str, chapters: List[Any]) -> str:
+        normalized = self._normalize_heading(heading_text)
+        for chapter in chapters:
+            candidates = [
+                f"{getattr(chapter, 'number', '')} {getattr(chapter, 'title', '')}".strip(),
+                str(getattr(chapter, "title", "") or ""),
+            ]
+            if any(self._normalize_heading(candidate) == normalized for candidate in candidates if candidate):
+                return self._chapter_key(chapter)
+        return ""
+
+    def _normalize_heading(self, text: str) -> str:
+        import re
+
+        return re.sub(r"\s+", "", str(text or "")).strip("：:。.、")
 
     def _iter_block_items(self, parent):
         if isinstance(parent, DocumentType):

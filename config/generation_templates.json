@@ -1,0 +1,291 @@
+{
+  "templates": [
+    {
+      "id": "template_41a7cb5f",
+      "doc_type": "",
+      "name": "xxx试验大纲模版",
+      "description": "由 DOCX 模板自动解析生成",
+      "metadata": {
+        "source_docx_path": "uploads\\templates\\template_41a7cb5f\\source.docx",
+        "source_filename": "XXX试验大纲模版.docx",
+        "source_path": "uploads\\templates\\template_41a7cb5f\\source.docx",
+        "template_asset_id": "template_41a7cb5f"
+      },
+      "source_type": "uploaded_docx",
+      "chapters": [
+        {
+          "number": "",
+          "title": "XXX试验大纲模版",
+          "description": "",
+          "required": true,
+          "guidance_prompt": "",
+          "style_name": "Heading 1",
+          "body_style_name": "",
+          "template_blocks": [],
+          "placeholders": [],
+          "sub_chapters": []
+        },
+        {
+          "number": "1",
+          "title": "目的",
+          "description": "",
+          "required": true,
+          "guidance_prompt": "说明：【说明】\n说明：文中设备名称均用NNNNN进行替代\n说明：红色字体、说明、举例在形成正式文件时应删除。\n说明：模版中斜体应按需修改，修改后设置为正体，文中正体字不需要修改。",
+          "style_name": "Normal",
+          "body_style_name": "Normal",
+          "template_blocks": [
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板文字",
+              "placeholders": [
+                "NNNNN",
+                "X项目"
+              ],
+              "style_name": "Normal",
+              "text": "本试验大纲规定了X项目NNNNN的鉴定试验程序，用于指导试验人员正确开展工作。",
+              "type": "template_text"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "X项目"
+              ],
+              "label": "模板文字",
+              "placeholders": [
+                "X项目"
+              ],
+              "style_name": "Normal",
+              "text": "本试验大纲内容及结果，使用mn8设备鉴定方式，用于支持X项目表明符合工作性。",
+              "type": "template_text"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "【说明】",
+              "type": "instruction"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [
+                "NNNNN"
+              ],
+              "style_name": "Normal",
+              "text": "文中设备名称均用NNNNN进行替代",
+              "type": "instruction"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "红色字体、说明、举例在形成正式文件时应删除。",
+              "type": "instruction"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "模版中斜体应按需修改，修改后设置为正体，文中正体字不需要修改。",
+              "type": "instruction"
+            }
+          ],
+          "placeholders": [
+            "NNNNN",
+            "X项目"
+          ],
+          "sub_chapters": []
+        },
+        {
+          "number": "2",
+          "title": "范围",
+          "description": "",
+          "required": true,
+          "guidance_prompt": "说明：【说明】\n说明：试验项目范围根据受试设备所需进行修改，写出具体试验项目；根据此处确定的试验项目确定后续试验项目章节（可删减）。",
+          "style_name": "Normal",
+          "body_style_name": "Normal",
+          "template_blocks": [
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板文字",
+              "placeholders": [
+                "NNNNN"
+              ],
+              "style_name": "Normal",
+              "text": "本大纲列出NNNNN的温度和高度、温度变化、湿热等自然环境类鉴定试验的试验项目、受试设备、试验方法及步骤、试验记录的等内容。",
+              "type": "template_text"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "【说明】",
+              "type": "instruction"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "试验项目范围根据受试设备所需进行修改，写出具体试验项目；根据此处确定的试验项目确定后续试验项目章节（可删减）。",
+              "type": "instruction"
+            }
+          ],
+          "placeholders": [
+            "NNNNN"
+          ],
+          "sub_chapters": []
+        },
+        {
+          "number": "3",
+          "title": "依据",
+          "description": "",
+          "required": true,
+          "guidance_prompt": "说明：【说明】\n说明：给出构成本大纲的试验依据文件，根据需求形成表格即可，通常必须包括的文件有适航标准、试验标准、产品性能测试大纲等。\n举例：【举例】\n举例：表3-1：依据文件\n举例表格：文件编号 | 文件名 | 发布日期\nABCC-12-R2 | XXX标准\nQWSD/FG-123 | 环境条件和实验程序\nD121-XXXX | 常见设备厂商文件，如设备研制需求文件",
+          "style_name": "Normal",
+          "body_style_name": "Normal",
+          "template_blocks": [
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板文字",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "以下文件构成本大纲的实验依据文件，文件条款通过引用而构成本大纲的条款。",
+              "type": "template_text"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板文字",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "表3-1：依据文件",
+              "type": "template_text"
+            },
+            {
+              "label": "模板表格",
+              "placeholders": [
+                "XXX"
+              ],
+              "rows": [
+                [
+                  "文件编号",
+                  "文件名",
+                  "发布日期"
+                ],
+                [
+                  "ABCC-12-R2",
+                  "XXX标准",
+                  ""
+                ],
+                [
+                  "QWSD/FG-123",
+                  "环境条件和实验程序",
+                  ""
+                ],
+                [
+                  "......",
+                  "",
+                  ""
+                ]
+              ],
+              "text": "文件编号 | 文件名 | 发布日期\nABCC-12-R2 | XXX标准\nQWSD/FG-123 | 环境条件和实验程序\n......",
+              "type": "template_table"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "【说明】",
+              "type": "instruction"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "给出构成本大纲的试验依据文件，根据需求形成表格即可，通常必须包括的文件有适航标准、试验标准、产品性能测试大纲等。",
+              "type": "instruction"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "举例",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "【举例】",
+              "type": "example"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "举例",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "表3-1：依据文件",
+              "type": "example"
+            },
+            {
+              "label": "举例表格",
+              "placeholders": [
+                "XXX",
+                "XXXX"
+              ],
+              "rows": [
+                [
+                  "文件编号",
+                  "文件名",
+                  "发布日期"
+                ],
+                [
+                  "ABCC-12-R2",
+                  "XXX标准",
+                  ""
+                ],
+                [
+                  "QWSD/FG-123",
+                  "环境条件和实验程序",
+                  ""
+                ],
+                [
+                  "D121-XXXX",
+                  "常见设备厂商文件，如设备研制需求文件",
+                  ""
+                ],
+                [
+                  "",
+                  "",
+                  ""
+                ]
+              ],
+              "text": "文件编号 | 文件名 | 发布日期\nABCC-12-R2 | XXX标准\nQWSD/FG-123 | 环境条件和实验程序\nD121-XXXX | 常见设备厂商文件，如设备研制需求文件\n",
+              "type": "example_table"
+            }
+          ],
+          "placeholders": [
+            "XXX",
+            "XXXX"
+          ],
+          "sub_chapters": []
+        }
+      ]
+    }
+  ],
+  "hidden_builtin_template_ids": []
+}

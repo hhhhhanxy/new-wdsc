@@ -31,12 +31,14 @@ def create_app():
     from web.routes.generate import bp as generate_bp
     from web.routes.rules import bp as rules_bp
     from web.routes.knowledge import bp as knowledge_bp
+    from web.routes.template_library import bp as template_library_bp
 
     app.register_blueprint(index_bp)
     app.register_blueprint(review_bp, url_prefix='/review')
     app.register_blueprint(generate_bp, url_prefix='/generate')
     app.register_blueprint(rules_bp, url_prefix='/rules')
     app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
+    app.register_blueprint(template_library_bp, url_prefix='/template-library')
 
     # Load extensions
     from extensions.registry import get_registry
@@ -48,4 +50,4 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='127.0.0.1', port=5000, use_reloader=False)

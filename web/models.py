@@ -68,12 +68,20 @@ class Database:
                 params TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending',
                 progress INTEGER DEFAULT 0,
+                progress_stage TEXT,
+                progress_message TEXT,
+                current_section INTEGER DEFAULT 0,
+                total_sections INTEGER DEFAULT 0,
                 result_path TEXT,
                 error TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 completed_at TIMESTAMP
             )
         ''')
+        self._ensure_column(cursor, 'generate_tasks', 'progress_stage', "TEXT")
+        self._ensure_column(cursor, 'generate_tasks', 'progress_message', "TEXT")
+        self._ensure_column(cursor, 'generate_tasks', 'current_section', "INTEGER DEFAULT 0")
+        self._ensure_column(cursor, 'generate_tasks', 'total_sections', "INTEGER DEFAULT 0")
 
         self.conn.commit()
 
@@ -146,7 +154,17 @@ class Database:
 
     def update_generate_task(self, task_id: int, **kwargs):
         """Update generate task fields"""
-        valid_fields = {'status', 'progress', 'result_path', 'error', 'completed_at'}
+        valid_fields = {
+            'status',
+            'progress',
+            'progress_stage',
+            'progress_message',
+            'current_section',
+            'total_sections',
+            'result_path',
+            'error',
+            'completed_at',
+        }
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if not updates:
             return
@@ -160,6 +178,32 @@ class Database:
             WHERE id = ?
         ''', values)
         self.conn.commit()
+
+    def get_recent_generate_tasks(self, limit: int = 5, offset: int = 0):
+        """Get recent generate tasks."""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            SELECT id, doc_type, template_name, status, progress, progress_stage,
+                   progress_message, current_section, total_sections, result_path,
+                   error, created_at, completed_at
+            FROM generate_tasks
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        ''', (limit, offset))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def count_generate_tasks(self) -> int:
+        """Count all generate tasks."""
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM generate_tasks')
+        return int(cursor.fetchone()[0])
+
+    def delete_generate_task(self, task_id: int) -> int:
+        """Delete one generate task record."""
+        cursor = self.conn.cursor()
+        cursor.execute('DELETE FROM generate_tasks WHERE id = ?', (task_id,))
+        self.conn.commit()
+        return cursor.rowcount
 
     def get_recent_review_tasks(self, limit: int = 5, offset: int = 0):
         """Get recent review tasks"""

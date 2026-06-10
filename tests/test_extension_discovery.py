@@ -91,17 +91,17 @@ def test_base_generator_interface():
     assert hasattr(BaseGenerator, "generate")
 
 
-def test_simple_docx_generator():
-    from generators.base_generator import SimpleDocxGenerator
-    gen = SimpleDocxGenerator()
-    assert gen.name == "simple_docx"
+def test_template_docx_generator_registered():
+    from generators.base_generator import TemplateDocxGenerator
+    gen = TemplateDocxGenerator()
+    assert gen.name == "template_docx"
 
 
 def test_generator_factory():
     from generators.base_generator import GeneratorFactory
-    assert "simple_docx" in GeneratorFactory.available_generators()
-    gen = GeneratorFactory.create("simple_docx")
-    assert gen.name == "simple_docx"
+    assert GeneratorFactory.available_generators() == ["template_docx"]
+    gen = GeneratorFactory.create("template_docx")
+    assert gen.name == "template_docx"
 
 
 if __name__ == "__main__":
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     test_discover_extensions_returns_list()
     test_collect_rules_from_extension()
     test_base_generator_interface()
-    test_simple_docx_generator()
+    test_template_docx_generator_registered()
     test_generator_factory()
     test_document_type_enum()
     test_review_phase_enum()
@@ -171,7 +171,8 @@ def test_template_manager():
     from models.document import DocumentType
     tm = TemplateManager()
     templates = tm.list_templates()
-    assert len(templates) == 4
+    assert len(templates) >= 4
+    assert all(tm.get_template(doc_type) is not None for doc_type in DocumentType)
     t = tm.get_template(DocumentType.REQUIREMENTS)
     assert t is not None
     assert t.name == "需求文档模板"
@@ -192,6 +193,6 @@ def test_doc_type_detector():
 
 def test_template_generator():
     from generators.base_generator import GeneratorFactory
-    assert "user_defined_docx" in GeneratorFactory.available_generators()
-    gen = GeneratorFactory.create("user_defined_docx")
-    assert gen.name == "user_defined_docx"
+    assert "template_docx" in GeneratorFactory.available_generators()
+    gen = GeneratorFactory.create("template_docx")
+    assert gen.name == "template_docx"

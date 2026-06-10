@@ -1,7 +1,7 @@
 """
 Route handlers for the web application.
 """
-from flask import Blueprint, render_template, current_app, request
+from flask import Blueprint, render_template, current_app, request, jsonify
 
 bp = Blueprint('index', __name__)
 
@@ -30,3 +30,9 @@ def index():
         recent_tasks=recent,
         recent_pagination=recent_pagination,
     )
+
+
+@bp.route('/healthz')
+def healthz():
+    """Lightweight health check for the local web service."""
+    return jsonify({"ok": True, "service": "web"})

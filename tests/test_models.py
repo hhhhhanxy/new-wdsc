@@ -83,3 +83,42 @@ def test_update_review_task_progress_detail_fields():
         assert task['total_sections'] == 33
 
         db.close()
+
+
+def test_generate_task_progress_detail_and_recent_records():
+    """Test updating detailed generation progress fields and listing history."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, 'test.db')
+        db = Database(db_path)
+
+        task_id = db.create_generate_task(
+            doc_type='requirements',
+            template_name='需求文档模板',
+            params={'title': '需求文档'},
+        )
+        db.update_generate_task(
+            task_id,
+            status='processing',
+            progress=48,
+            progress_stage='generating',
+            progress_message='正在处理章节 3/9：接口要求',
+            current_section=3,
+            total_sections=9,
+        )
+
+        task = db.get_generate_task(task_id)
+        recent = db.get_recent_generate_tasks(limit=3)
+
+        assert task['progress'] == 48
+        assert task['progress_stage'] == 'generating'
+        assert task['progress_message'] == '正在处理章节 3/9：接口要求'
+        assert task['current_section'] == 3
+        assert task['total_sections'] == 9
+        assert recent[0]['id'] == task_id
+        assert db.count_generate_tasks() == 1
+
+        deleted = db.delete_generate_task(task_id)
+        assert deleted == 1
+        assert db.get_generate_task(task_id) is None
+
+        db.close()

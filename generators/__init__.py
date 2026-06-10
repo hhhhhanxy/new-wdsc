@@ -1,3 +1,3 @@
-from .base_generator import BaseGenerator, SimpleDocxGenerator, GeneratorFactory
+from .base_generator import BaseGenerator, TemplateDocxGenerator, GeneratorFactory
 
-__all__ = ["BaseGenerator", "SimpleDocxGenerator", "GeneratorFactory"]
+__all__ = ["BaseGenerator", "TemplateDocxGenerator", "GeneratorFactory"]

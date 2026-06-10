@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+{% block title %}生成模板库 - 文档审查与生成平台{% endblock %}
+
+{% block content %}
+<style>
+/* 与文档生成模块保持一致的天蓝色系 */
+:root { --primary: #21a8f3; --primary-dark: #168fd3; }
+.sidebar-nav a.active {
+    color: #168fd3;
+    background: rgba(33, 168, 243, 0.13);
+    border-left-color: #21a8f3;
+}
+.template-item.active { background: #edf9ff; border-left-color: var(--primary); }
+.btn-primary { background: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+.template-upload-btn {
+    background: #21a8f3;
+    color: #ffffff;
+}
+.template-upload-btn:hover {
+    background: #168fd3;
+}
+.template-editor-list,
+.template-editor-list ul {
+    list-style: none;
+    padding-left: 0;
+}
+.template-editor-list ul {
+    margin-left: 18px;
+    margin-top: 8px;
+}
+.template-editor-item {
+    padding: 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fbfdff;
+}
+.template-editor-row {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+.template-editor-row input {
+    min-width: 0;
+}
+.template-editor-actions {
+    display: flex;
+    gap: 6px;
+}
+.template-editor-guidance {
+    width: 100%;
+    min-height: 64px;
+    margin-top: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+}
+.template-editor-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+.template-editor-meta input {
+    min-width: 0;
+    font-size: 13px;
+}
+.template-asset-meta {
+    display: grid;
+    gap: 5px;
+    margin: 10px 0 12px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #f7fcff;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.template-block-preview {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+}
+.template-block {
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.template-block-instruction {
+    border-color: #ffd4d4;
+    background: #fff7f7;
+    color: #d12f2f;
+}
+.template-block-example,
+.template-block-example_table {
+    border-color: #ffd4d4;
+    background: #fff7f7;
+    color: #c73838;
+}
+.template-block-template_text {
+    background: #ffffff;
+}
+.template-block-template_table {
+    background: #ffffff;
+}
+.template-source {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.template-list-main {
+    min-width: 0;
+}
+.template-list-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex: 0 0 auto;
+    margin-left: 10px;
+}
+.template-list-actions .btn {
+    min-width: 44px;
+    height: 26px;
+    padding: 0 9px;
+    font-size: 12px;
+}
+.template-list-action {
+    border-color: #c8e5f5;
+    background: #f7fcff;
+    color: #168fd3;
+}
+.template-list-action:hover {
+    background: #edf9ff;
+    border-color: #93d4f7;
+}
+.template-delete-btn {
+    min-width: 44px !important;
+    width: auto;
+    padding: 0 9px !important;
+    border-color: #efd2d2;
+    background: #fff8f8;
+    color: #b04747;
+    font-size: 12px !important;
+    font-weight: 500;
+    line-height: 1;
+}
+.template-delete-btn:hover {
+    background: #fbefef;
+    border-color: #e2bcbc;
+}
+</style>
+
+<div class="page-header">
+    <h1>生成模板库</h1>
+    <p>上传 DOCX 模板，自动解析章节结构，并保存为文档生成可用模板</p>
+</div>
+
+<div class="two-col">
+    <div>
+        <div class="panel">
+            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>模板列表</span>
+                <button class="btn btn-primary template-upload-btn" style="padding:6px 14px;font-size:14px;" onclick="document.getElementById('templateFile').click()">上传模板</button>
+                <input type="file" id="templateFile" accept=".docx" style="display:none">
+            </div>
+            <ul class="rule-set-list" id="templateList"></ul>
+            <div class="empty-state" id="templateEmpty" style="display:none;">暂无模板</div>
+        </div>
+    </div>
+
+    <div>
+        <div class="panel">
+            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span id="editorTitle">模板结构</span>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-outline" id="copyTemplateBtn" onclick="copyCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">复制编辑</button>
+                    <button class="btn btn-outline btn-danger-text" id="deleteTemplateBtn" onclick="deleteCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">删除模板</button>
+                    <button class="btn btn-outline" id="addRootBtn" onclick="addRootChapter()" style="display:none;padding:6px 14px;font-size:14px;">+ 章节</button>
+                    <button class="btn btn-primary" id="saveTemplateBtn" onclick="saveCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">保存模板</button>
+                </div>
+            </div>
+
+            <div id="templateEditor" style="display:none;">
+                <div class="modal-field">
+                    <label>模板名称</label>
+                    <input type="text" id="templateName" placeholder="请输入模板名称">
+                </div>
+                <div class="modal-field">
+                    <label>模板说明</label>
+                    <textarea id="templateDescription" placeholder="说明模板用途、适用文档或生成口径"></textarea>
+                </div>
+                <div class="template-asset-meta" id="templateAssetMeta"></div>
+                <div class="modal-divider">章节结构</div>
+                <div id="chapterEditor"></div>
+            </div>
+            <div class="empty-state" id="templateHint">请选择左侧模板，或上传 DOCX 模板自动解析章节结构</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let templates = [];
+let currentTemplate = null;
+let currentMode = 'view';
+const initialTemplateId = new URLSearchParams(window.location.search).get('template_id');
+
+function loadTemplates() {
+    fetch('/template-library/api/templates')
+        .then(r => r.json())
+        .then(data => {
+            templates = data.templates || [];
+            renderTemplateList();
+            if (initialTemplateId && !currentTemplate) {
+                const exists = templates.some(t => t.id === initialTemplateId);
+                if (exists) selectTemplate(initialTemplateId);
+            }
+        });
+}
+
+function renderTemplateList() {
+    const list = document.getElementById('templateList');
+    document.getElementById('templateEmpty').style.display = templates.length ? 'none' : '';
+    list.innerHTML = templates.map(t => `
+        <li class="rule-set-item template-item ${currentTemplate && currentTemplate.id === t.id ? 'active' : ''}" onclick="selectTemplate('${escapeHtml(t.id)}')">
+            <div class="template-list-main">
+                <div class="set-name">${escapeHtml(t.name)}</div>
+                <div class="template-source">${t.source_type === 'built_in' ? '内置示例模板' : '用户模板'}</div>
+            </div>
+            <div class="template-list-actions">
+                ${t.source_type === 'built_in'
+                    ? `<button class="btn btn-outline template-list-action" onclick="event.stopPropagation(); copyTemplate('${escapeHtml(t.id)}')">复制</button>`
+                    : ''}
+                <button class="btn btn-outline template-delete-btn" onclick="event.stopPropagation(); deleteTemplate('${escapeHtml(t.id)}')">删除</button>
+            </div>
+        </li>
+    `).join('');
+}
+
+function selectTemplate(id) {
+    fetch('/template-library/api/templates/' + encodeURIComponent(id))
+        .then(r => r.json())
+        .then(template => {
+            currentTemplate = template;
+            currentMode = template.source_type === 'built_in' ? 'view' : 'edit';
+            renderTemplateList();
+            renderEditor();
+        });
+}
+
+document.getElementById('templateFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    fetch('/template-library/api/parse', { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            currentTemplate = {
+                id: data.id || '',
+                name: data.name || file.name.replace(/\.docx$/i, ''),
+                description: data.description || '',
+                metadata: data.metadata || {},
+                source_type: 'uploaded_docx',
+                chapters: data.chapters || []
+            };
+            currentMode = 'create';
+            renderTemplateList();
+            renderEditor();
+        });
+});
+
+function renderEditor() {
+    const editor = document.getElementById('templateEditor');
+    const hint = document.getElementById('templateHint');
+    const saveBtn = document.getElementById('saveTemplateBtn');
+    const addBtn = document.getElementById('addRootBtn');
+    const deleteBtn = document.getElementById('deleteTemplateBtn');
+    const copyBtn = document.getElementById('copyTemplateBtn');
+    if (!currentTemplate) {
+        editor.style.display = 'none';
+        hint.style.display = '';
+        saveBtn.style.display = 'none';
+        addBtn.style.display = 'none';
+        deleteBtn.style.display = 'none';
+        copyBtn.style.display = 'none';
+        return;
+    }
+    editor.style.display = '';
+    hint.style.display = 'none';
+    saveBtn.style.display = currentMode === 'view' ? 'none' : '';
+    addBtn.style.display = currentMode === 'view' ? 'none' : '';
+    deleteBtn.style.display = currentTemplate.id ? '' : 'none';
+    copyBtn.style.display = currentMode === 'view' ? '' : 'none';
+    document.getElementById('editorTitle').textContent = currentMode === 'create' ? '解析结果编辑' : '模板结构';
+    document.getElementById('templateName').value = currentTemplate.name || '';
+    document.getElementById('templateDescription').value = currentTemplate.description || '';
+    document.getElementById('templateName').disabled = currentMode === 'view';
+    document.getElementById('templateDescription').disabled = currentMode === 'view';
+    renderTemplateAssetMeta();
+    renderChapterEditor();
+}
+
+function renderTemplateAssetMeta() {
+    const target = document.getElementById('templateAssetMeta');
+    const metadata = currentTemplate.metadata || {};
+    const sourceName = metadata.source_filename || '无原始 DOCX';
+    const sourcePath = metadata.source_docx_path || metadata.source_path || '';
+    target.innerHTML = `
+        <div>原始模板文件：${escapeHtml(sourceName)}</div>
+        <div>格式来源：${sourcePath ? escapeHtml(sourcePath) : '内置模板或复制模板，暂无原始格式文件'}</div>
+    `;
+}
+
+function renderChapterEditor() {
+    const target = document.getElementById('chapterEditor');
+    const chapters = currentTemplate.chapters || [];
+    if (!chapters.length) {
+        target.innerHTML = '<div class="empty-state">暂无章节，可点击右上方添加章节</div>';
+        return;
+    }
+    target.innerHTML = `<ul class="template-editor-list">${chapters.map((ch, idx) => renderChapter(ch, [idx])).join('')}</ul>`;
+}
+
+function renderChapter(chapter, path) {
+    const disabled = currentMode === 'view' ? 'disabled' : '';
+    const pathValue = path.join('.');
+    return `
+        <li class="template-editor-item">
+            <div class="template-editor-row">
+                <input type="text" value="${escapeHtml(chapter.number || '')}" placeholder="编号" ${disabled} oninput="updateChapter('${pathValue}', 'number', this.value)">
+                <input type="text" value="${escapeHtml(chapter.title || '')}" placeholder="章节标题" ${disabled} oninput="updateChapter('${pathValue}', 'title', this.value)">
+                <div class="template-editor-actions">
+                    ${currentMode === 'view' ? '' : `
+                    <button class="btn btn-outline btn-sm" onclick="addChildChapter('${pathValue}')">子章节</button>
+                    <button class="btn btn-outline btn-sm btn-danger-text" onclick="removeChapter('${pathValue}')">删除</button>`}
+                </div>
+            </div>
+            <textarea class="template-editor-guidance" ${disabled} placeholder="章节生成说明（可选）" oninput="updateChapter('${pathValue}', 'guidance_prompt', this.value)">${escapeHtml(chapter.guidance_prompt || chapter.description || '')}</textarea>
+            ${renderTemplateBlocks(chapter)}
+            <div class="template-editor-meta">
+                <input type="text" value="${escapeHtml(chapter.style_name || '')}" placeholder="标题样式，例如 标题 1" ${disabled} oninput="updateChapter('${pathValue}', 'style_name', this.value)">
+                <input type="text" value="${escapeHtml(chapter.body_style_name || '')}" placeholder="正文样式，例如 正文 / Normal" ${disabled} oninput="updateChapter('${pathValue}', 'body_style_name', this.value)">
+            </div>
+            ${(chapter.sub_chapters || []).length ? `<ul>${chapter.sub_chapters.map((child, idx) => renderChapter(child, path.concat(idx))).join('')}</ul>` : ''}
+        </li>
+    `;
+}
+
+function renderTemplateBlocks(chapter) {
+    const blocks = chapter.template_blocks || [];
+    if (!blocks.length) return '';
+    const visibleBlocks = blocks.slice(0, 5);
+    return `
+        <div class="template-block-preview">
+            ${visibleBlocks.map(block => `
+                <div class="template-block template-block-${escapeHtml(block.type || 'template_text')}">
+                    ${escapeHtml(block.label || getBlockLabel(block.type))}：${escapeHtml(block.text || renderBlockRows(block))}
+                </div>
+            `).join('')}
+            ${blocks.length > visibleBlocks.length ? `<div class="template-block">还有 ${blocks.length - visibleBlocks.length} 段模板内容未展开</div>` : ''}
+        </div>
+    `;
+}
+
+function getBlockLabel(type) {
+    return {
+        template_text: '模板文字',
+        template_table: '模板表格',
+        instruction: '说明',
+        example: '举例',
+        example_table: '举例表格',
+    }[type] || '模板内容';
+}
+
+function renderBlockRows(block) {
+    return (block.rows || []).map(row => row.filter(Boolean).join(' | ')).filter(Boolean).join(' / ');
+}
+
+function addRootChapter() {
+    currentTemplate.chapters = currentTemplate.chapters || [];
+    currentTemplate.chapters.push(makeChapter(String(currentTemplate.chapters.length + 1), '新章节'));
+    renderChapterEditor();
+}
+
+function addChildChapter(path) {
+    const chapter = getChapter(path);
+    chapter.sub_chapters = chapter.sub_chapters || [];
+    const number = chapter.number ? `${chapter.number}.${chapter.sub_chapters.length + 1}` : '';
+    chapter.sub_chapters.push(makeChapter(number, '新子章节'));
+    renderChapterEditor();
+}
+
+function removeChapter(path) {
+    const parts = path.split('.').map(Number);
+    const idx = parts.pop();
+    const list = parts.length ? getChapter(parts.join('.')).sub_chapters : currentTemplate.chapters;
+    list.splice(idx, 1);
+    renderChapterEditor();
+}
+
+function updateChapter(path, field, value) {
+    const chapter = getChapter(path);
+    chapter[field] = value;
+    if (field === 'guidance_prompt') chapter.description = value;
+}
+
+function getChapter(path) {
+    const parts = String(path).split('.').map(Number);
+    let list = currentTemplate.chapters;
+    let chapter = null;
+    for (const idx of parts) {
+        chapter = list[idx];
+        list = chapter.sub_chapters || [];
+    }
+    return chapter;
+}
+
+function makeChapter(number, title) {
+    return { number, title, description: '', required: true, guidance_prompt: '', style_name: '', body_style_name: '', sub_chapters: [] };
+}
+
+function saveCurrentTemplate() {
+    if (!currentTemplate) return;
+    currentTemplate.name = document.getElementById('templateName').value.trim();
+    currentTemplate.description = document.getElementById('templateDescription').value.trim();
+    if (!currentTemplate.name) { alert('模板名称不能为空'); return; }
+    if (!currentTemplate.chapters || !currentTemplate.chapters.length) { alert('模板章节不能为空'); return; }
+
+    const isCreate = currentMode === 'create' || !currentTemplate.id;
+    const url = isCreate
+        ? '/template-library/api/templates'
+        : '/template-library/api/templates/' + encodeURIComponent(currentTemplate.id);
+    fetch(url, {
+        method: isCreate ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(currentTemplate)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        currentTemplate = data.template;
+        currentMode = currentTemplate.source_type === 'built_in' ? 'view' : 'edit';
+        loadTemplates();
+        renderEditor();
+    });
+}
+
+function copyTemplate(id) {
+    fetch('/template-library/api/templates/' + encodeURIComponent(id))
+        .then(r => r.json())
+        .then(template => {
+            if (template.error) { alert(template.error); return; }
+            currentTemplate = cloneTemplateForEdit(template);
+            currentMode = 'create';
+            renderTemplateList();
+            renderEditor();
+        });
+}
+
+function copyCurrentTemplate() {
+    if (!currentTemplate) return;
+    currentTemplate = cloneTemplateForEdit(currentTemplate);
+    currentMode = 'create';
+    renderTemplateList();
+    renderEditor();
+}
+
+function cloneTemplateForEdit(template) {
+    const copy = JSON.parse(JSON.stringify(template));
+    copy.id = '';
+    copy.name = (copy.name || '模板') + ' 副本';
+    copy.source_type = 'uploaded_docx';
+    copy.metadata = copy.metadata || {};
+    copy.metadata.copied_from = template.id;
+    return copy;
+}
+
+function deleteTemplate(id) {
+    const template = templates.find(t => t.id === id);
+    if (!template) return;
+    const actionText = template.source_type === 'built_in'
+        ? '该内置示例模板将从模板库中隐藏，生成页也不再显示。'
+        : '删除后生成页将不再显示该模板。';
+    if (!confirm(`确定删除模板“${template.name}”？${actionText}`)) return;
+    fetch('/template-library/api/templates/' + encodeURIComponent(id), { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            if (currentTemplate && currentTemplate.id === id) {
+                currentTemplate = null;
+                currentMode = 'view';
+                renderEditor();
+            }
+            loadTemplates();
+        });
+}
+
+function deleteCurrentTemplate() {
+    if (!currentTemplate || !currentTemplate.id) return;
+    deleteTemplate(currentTemplate.id);
+}
+
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
+loadTemplates();
+</script>
+{% endblock %}

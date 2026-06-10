@@ -61,34 +61,210 @@
 .alert-warning {
     border-left-color: var(--warning);
 }
+.template-preview {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fbfdff;
+}
+.template-summary {
+    display: grid;
+    gap: 5px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+.template-summary-title {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 700;
+}
+.template-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.template-tree-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+}
+.template-tree-actions {
+    display: flex;
+    gap: 6px;
+}
+.template-tree-actions .btn {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+.template-tree {
+    max-height: 280px;
+    overflow: auto;
+    margin-top: 10px;
+    padding: 8px 2px 0;
+}
+.template-tree ul {
+    list-style: none;
+    padding-left: 16px;
+}
+.template-tree > ul {
+    padding-left: 0;
+}
+.template-tree li {
+    padding: 3px 0;
+    color: var(--text);
+    font-size: 14px;
+}
+.template-tree-node {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 26px;
+}
+.template-tree-toggle {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 14px;
+}
+.template-tree-toggle.placeholder {
+    visibility: hidden;
+}
+.template-tree-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.template-tree-empty {
+    padding: 18px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+}
+.generation-record-list {
+    display: grid;
+    gap: 8px;
+}
+.generation-record {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fbfdff;
+}
+.generation-record-title {
+    overflow: hidden;
+    color: var(--text);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.generation-record-top {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+}
+.generation-record-meta {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.generation-record-progress {
+    width: 100%;
+    height: 6px;
+    margin-top: 7px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: #edf2f5;
+}
+.generation-record-progress-bar {
+    height: 100%;
+    border-radius: inherit;
+    background: #21a8f3;
+}
+.generation-record-error {
+    margin-top: 6px;
+    overflow: hidden;
+    color: var(--danger);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.generation-record-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.generation-record-pager {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+}
+.generation-record-pager-info {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.progress-detail {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
 </style>
 <div class="page-header">
     <h1>文档生成</h1>
-    <p>由用户维护生成定义，平台按定义生成技术文档</p>
+    <p>选择已上传的 DOCX 模板并填写生成素材，平台保留模板原文格式并替换占位内容</p>
 </div>
 
 <div class="two-col">
     <!-- Left: Config -->
     <div>
-        <!-- Step 1: Definition -->
-        <p class="section-step">1. 文档生成定义</p>
+        <!-- Step 1: Template -->
+        <p class="section-step">1. 选择文档模板</p>
         <div class="config-section">
             <div class="form-group">
-                <label>文档类型/用途</label>
-                <input type="text" class="form-control" id="docType" placeholder="例如：某类设计说明、试验报告、审签记录">
+                <label>文档模板</label>
+                <select class="form-control" id="templateSelect"></select>
             </div>
             <div class="form-group">
-                <label>生成定义</label>
-                <textarea class="form-control" id="generationDefinition" placeholder="写明章节结构、内容要求、写作口径、必填字段、禁止事项、输出格式等..." style="min-height:150px;"></textarea>
+                <label>模板章节结构</label>
+                <div class="template-preview" id="templatePreview">
+                    <div class="empty-state">正在加载模板...</div>
+                </div>
             </div>
         </div>
 
         <!-- Step 2: Input -->
-        <p class="section-step">2. 输入素材</p>
+        <p class="section-step">2. 输入生成素材</p>
         <div class="config-section">
             <div class="form-group">
                 <label>文档标题</label>
                 <input type="text" class="form-control" id="docTitle" placeholder="请输入生成文档的标题">
+            </div>
+            <div class="form-group">
+                <label>产品名称</label>
+                <input type="text" class="form-control" id="productName" placeholder="例如：某型电动作动器">
+            </div>
+            <div class="form-group">
+                <label>项目名称</label>
+                <input type="text" class="form-control" id="projectName" placeholder="例如：某型电动作动器鉴定试验项目">
+            </div>
+            <div class="form-group">
+                <label>试验项目/受试对象</label>
+                <input type="text" class="form-control" id="testItem" placeholder="例如：温度、高度、湿热等自然环境鉴定试验">
             </div>
             <div class="form-group">
                 <label>背景说明</label>
@@ -97,6 +273,14 @@
             <div class="form-group">
                 <label>关键参数/素材</label>
                 <textarea class="form-control" id="docParams" placeholder="输入可用于生成的参数、条目、约束、数据或参考摘要..." style="min-height:80px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label>引用文件</label>
+                <textarea class="form-control" id="references" placeholder="输入标准、规范、设计依据或参考文件..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>生成要求</label>
+                <textarea class="form-control" id="generationRequirements" placeholder="输入写作口径、禁止事项、输出风格、重点章节要求等..." style="min-height:80px;"></textarea>
             </div>
             <div class="form-group">
                 <label>参考文档（可选）</label>
@@ -109,7 +293,7 @@
 
         <!-- Step 4: Generate -->
         <button class="btn btn-success btn-block" id="generateBtn" onclick="startGenerate()">
-            按定义生成文档
+            按模板生成文档
         </button>
     </div>
 
@@ -137,9 +321,9 @@
                     <p style="font-size:14px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
                 </div>
 
-                <!-- Review result (closed loop) -->
+                <!-- Reserved review result -->
                 <div id="genReviewSection" style="display:none;margin-top:12px;">
-                    <p class="section-title">自动审查结果</p>
+                    <p class="section-title">审查预留</p>
                     <div class="report-stats">
                         <div class="report-stat">
                             <div class="value" style="color:var(--primary);" id="genReviewTotal">0</div>
@@ -168,11 +352,19 @@
         <div class="panel" style="margin-top:16px;">
             <div class="panel-title">生成说明</div>
             <ul style="font-size:14px;color:var(--text-secondary);line-height:1.8;padding-left:16px;">
-                <li>平台只提供生成执行能力，具体章节和内容要求由用户填写</li>
-                <li>生成时会按用户定义组织正文</li>
+                <li>生成时会保留上传 DOCX 模板的正文、样式、页眉页脚和页面设置</li>
+                <li>平台会删除说明/举例内容，并替换模板中的占位内容</li>
+                <li>生成后自动审查功能已预留，当前版本暂不执行</li>
                 <li>生成后可在 Word 中进一步编辑调整</li>
                 <li>支持导出为 DOCX 格式</li>
             </ul>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+            <div class="panel-title">最近生成记录</div>
+            <div class="generation-record-list" id="recentGenerationList">
+                <div class="empty-state">暂无生成记录</div>
+            </div>
         </div>
 
         <div class="alert alert-warning" style="margin-top:12px;">
@@ -180,12 +372,54 @@
         </div>
     </div>
 </div>
+
+<div class="modal-overlay" id="genProgressModal">
+    <div class="modal progress-modal">
+        <div class="modal-header">
+            <h3>生成进度</h3>
+            <button class="modal-close" onclick="closeGenProgressModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="progress-section progress-section-modal">
+                <div class="progress-info">
+                    <span id="genModalProgressStatus">正在生成...</span>
+                    <span id="genModalProgressPercent">0%</span>
+                </div>
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar-fill" id="genModalProgressBar" style="width:0%"></div>
+                </div>
+                <div class="progress-detail" id="genProgressDetail">等待后端同步生成进度</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeGenProgressModal()">收起</button>
+        </div>
+    </div>
+</div>
+
+<button class="progress-dock" id="genProgressDock" onclick="openGenProgressModal()" style="display:none;">
+    <span id="genProgressDockStatus">生成中</span>
+    <strong id="genProgressDockPercent">0%</strong>
+</button>
 {% endblock %}
 
 {% block scripts %}
 <script>
 let currentGenTaskId = null;
 let genPollTimer = null;
+let generationTemplates = [];
+let selectedTemplate = null;
+let expandedChapterKeys = new Set();
+let chapterSearchQuery = '';
+let generationRequirementsTouched = false;
+let recentGenerationPage = 1;
+const genProgressModal = document.getElementById('genProgressModal');
+const genProgressDock = document.getElementById('genProgressDock');
+const genProgressDetail = document.getElementById('genProgressDetail');
+const generationRequirementsInput = document.getElementById('generationRequirements');
+generationRequirementsInput.addEventListener('input', () => {
+    generationRequirementsTouched = true;
+});
 
 // Reference file upload
 const refZone = document.getElementById('refUploadZone');
@@ -196,23 +430,223 @@ refInput.addEventListener('change', e => {
     if (e.target.files.length) refText.innerHTML = '<span style="color:var(--primary);">' + e.target.files[0].name + '</span>';
 });
 
+function loadTemplates() {
+    fetch('/generate/api/templates')
+        .then(r => r.json())
+        .then(data => {
+            generationTemplates = data.templates || [];
+            const select = document.getElementById('templateSelect');
+            select.innerHTML = generationTemplates.map(t =>
+                `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`
+            ).join('');
+            if (generationTemplates.length) {
+                selectedTemplate = generationTemplates[0];
+                select.value = selectedTemplate.id;
+                resetTemplateTreeState(selectedTemplate);
+                renderTemplatePreview(selectedTemplate);
+                applyDefaultGenerationRequirements(selectedTemplate);
+            } else {
+                document.getElementById('templatePreview').innerHTML = '<div class="empty-state">暂无可生成模板，请先到生成模板库上传 DOCX 模板</div>';
+            }
+        })
+        .catch(() => {
+            document.getElementById('templatePreview').innerHTML = '<div class="empty-state">模板加载失败</div>';
+        });
+}
+
+document.getElementById('templateSelect').addEventListener('change', e => {
+    selectedTemplate = generationTemplates.find(t => t.id === e.target.value) || null;
+    resetTemplateTreeState(selectedTemplate);
+    renderTemplatePreview(selectedTemplate);
+    applyDefaultGenerationRequirements(selectedTemplate);
+});
+
+function applyDefaultGenerationRequirements(template) {
+    if (generationRequirementsTouched && generationRequirementsInput.value.trim()) return;
+    generationRequirementsInput.value = getDefaultGenerationRequirements(template);
+    generationRequirementsTouched = false;
+}
+
+function getDefaultGenerationRequirements(template) {
+    const templateName = template && template.name ? template.name : '所选模板';
+    return [
+        `请基于“${templateName}”的原始 DOCX 模板生成正式文档。`,
+        '保留模板正文和原有 Word 格式，删除说明与举例内容。',
+        '将 NNNNN、XXX、X项目、斜体占位等内容替换为用户输入素材。',
+        '不编造未提供的试验数据、编号、结论或标准条款。',
+        '未提供的信息保留为“待补充”。'
+    ].join('\n');
+}
+
+function renderTemplatePreview(template) {
+    const preview = document.getElementById('templatePreview');
+    if (!template) {
+        preview.innerHTML = '<div class="empty-state">请选择模板</div>';
+        return;
+    }
+    const chapters = template.chapters || [];
+    const stats = getChapterStats(chapters);
+    preview.innerHTML = `
+        <div class="template-summary">
+            <div class="template-summary-title">${escapeHtml(template.name || '未命名模板')}</div>
+            <div class="template-summary-meta">
+                <span>共 ${stats.total} 个章节</span>
+                <span>${stats.rootCount} 个一级章节</span>
+                <span>最深 ${stats.maxDepth} 级</span>
+            </div>
+        </div>
+        <div class="template-tree-tools">
+            <input type="text" class="form-control" id="chapterSearch" placeholder="搜索章节，例如 接口、验证、可靠性" value="${escapeHtml(chapterSearchQuery)}">
+            <div class="template-tree-actions">
+                <button type="button" class="btn btn-outline" onclick="toggleAllChapters()">${areAllChaptersExpanded(chapters) ? '收起全部' : '展开全部'}</button>
+                <button type="button" class="btn btn-outline" onclick="openSelectedTemplateInLibrary()">编辑模板</button>
+            </div>
+        </div>
+        <div class="template-tree" id="templateTree">
+            ${renderChapterTree(chapters)}
+        </div>
+    `;
+    document.getElementById('chapterSearch').addEventListener('input', e => {
+        chapterSearchQuery = e.target.value.trim();
+        document.getElementById('templateTree').innerHTML = renderChapterTree(chapters);
+    });
+}
+
+function renderChapterTree(chapters, path = []) {
+    const visible = filterChapters(chapters, chapterSearchQuery);
+    if (!visible.length) return '<div class="template-tree-empty">没有匹配的章节</div>';
+    return '<ul>' + visible.map(item => renderChapterNode(item.chapter, path.concat(item.index), item.forceExpanded)).join('') + '</ul>';
+}
+
+function renderChapterNode(chapter, path, forceExpanded = false) {
+    const key = path.join('.');
+    const children = chapter.sub_chapters || [];
+    const hasChildren = children.length > 0;
+    const expanded = forceExpanded || expandedChapterKeys.has(key);
+    const title = (chapter.number ? chapter.number + ' ' : '') + (chapter.title || '');
+    return `
+        <li>
+            <div class="template-tree-node">
+                <button type="button" class="template-tree-toggle ${hasChildren ? '' : 'placeholder'}" onclick="toggleChapter('${key}')">
+                    ${expanded ? '▾' : '▸'}
+                </button>
+                <span class="template-tree-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+            </div>
+            ${hasChildren && expanded ? renderChapterTree(children, path) : ''}
+        </li>
+    `;
+}
+
+function filterChapters(chapters, query) {
+    const normalized = query.trim().toLowerCase();
+    return chapters.map((chapter, index) => {
+        if (!normalized) return { chapter, index, forceExpanded: false };
+        const title = ((chapter.number || '') + ' ' + (chapter.title || '')).toLowerCase();
+        const childMatches = filterChapters(chapter.sub_chapters || [], query);
+        if (title.includes(normalized) || childMatches.length) {
+            return {
+                chapter: { ...chapter, sub_chapters: childMatches.map(item => item.chapter) },
+                index,
+                forceExpanded: true,
+            };
+        }
+        return null;
+    }).filter(Boolean);
+}
+
+function toggleChapter(key) {
+    if (expandedChapterKeys.has(key)) {
+        expandedChapterKeys.delete(key);
+    } else {
+        expandedChapterKeys.add(key);
+    }
+    renderTemplatePreview(selectedTemplate);
+}
+
+function toggleAllChapters() {
+    const chapters = selectedTemplate ? selectedTemplate.chapters || [] : [];
+    if (areAllChaptersExpanded(chapters)) {
+        expandedChapterKeys = new Set();
+    } else {
+        expandedChapterKeys = new Set();
+        collectChapterKeys(chapters, [], expandedChapterKeys);
+    }
+    renderTemplatePreview(selectedTemplate);
+}
+
+function resetTemplateTreeState(template) {
+    chapterSearchQuery = '';
+    expandedChapterKeys = new Set();
+    if (!template) return;
+    (template.chapters || []).forEach((_, index) => expandedChapterKeys.add(String(index)));
+}
+
+function collectChapterKeys(chapters, path, keys) {
+    chapters.forEach((chapter, index) => {
+        const current = path.concat(index);
+        if ((chapter.sub_chapters || []).length) keys.add(current.join('.'));
+        collectChapterKeys(chapter.sub_chapters || [], current, keys);
+    });
+}
+
+function areAllChaptersExpanded(chapters) {
+    const keys = new Set();
+    collectChapterKeys(chapters, [], keys);
+    if (!keys.size) return true;
+    for (const key of keys) {
+        if (!expandedChapterKeys.has(key)) return false;
+    }
+    return true;
+}
+
+function getChapterStats(chapters) {
+    const total = countChapters(chapters);
+    return {
+        total,
+        rootCount: chapters.length,
+        maxDepth: Math.max(0, getMaxDepth(chapters)),
+    };
+}
+
+function countChapters(chapters) {
+    return chapters.reduce((sum, chapter) => sum + 1 + countChapters(chapter.sub_chapters || []), 0);
+}
+
+function getMaxDepth(chapters) {
+    if (!chapters.length) return 0;
+    return Math.max(...chapters.map(chapter => 1 + getMaxDepth(chapter.sub_chapters || [])));
+}
+
+function openSelectedTemplateInLibrary() {
+    const suffix = selectedTemplate && selectedTemplate.id
+        ? '?template_id=' + encodeURIComponent(selectedTemplate.id)
+        : '';
+    window.location.href = '/template-library/' + suffix;
+}
+
 function startGenerate() {
     const title = document.getElementById('docTitle').value.trim();
     if (!title) { alert('请输入文档标题'); return; }
-    const definition = document.getElementById('generationDefinition').value.trim();
-    if (!definition) { alert('请填写文档生成定义'); return; }
+    if (!selectedTemplate) { alert('请选择文档模板'); return; }
+    const productName = document.getElementById('productName').value.trim();
+    if (!productName) { alert('请输入产品名称'); return; }
 
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
     btn.textContent = '生成中...';
 
     const params = {
-        doc_type: document.getElementById('docType').value.trim() || '用户自定义文档',
-        template_name: '用户自定义生成定义',
+        template_id: selectedTemplate.id,
         title: title,
-        generation_definition: definition,
-        description: document.getElementById('docDesc').value.trim(),
-        technical_params: document.getElementById('docParams').value.trim()
+        inputs: {
+            product_name: productName,
+            project_name: document.getElementById('projectName').value.trim(),
+            test_item: document.getElementById('testItem').value.trim(),
+            background: document.getElementById('docDesc').value.trim(),
+            technical_params: document.getElementById('docParams').value.trim(),
+            references: document.getElementById('references').value.trim(),
+            generation_requirements: document.getElementById('generationRequirements').value.trim()
+        }
     };
 
     fetch('/generate/start', {
@@ -222,73 +656,121 @@ function startGenerate() {
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '按定义生成文档'; return; }
+        if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '按模板生成文档'; return; }
         currentGenTaskId = data.task_id;
         document.getElementById('genProgressSection').style.display = 'block';
+        openGenProgressModal();
+        updateGenProgress({
+            status: 'processing',
+            progress: 0,
+            progress_message: '生成任务已创建，等待后端开始处理'
+        });
         pollGenProgress();
     })
     .catch(err => {
         alert('请求失败: ' + err.message);
         btn.disabled = false;
-        btn.textContent = '按定义生成文档';
+        btn.textContent = '按模板生成文档';
     });
 }
 
 function pollGenProgress() {
+    clearInterval(genPollTimer);
+    pollGenProgressOnce();
     genPollTimer = setInterval(() => {
-        fetch('/generate/status/' + currentGenTaskId)
-            .then(r => r.json())
-            .then(data => {
-                const pct = data.progress || 0;
-                document.getElementById('genProgressBar').style.width = pct + '%';
-                document.getElementById('genProgressPercent').textContent = pct + '%';
-
-                // Status text mapping
-                const statusTexts = {
-                    'processing': '正在生成...',
-                    'generated': '文档已生成，正在审查...',
-                    'reviewing': '正在执行审查...',
-                    'completed': '生成并通过审查',
-                    'review_failed': '审查未通过',
-                    'failed': '生成失败',
-                };
-                document.getElementById('genProgressStatus').textContent =
-                    statusTexts[data.status] || data.status;
-
-                if (['completed', 'failed', 'review_failed'].includes(data.status)) {
-                    clearInterval(genPollTimer);
-                    handleGenFinalState(data);
-                }
-            });
+        pollGenProgressOnce();
     }, 2000);
+}
+
+function pollGenProgressOnce() {
+    fetch('/generate/status/' + currentGenTaskId)
+        .then(r => r.json())
+        .then(data => {
+            updateGenProgress(data);
+            if (['completed', 'failed'].includes(data.status)) {
+                clearInterval(genPollTimer);
+                handleGenFinalState(data);
+            }
+        });
+}
+
+function updateGenProgress(data) {
+    const pct = data.progress || 0;
+    const statusText = getGenStatusText(data);
+    const detailText = getGenProgressDetailText(data);
+    document.getElementById('genProgressBar').style.width = pct + '%';
+    document.getElementById('genProgressPercent').textContent = pct + '%';
+    document.getElementById('genProgressStatus').textContent = statusText;
+    document.getElementById('genModalProgressBar').style.width = pct + '%';
+    document.getElementById('genModalProgressPercent').textContent = pct + '%';
+    document.getElementById('genModalProgressStatus').textContent = statusText;
+    if (genProgressDetail) genProgressDetail.textContent = detailText;
+    document.getElementById('genProgressDockStatus').textContent = detailText ? `生成中：${detailText}` : statusText;
+    document.getElementById('genProgressDockPercent').textContent = pct + '%';
+    updateGenProgressDockVisibility();
+}
+
+function getGenStatusText(data) {
+    const statusTexts = {
+        'pending': '等待生成...',
+        'processing': '正在填充模板...',
+        'generated': '文档已生成',
+        'completed': '生成完成',
+        'failed': '生成失败',
+        'review_failed': '审查未通过',
+    };
+    return statusTexts[data.status] || data.status || '正在生成...';
+}
+
+function getGenProgressDetailText(data) {
+    if (data.progress_message) return data.progress_message;
+    const current = Number(data.current_section || 0);
+    const total = Number(data.total_sections || 0);
+    if (total > 0) {
+        if (current > 0) return `正在处理章节 ${current}/${total}`;
+        return `共 ${total} 个章节`;
+    }
+    return '等待后端同步生成进度';
+}
+
+function openGenProgressModal() {
+    if (genProgressModal) genProgressModal.classList.add('open');
+    updateGenProgressDockVisibility();
+}
+
+function closeGenProgressModal() {
+    if (genProgressModal) genProgressModal.classList.remove('open');
+    updateGenProgressDockVisibility();
+}
+
+function isGenTaskActive() {
+    return !!currentGenTaskId && document.getElementById('generateBtn').textContent === '生成中...';
+}
+
+function updateGenProgressDockVisibility() {
+    if (!genProgressDock) return;
+    const modalOpen = genProgressModal && genProgressModal.classList.contains('open');
+    genProgressDock.style.display = isGenTaskActive() && !modalOpen ? 'flex' : 'none';
 }
 
 function handleGenFinalState(data) {
     document.getElementById('genProgressSection').style.display = 'none';
     document.getElementById('generateBtn').disabled = false;
-    document.getElementById('generateBtn').textContent = '按定义生成文档';
+    document.getElementById('generateBtn').textContent = '按模板生成文档';
+    closeGenProgressModal();
+    updateGenProgressDockVisibility();
+    loadRecentGenerations();
 
     if (data.status === 'completed') {
-        // Success: generated and passed review
         document.getElementById('genResultSection').style.display = 'block';
         document.getElementById('genResultEmoji').textContent = 'OK';
-        document.getElementById('genResultTitle').textContent = '文档生成完成，已通过审查';
+        document.getElementById('genResultTitle').textContent = '文档生成完成';
         document.getElementById('genResultName').textContent = data.result_path
             ? data.result_path.split(/[/\\]/).pop() : 'generated_document.docx';
         document.getElementById('retryGenBtn').style.display = 'none';
         showGenReview(data);
 
-    } else if (data.status === 'review_failed') {
-        // Generated but review failed
-        document.getElementById('genResultSection').style.display = 'block';
-        document.getElementById('genResultEmoji').textContent = '!';
-        document.getElementById('genResultTitle').textContent = '文档已生成，但未通过审查';
-        document.getElementById('genResultName').textContent = data.error || '请查看下方审查结果';
-        document.getElementById('retryGenBtn').style.display = 'inline-flex';
-        showGenReview(data);
-
     } else {
-        // Failed
         alert('生成失败: ' + (data.error || '未知错误'));
     }
 }
@@ -302,6 +784,14 @@ function showGenReview(data) {
     } catch (e) {}
 
     if (!reviewResult) return;
+    if (reviewResult.reserved) {
+        document.getElementById('genReviewSection').style.display = 'block';
+        document.getElementById('genReviewSection').innerHTML = `
+            <p class="section-title">审查预留</p>
+            <div class="empty-state">${escapeHtml(reviewResult.message || '生成后自动审查功能已预留，当前版本暂不执行。')}</div>
+        `;
+        return;
+    }
 
     document.getElementById('genReviewSection').style.display = 'block';
     document.getElementById('genReviewTotal').textContent = reviewResult.total_issues || 0;
@@ -339,5 +829,122 @@ function retryGenerate() {
 function downloadGenerated() {
     if (currentGenTaskId) window.location.href = '/generate/download/' + currentGenTaskId;
 }
+
+function loadRecentGenerations() {
+    fetch('/generate/api/recent?page=' + encodeURIComponent(recentGenerationPage))
+        .then(r => r.json())
+        .then(data => {
+            renderRecentGenerations(data.tasks || [], data.pagination || null);
+        })
+        .catch(() => {
+            document.getElementById('recentGenerationList').innerHTML = '<div class="empty-state">生成记录加载失败</div>';
+        });
+}
+
+function renderRecentGenerations(tasks, pagination) {
+    const list = document.getElementById('recentGenerationList');
+    if (!tasks.length) {
+        list.innerHTML = '<div class="empty-state">暂无生成记录</div>';
+        return;
+    }
+    const recordsHtml = tasks.map(task => {
+        const filename = task.result_path ? task.result_path.split(/[/\\]/).pop() : task.template_name;
+        const canDownload = task.status === 'completed' && task.result_path;
+        const canDelete = !['pending', 'processing'].includes(task.status);
+        const isRunning = ['pending', 'processing'].includes(task.status);
+        const statusLabel = task.status_label || getGenStatusText(task);
+        const badgeClass = task.badge_class || getGenBadgeClass(task.status);
+        return `
+            <div class="generation-record">
+                <div>
+                    <div class="generation-record-top">
+                        <div class="generation-record-title" title="${escapeHtml(filename)}">${escapeHtml(filename)}</div>
+                        <span class="badge badge-${escapeHtml(badgeClass)}">${escapeHtml(statusLabel)}</span>
+                    </div>
+                    <div class="generation-record-meta">${escapeHtml(task.template_name)} · 创建：${escapeHtml(task.created_at || '')}${task.completed_at ? ' · 完成：' + escapeHtml(task.completed_at) : ''}</div>
+                    ${isRunning ? `
+                        <div class="generation-record-progress">
+                            <div class="generation-record-progress-bar" style="width:${Number(task.progress || 0)}%"></div>
+                        </div>
+                        <div class="generation-record-meta">${Number(task.progress || 0)}% · ${escapeHtml(task.progress_message || '正在处理')}</div>
+                    ` : ''}
+                    ${task.status === 'failed' && task.error ? `<div class="generation-record-error" title="${escapeHtml(task.error)}">${escapeHtml(task.error)}</div>` : ''}
+                </div>
+                <div class="generation-record-actions">
+                    ${canDownload ? `<button type="button" class="btn btn-outline" onclick="window.location.href='/generate/download/${task.id}'">下载</button>` : ''}
+                    ${canDelete ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="deleteGenerateRecord(${task.id})">删除</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    const pagerHtml = renderGenerationPager(pagination);
+    list.innerHTML = recordsHtml + pagerHtml;
+}
+
+function renderGenerationPager(pagination) {
+    if (!pagination || pagination.total_pages <= 1) return '';
+    return `
+        <div class="generation-record-pager">
+            <button type="button" class="pager-btn" onclick="changeGenerationPage(${pagination.page - 1})" ${pagination.has_prev ? '' : 'disabled'}>上一页</button>
+            <span class="generation-record-pager-info">
+                ${pagination.page}/${pagination.total_pages}
+                （${pagination.start}-${pagination.end}/${pagination.total}）
+            </span>
+            <button type="button" class="pager-btn" onclick="changeGenerationPage(${pagination.page + 1})" ${pagination.has_next ? '' : 'disabled'}>下一页</button>
+        </div>
+    `;
+}
+
+function changeGenerationPage(page) {
+    recentGenerationPage = Math.max(1, Number(page || 1));
+    loadRecentGenerations();
+}
+
+function getGenBadgeClass(status) {
+    return {
+        pending: 'warning',
+        processing: 'info',
+        generated: 'success',
+        completed: 'success',
+        failed: 'danger',
+        review_failed: 'danger',
+        canceled: 'default',
+    }[status] || 'default';
+}
+
+function deleteGenerateRecord(taskId) {
+    if (!confirm('确定删除这条生成记录？')) return;
+    fetch('/generate/delete/' + taskId, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('删除失败: ' + data.error);
+                return;
+            }
+            if (currentGenTaskId === taskId) {
+                currentGenTaskId = null;
+                document.getElementById('genResultSection').style.display = 'none';
+            }
+            const visibleRecords = document.querySelectorAll('.generation-record').length;
+            if (visibleRecords <= 1 && recentGenerationPage > 1) {
+                recentGenerationPage -= 1;
+            }
+            loadRecentGenerations();
+        })
+        .catch(err => alert('删除失败: ' + err.message));
+}
+
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[ch]));
+}
+
+loadTemplates();
+loadRecentGenerations();
 </script>
 {% endblock %}

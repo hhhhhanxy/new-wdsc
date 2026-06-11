@@ -19,6 +19,33 @@
 .review-type-btns label:has(input:checked) { border-color: var(--primary); background: #f1f3ff; }
 .btn-primary { background: var(--primary); }
 .btn-primary:hover { background: var(--primary-dark); }
+.panel-actions { display:flex; align-items:center; gap:8px; }
+.import-file-box {
+    padding: 14px;
+    border: 1px dashed var(--border);
+    background: #f8f9ff;
+}
+.import-file-box input { width:100%; }
+.import-summary { display:flex; gap:10px; margin:14px 0; }
+.import-summary span { padding:6px 10px; border-radius:4px; background:#f3f4f6; font-size:13px; }
+.import-summary .ok { color:#237a57; background:#e8f6ef; }
+.import-summary .warning { color:#8a5a00; background:#fff5d6; }
+.import-summary .error { color:#b42318; background:#fff0ee; }
+.import-preview { max-height:300px; overflow:auto; border:1px solid var(--border); }
+.import-preview table { width:100%; border-collapse:collapse; font-size:13px; }
+.import-preview th, .import-preview td { padding:8px; border-bottom:1px solid var(--border); text-align:left; }
+.import-preview th { position:sticky; top:0; background:#f4f6fb; }
+.import-row-error { color:#b42318; }
+.import-row-warning { color:#8a5a00; }
+.import-options { display:flex; gap:18px; align-items:end; margin-top:14px; flex-wrap:wrap; }
+.import-options label { display:flex; flex-direction:column; gap:6px; font-size:13px; }
+.import-options .inline-check { flex-direction:row; align-items:center; padding-bottom:7px; }
+.import-detail-row { display:none; background:#fafbff; }
+.import-detail-row.open { display:table-row; }
+.import-detail-grid { display:grid; grid-template-columns:120px 1fr; gap:6px 12px; white-space:pre-wrap; }
+.import-history-list { display:flex; flex-direction:column; gap:10px; }
+.import-history-item { border:1px solid var(--border); padding:12px; display:flex; justify-content:space-between; gap:16px; }
+.import-history-meta { color:var(--text-secondary); font-size:13px; margin-top:5px; }
 </style>
 <div class="page-header">
     <h1>规则管理</h1>
@@ -45,7 +72,12 @@
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span id="currentSetTitle">请选择规则集</span>
-                <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openCreateRuleModal()">+ 添加规则</button>
+                <div class="panel-actions">
+                    <button class="btn btn-outline" id="downloadTemplateBtn" style="display:none;" onclick="downloadImportTemplate()">下载模板</button>
+                    <button class="btn btn-outline" id="importHistoryBtn" style="display:none;" onclick="openImportHistory()">导入记录</button>
+                    <button class="btn btn-outline" id="importRuleBtn" style="display:none;" onclick="openImportModal()">导入规则</button>
+                    <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openCreateRuleModal()">+ 添加规则</button>
+                </div>
             </div>
             <table class="rule-table" id="ruleTable" style="display:none;">
                 <thead>
@@ -63,6 +95,68 @@
             </table>
             <div class="pager" id="rulePager" style="display:none;"></div>
             <div class="empty-state" id="noRulesHint">选择左侧规则集查看规则列表</div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Rules Modal -->
+<div class="modal-overlay" id="importRuleModal">
+    <div class="modal" style="width:760px;">
+        <div class="modal-header">
+            <h3 id="importRuleTitle">导入规则</h3>
+            <button class="modal-close" onclick="closeImportModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="import-file-box">
+                <input type="file" id="importRuleFile" accept=".xlsx" onchange="resetImportPreview()">
+                <p style="margin:8px 0 0;color:var(--text-secondary);font-size:13px;">仅支持平台模板生成的 .xlsx 文件；所有规则将归入当前规则集并默认开启。</p>
+            </div>
+            <div class="import-options">
+                <label>遇到重复编号
+                    <select id="duplicateMode" onchange="resetImportPreview()">
+                        <option value="reject">停止并提示</option>
+                        <option value="skip">跳过已有规则</option>
+                        <option value="update">更新已有规则</option>
+                    </select>
+                </label>
+                <label class="inline-check">
+                    <input type="checkbox" id="partialImport" onchange="refreshImportConfirmState()">
+                    仅导入检查通过的规则
+                </label>
+                <button class="btn btn-outline" id="checkImportBtn" onclick="previewRuleImport()">检查文件</button>
+            </div>
+            <div id="importResult" style="display:none;">
+                <div class="import-summary" id="importSummary"></div>
+                <div style="margin-bottom:10px;">
+                    <button class="btn btn-outline" id="downloadIssuesBtn" style="display:none;" onclick="downloadImportIssues()">下载问题清单</button>
+                </div>
+                <div class="import-preview">
+                    <table>
+                        <thead><tr><th>Excel 行</th><th>规则编号</th><th>规则名称</th><th>处理方式</th><th>错误位置</th><th>检查结果</th><th></th></tr></thead>
+                        <tbody id="importPreviewBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeImportModal()">取消</button>
+            <button class="btn btn-primary" id="confirmImportBtn" disabled onclick="confirmRuleImport()">确认导入</button>
+        </div>
+    </div>
+</div>
+
+<!-- Import History Modal -->
+<div class="modal-overlay" id="importHistoryModal">
+    <div class="modal" style="width:760px;">
+        <div class="modal-header">
+            <h3 id="importHistoryTitle">导入记录</h3>
+            <button class="modal-close" onclick="closeImportHistory()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="import-history-list" id="importHistoryList"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeImportHistory()">关闭</button>
         </div>
     </div>
 </div>
@@ -211,6 +305,7 @@ let currentGroup = null;
 let currentRule = null;
 let ruleSetPage = 1;
 let rulePage = 1;
+let lastImportPreview = null;
 const pageSize = 10;
 
 const severityLabels = {};
@@ -413,6 +508,9 @@ function selectGroup(source) {
     document.getElementById('noRulesHint').style.display = 'none';
     document.getElementById('ruleTable').style.display = '';
     document.getElementById('addRuleBtn').style.display = '';
+    document.getElementById('downloadTemplateBtn').style.display = '';
+    document.getElementById('importHistoryBtn').style.display = '';
+    document.getElementById('importRuleBtn').style.display = '';
     document.getElementById('rulePager').style.display = '';
 
     renderRuleTable(currentGroup.rules);
@@ -809,6 +907,259 @@ document.getElementById('createRuleModal').addEventListener('click', function(e)
     if (e.target === this) closeCreateRuleModal();
 });
 
+document.getElementById('importRuleModal').addEventListener('click', function(e) {
+    if (e.target === this) closeImportModal();
+});
+document.getElementById('importHistoryModal').addEventListener('click', function(e) {
+    if (e.target === this) closeImportHistory();
+});
+
+// ---- Import Rules ----
+function downloadImportTemplate() {
+    window.location.href = '/rules/api/import-template';
+}
+
+function openImportModal() {
+    if (!currentGroup) return;
+    document.getElementById('importRuleTitle').textContent = '导入规则 - ' + currentGroup.display_name;
+    document.getElementById('importRuleFile').value = '';
+    document.getElementById('duplicateMode').value = 'reject';
+    document.getElementById('partialImport').checked = false;
+    resetImportPreview();
+    document.getElementById('importRuleModal').classList.add('open');
+}
+
+function closeImportModal() {
+    document.getElementById('importRuleModal').classList.remove('open');
+    document.getElementById('importRuleFile').value = '';
+    resetImportPreview();
+}
+
+function resetImportPreview() {
+    document.getElementById('importResult').style.display = 'none';
+    document.getElementById('importSummary').innerHTML = '';
+    document.getElementById('importPreviewBody').innerHTML = '';
+    document.getElementById('confirmImportBtn').disabled = true;
+    document.getElementById('downloadIssuesBtn').style.display = 'none';
+    lastImportPreview = null;
+}
+
+function refreshImportConfirmState() {
+    const partial = document.getElementById('partialImport').checked;
+    const canImport = lastImportPreview &&
+        lastImportPreview.valid_count > 0 &&
+        (lastImportPreview.error_count === 0 || partial);
+    document.getElementById('confirmImportBtn').disabled = !canImport;
+}
+
+function renderImportPreview(data) {
+    const result = document.getElementById('importResult');
+    const summary = document.getElementById('importSummary');
+    const body = document.getElementById('importPreviewBody');
+    result.style.display = '';
+    summary.innerHTML = `
+        <span>共 ${data.total || 0} 条</span>
+        <span class="ok">新增 ${data.create_count || 0} 条</span>
+        <span class="ok">更新 ${data.update_count || 0} 条</span>
+        <span>跳过 ${data.skip_count || 0} 条</span>
+        <span class="${data.warning_count ? 'warning' : 'ok'}">提醒 ${data.warning_count || 0} 条</span>
+        <span class="${data.error_count ? 'error' : 'ok'}">错误 ${data.error_count || 0} 条</span>
+    `;
+    const actionLabels = {create: '新增', update: '更新', skip: '跳过'};
+    body.innerHTML = (data.rows || []).map((row, index) => `
+        <tr>
+            <td>${row.row_number}</td>
+            <td>${escapeHtml(row.code)}</td>
+            <td>${escapeHtml(row.name)}</td>
+            <td>${actionLabels[row.action] || row.action}</td>
+            <td class="${row.errors.length ? 'import-row-error' : ''}">
+                ${(row.error_details || []).length
+                    ? escapeHtml(row.error_details.map(item => item.cell).join('、'))
+                    : '-'}
+            </td>
+            <td class="${row.errors.length ? 'import-row-error' : (row.warnings.length ? 'import-row-warning' : '')}">
+                ${row.errors.length
+                    ? (row.error_details || []).map(item =>
+                        `<div><strong>${escapeHtml(item.field)}</strong>：${escapeHtml(item.message)}</div>`
+                      ).join('')
+                    : (row.warnings.length ? escapeHtml(row.warnings.join('；')) : '通过')}
+            </td>
+            <td><button class="btn btn-outline" onclick="toggleImportDetail(${index})">详情</button></td>
+        </tr>
+        <tr class="import-detail-row" id="importDetail${index}">
+            <td colspan="7">
+                <div class="import-detail-grid">
+                    <strong>检查要求</strong><span>${escapeHtml((row.raw || {}).logic || '')}</span>
+                    <strong>规则说明</strong><span>${escapeHtml((row.raw || {}).description || '')}</span>
+                    <strong>目标章节</strong><span>${escapeHtml((row.raw || {}).target_headings || '')}</span>
+                    <strong>必需内容</strong><span>${escapeHtml((row.raw || {}).required_elements || '')}</span>
+                    <strong>更新对比</strong><span>${(row.change_details || []).length
+                        ? row.change_details.map(change =>
+                            `${escapeHtml(change.field)}：${escapeHtml(formatImportValue(change.before))} → ${escapeHtml(formatImportValue(change.after))}`
+                          ).join('<br>')
+                        : '无'}</span>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    lastImportPreview = data;
+    document.getElementById('downloadIssuesBtn').style.display =
+        (data.error_count || data.warning_count) ? '' : 'none';
+    refreshImportConfirmState();
+}
+
+function toggleImportDetail(index) {
+    const row = document.getElementById('importDetail' + index);
+    if (row) row.classList.toggle('open');
+}
+
+function formatImportValue(value) {
+    if (value === null || value === undefined || value === '') return '空';
+    if (Array.isArray(value)) return value.join('；') || '空';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+}
+
+function submitRuleImport(commit) {
+    if (!currentGroup) return Promise.resolve(null);
+    const fileInput = document.getElementById('importRuleFile');
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) {
+        alert('请选择需要导入的 Excel 文件');
+        return Promise.resolve(null);
+    }
+    const form = new FormData();
+    form.append('file', file);
+    form.append('commit', commit ? 'true' : 'false');
+    form.append('duplicate_mode', document.getElementById('duplicateMode').value);
+    form.append('partial', document.getElementById('partialImport').checked ? 'true' : 'false');
+    return fetch(`/rules/api/sets/${encodeURIComponent(currentGroup.source)}/import`, {
+        method: 'POST',
+        body: form,
+    }).then(async response => {
+        const data = await response.json();
+        if (!response.ok || data.error) {
+            if (data.rows) renderImportPreview(data);
+            alert(data.error || '导入失败');
+            return null;
+        }
+        return data;
+    }).catch(error => {
+        alert('导入失败：' + error.message);
+        return null;
+    });
+}
+
+function previewRuleImport() {
+    const button = document.getElementById('checkImportBtn');
+    button.disabled = true;
+    button.textContent = '检查中...';
+    submitRuleImport(false).then(data => {
+        if (data) renderImportPreview(data);
+    }).finally(() => {
+        button.disabled = false;
+        button.textContent = '检查文件';
+    });
+}
+
+function downloadImportIssues() {
+    if (!currentGroup) return;
+    const file = document.getElementById('importRuleFile').files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('duplicate_mode', document.getElementById('duplicateMode').value);
+    fetch(`/rules/api/sets/${encodeURIComponent(currentGroup.source)}/import-issues`, {
+        method: 'POST',
+        body: form,
+    }).then(async response => {
+        if (!response.ok) {
+            const data = await response.json();
+            alert(data.error || '下载失败');
+            return;
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '规则导入问题清单.xlsx';
+        link.click();
+        URL.revokeObjectURL(url);
+    });
+}
+
+function openImportHistory() {
+    if (!currentGroup) return;
+    document.getElementById('importHistoryTitle').textContent = '导入记录 - ' + currentGroup.display_name;
+    document.getElementById('importHistoryModal').classList.add('open');
+    loadImportHistory();
+}
+
+function closeImportHistory() {
+    document.getElementById('importHistoryModal').classList.remove('open');
+}
+
+function loadImportHistory() {
+    const list = document.getElementById('importHistoryList');
+    list.innerHTML = '<div class="empty-state">加载中...</div>';
+    fetch(`/rules/api/sets/${encodeURIComponent(currentGroup.source)}/import-batches`)
+        .then(r => r.json())
+        .then(data => {
+            const batches = data.batches || [];
+            if (!batches.length) {
+                list.innerHTML = '<div class="empty-state">暂无导入记录</div>';
+                return;
+            }
+            list.innerHTML = batches.map(batch => `
+                <div class="import-history-item">
+                    <div>
+                        <strong>${escapeHtml(batch.filename)}</strong>
+                        <div class="import-history-meta">
+                            ${escapeHtml(batch.created_at)} · 新增 ${batch.created_count} · 更新 ${batch.updated_count} ·
+                            跳过 ${batch.skipped_count} · 错误 ${batch.error_count}
+                        </div>
+                    </div>
+                    <div>
+                        ${batch.status === 'active'
+                            ? `<button class="btn btn-outline" style="color:var(--danger);" onclick="rollbackImportBatch('${batch.batch_id}')">撤销导入</button>`
+                            : '<span class="badge badge-default">已撤销</span>'}
+                    </div>
+                </div>
+            `).join('');
+        });
+}
+
+function rollbackImportBatch(batchId) {
+    if (!confirm('确定撤销该批次？本批新增规则会删除，更新规则会恢复为导入前内容。')) return;
+    fetch('/rules/api/import-batches/' + batchId + '/rollback', {method: 'POST'})
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok || data.error) {
+                alert(data.error || '撤销失败');
+                return;
+            }
+            alert(`已撤销：删除 ${data.removed_count} 条，恢复 ${data.restored_count} 条`);
+            const source = currentGroup.source;
+            reloadProfiles(() => selectGroup(source));
+            loadImportHistory();
+        });
+}
+
+function confirmRuleImport() {
+    const button = document.getElementById('confirmImportBtn');
+    button.disabled = true;
+    button.textContent = '导入中...';
+    submitRuleImport(true).then(data => {
+        if (!data) return;
+        alert(`导入完成：新增 ${data.created_count} 条，更新 ${data.updated_count} 条，跳过 ${data.skip_count} 条`);
+        const source = currentGroup.source;
+        closeImportModal();
+        reloadProfiles(() => selectGroup(source));
+    }).finally(() => {
+        button.textContent = '确认导入';
+    });
+}
+
 // ---- Create Set ----
 function openCreateSetModal() {
     document.getElementById('newSetSource').value = '';
@@ -850,6 +1201,9 @@ function deleteSet(source) {
             document.getElementById('ruleTable').style.display = 'none';
             document.getElementById('noRulesHint').style.display = '';
             document.getElementById('addRuleBtn').style.display = 'none';
+            document.getElementById('downloadTemplateBtn').style.display = 'none';
+            document.getElementById('importHistoryBtn').style.display = 'none';
+            document.getElementById('importRuleBtn').style.display = 'none';
             document.getElementById('rulePager').style.display = 'none';
         }
         reloadProfiles();

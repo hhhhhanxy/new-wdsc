@@ -4,13 +4,20 @@ import logging
 import os
 import re
 import uuid
-from flask import Blueprint, render_template, request, jsonify, current_app
+from copy import deepcopy
+from io import BytesIO
+from pathlib import Path
+from flask import Blueprint, render_template, request, jsonify, current_app, send_file
 
 from rules.base_rule import (
     Rule, RuleSeverity, ReviewType, RuleCategory, RuleScope,
 )
 from rules.loaders.rule_loader import RuleLoader
 from config.rule_overrides import update_rule_override, load_overrides, save_overrides
+from rules.rule_importer import (
+    RuleImportError, build_issue_workbook, parse_rule_workbook, validate_import_rows,
+)
+from web.time_utils import beijing_now_str
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +25,8 @@ bp = Blueprint("rules", __name__)
 
 CUSTOM_SETS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
                                 "config", "custom_rule_sets.json")
+RULE_IMPORT_TEMPLATE = Path(__file__).resolve().parents[2] / "web" / "static" / "files" / "审查规则导入模板.xlsx"
+RULE_IMPORT_BATCHES_FILE = Path(__file__).resolve().parents[2] / "config" / "rule_import_batches.json"
 
 # 规则集显示名称映射
 SOURCE_DISPLAY = {
@@ -44,6 +53,24 @@ def _save_custom_sets(data: dict):
     os.makedirs(os.path.dirname(CUSTOM_SETS_FILE), exist_ok=True)
     with open(CUSTOM_SETS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _load_import_batches() -> list[dict]:
+    if not RULE_IMPORT_BATCHES_FILE.exists():
+        return []
+    try:
+        data = json.loads(RULE_IMPORT_BATCHES_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _save_import_batches(batches: list[dict]):
+    RULE_IMPORT_BATCHES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    RULE_IMPORT_BATCHES_FILE.write_text(
+        json.dumps(batches, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def _serialize_rule(rule: Rule) -> dict:
@@ -197,6 +224,94 @@ def _make_rule_id(data: dict, existing_ids: set) -> str:
         candidate = f"{slug}_{counter}"
         counter += 1
     return candidate
+
+
+def _rule_set_exists(source: str) -> bool:
+    if source in SOURCE_DISPLAY or source in _load_custom_sets():
+        return True
+    return any(rule.source == source for rule in RuleLoader.load_all_rules("default", include_extensions=False))
+
+
+def _build_custom_rule_data(payload: dict) -> dict:
+    params = _normalize_rule_params(payload.get("params") or {})
+    return {
+        "source": payload["source"],
+        "name": payload["name"].strip(),
+        "description": payload.get("description", "").strip(),
+        "category": "custom",
+        "severity": RuleSeverity(payload.get("severity", "warning")).value,
+        "review_type": ReviewType(payload.get("review_type", "llm")).value,
+        "enabled": bool(payload.get("enabled", True)),
+        "code": payload["code"].strip(),
+        "logic": payload.get("logic", "").strip(),
+        "standard_ref": payload.get("standard_ref", "").strip(),
+        "aliases": [value for value in (payload.get("code", "").strip(), payload.get("name", "").strip()) if value],
+        "params": params,
+        "scope": RuleScope(payload.get("scope", "all")).value,
+        "target_headings": _normalize_list(payload.get("target_headings")),
+        "required_elements": _normalize_list(payload.get("required_elements")),
+    }
+
+
+def _existing_rules_by_code() -> dict[str, dict]:
+    result = {}
+    for rule in RuleLoader.load_all_rules("default", include_extensions=False):
+        code = (rule.code or "").strip()
+        if not code:
+            continue
+        serialized = _serialize_rule(rule)
+        serialized["rule_id"] = rule.rule_id
+        result[code.lower()] = serialized
+    return result
+
+
+def _prepare_rule_import(source: str):
+    uploaded = request.files.get("file")
+    if uploaded is None or not uploaded.filename:
+        raise RuleImportError("请选择需要导入的 Excel 文件")
+    if not uploaded.filename.lower().endswith(".xlsx"):
+        raise RuleImportError("仅支持 .xlsx 格式的 Excel 文件")
+    file_bytes = uploaded.read()
+    if not file_bytes:
+        raise RuleImportError("上传的 Excel 文件为空")
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise RuleImportError("Excel 文件不能超过 10MB")
+    rows = parse_rule_workbook(file_bytes)
+    if not rows:
+        raise RuleImportError("Excel 中没有可导入的规则")
+    if len(rows) > 1000:
+        raise RuleImportError("单次最多导入 1000 条规则")
+    duplicate_mode = request.form.get("duplicate_mode", "reject")
+    if duplicate_mode not in {"reject", "skip", "update"}:
+        raise RuleImportError("重复规则处理方式无效")
+    rows = validate_import_rows(
+        rows,
+        source,
+        _existing_rules_by_code(),
+        _validate_custom_rule_definition,
+        duplicate_mode=duplicate_mode,
+    )
+    return uploaded.filename, duplicate_mode, rows
+
+
+def _import_preview(rows: list) -> dict:
+    row_results = [row.to_dict() for row in rows]
+    error_count = sum(1 for row in rows if row.errors)
+    warning_count = sum(1 for row in rows if row.warnings)
+    create_count = sum(1 for row in rows if not row.errors and row.action == "create")
+    update_count = sum(1 for row in rows if not row.errors and row.action == "update")
+    skip_count = sum(1 for row in rows if not row.errors and row.action == "skip")
+    return {
+        "ok": error_count == 0,
+        "total": len(rows),
+        "valid_count": create_count + update_count,
+        "create_count": create_count,
+        "update_count": update_count,
+        "skip_count": skip_count,
+        "warning_count": warning_count,
+        "error_count": error_count,
+        "rows": row_results,
+    }
 
 
 @bp.route("/")
@@ -395,6 +510,167 @@ def api_delete_set(source: str):
     return jsonify({"ok": True, "source": source})
 
 
+@bp.route("/api/import-template")
+def api_download_import_template():
+    """下载面向用户的规则批量导入模板。"""
+    if not RULE_IMPORT_TEMPLATE.exists():
+        return jsonify({"error": "导入模板不存在，请联系管理员"}), 404
+    return send_file(
+        RULE_IMPORT_TEMPLATE,
+        as_attachment=True,
+        download_name="审查规则导入模板.xlsx",
+    )
+
+
+@bp.route("/api/sets/<source>/import", methods=["POST"])
+def api_import_rules(source: str):
+    """预检查或批量导入当前规则集的 Excel 规则。"""
+    if not _rule_set_exists(source):
+        return jsonify({"error": f"规则集 '{source}' 不存在，请先创建规则集"}), 404
+
+    try:
+        filename, duplicate_mode, rows = _prepare_rule_import(source)
+    except RuleImportError as exc:
+        return jsonify({"error": str(exc)}), 400
+    preview = _import_preview(rows)
+
+    commit = str(request.form.get("commit", "")).lower() in {"1", "true", "yes"}
+    if not commit:
+        return jsonify(preview)
+    partial = str(request.form.get("partial", "")).lower() in {"1", "true", "yes"}
+    if preview["error_count"] and not partial:
+        return jsonify({
+            **preview,
+            "error": "文件中仍有错误；可修正后重试，或选择仅导入通过项",
+        }), 400
+    if preview["valid_count"] == 0:
+        return jsonify({**preview, "error": "没有可导入或更新的规则"}), 400
+
+    existing_rules = RuleLoader.load_all_rules("default", include_extensions=False)
+    overrides = load_overrides()
+    existing_ids = {rule.rule_id for rule in existing_rules} | set(overrides)
+    created = {}
+    updated = {}
+    for row in rows:
+        if row.errors or row.action == "skip":
+            continue
+        payload = row.payload or {}
+        rule_data = _build_custom_rule_data(payload)
+        if row.action == "update":
+            rule_id = row.existing_rule_id
+            previous = deepcopy(overrides.get(rule_id))
+            if previous is None:
+                continue
+            updated[rule_id] = {"before": previous, "after": deepcopy(rule_data)}
+            overrides[rule_id] = rule_data
+        else:
+            rule_id = _make_rule_id(payload, existing_ids)
+            existing_ids.add(rule_id)
+            created[rule_id] = deepcopy(rule_data)
+            overrides[rule_id] = rule_data
+    save_overrides(overrides)
+
+    batch_id = uuid.uuid4().hex
+    batch = {
+        "batch_id": batch_id,
+        "source": source,
+        "filename": filename,
+        "created_at": beijing_now_str(),
+        "status": "active",
+        "duplicate_mode": duplicate_mode,
+        "partial": partial,
+        "total": preview["total"],
+        "created_count": len(created),
+        "updated_count": len(updated),
+        "skipped_count": preview["skip_count"],
+        "error_count": preview["error_count"],
+        "warning_count": preview["warning_count"],
+        "created": created,
+        "updated": updated,
+    }
+    batches = _load_import_batches()
+    batches.insert(0, batch)
+    _save_import_batches(batches[:200])
+
+    return jsonify({
+        **preview,
+        "batch_id": batch_id,
+        "imported_count": len(created) + len(updated),
+        "created_count": len(created),
+        "updated_count": len(updated),
+    })
+
+
+@bp.route("/api/sets/<source>/import-issues", methods=["POST"])
+def api_download_import_issues(source: str):
+    """Download invalid and warning rows as a correction workbook."""
+    if not _rule_set_exists(source):
+        return jsonify({"error": f"规则集 '{source}' 不存在"}), 404
+    try:
+        _, _, rows = _prepare_rule_import(source)
+    except RuleImportError as exc:
+        return jsonify({"error": str(exc)}), 400
+    workbook = build_issue_workbook(rows)
+    return send_file(
+        BytesIO(workbook),
+        as_attachment=True,
+        download_name="规则导入问题清单.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@bp.route("/api/sets/<source>/import-batches")
+def api_import_batches(source: str):
+    batches = [
+        {
+            key: value for key, value in batch.items()
+            if key not in {"created", "updated"}
+        }
+        for batch in _load_import_batches()
+        if batch.get("source") == source
+    ]
+    return jsonify({"batches": batches[:20]})
+
+
+@bp.route("/api/import-batches/<batch_id>/rollback", methods=["POST"])
+def api_rollback_import_batch(batch_id: str):
+    batches = _load_import_batches()
+    batch = next((item for item in batches if item.get("batch_id") == batch_id), None)
+    if not batch:
+        return jsonify({"error": "导入批次不存在"}), 404
+    if batch.get("status") != "active":
+        return jsonify({"error": "该导入批次已经撤销"}), 400
+
+    overrides = load_overrides()
+    conflicts = []
+    for rule_id, imported_value in batch.get("created", {}).items():
+        if overrides.get(rule_id) != imported_value:
+            conflicts.append(rule_id)
+    for rule_id, snapshot in batch.get("updated", {}).items():
+        if overrides.get(rule_id) != snapshot.get("after"):
+            conflicts.append(rule_id)
+    if conflicts:
+        return jsonify({
+            "error": "批次中的规则已被再次修改，不能整批撤销",
+            "conflicts": conflicts,
+        }), 409
+
+    for rule_id in batch.get("created", {}):
+        overrides.pop(rule_id, None)
+    for rule_id, snapshot in batch.get("updated", {}).items():
+        overrides[rule_id] = snapshot.get("before", {})
+    save_overrides(overrides)
+
+    batch["status"] = "rolled_back"
+    batch["rolled_back_at"] = beijing_now_str()
+    _save_import_batches(batches)
+    return jsonify({
+        "ok": True,
+        "removed_count": len(batch.get("created", {})),
+        "restored_count": len(batch.get("updated", {})),
+    })
+
+
 @bp.route("/api/rules", methods=["POST"])
 def api_create_rule():
     """创建自定义规则。"""
@@ -418,31 +694,10 @@ def api_create_rule():
     existing_ids = {r.rule_id for r in existing_rules}
     rule_id = _make_rule_id(data, existing_ids)
 
-    # 构建默认值
     try:
-        severity = RuleSeverity(data.get("severity", "warning"))
-        review_type = ReviewType(data.get("review_type", "llm"))
+        rule_data = _build_custom_rule_data(data)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-
-    # 保存为 override（source 字段确保规则归属到对应规则集）
-    rule_data = {
-        "source": source,
-        "name": name,
-        "description": data.get("description", ""),
-        "category": data.get("category", "custom"),
-        "severity": severity.value,
-        "review_type": review_type.value,
-        "enabled": data.get("enabled", True),
-        "code": code,
-        "logic": data.get("logic", ""),
-        "standard_ref": data.get("standard_ref", ""),
-        "aliases": [value for value in (code, name) if value],
-        "params": data.get("params", {}),
-        "scope": data.get("scope", "all"),
-        "target_headings": _normalize_list(data.get("target_headings")),
-        "required_elements": _normalize_list(data.get("required_elements")),
-    }
 
     overrides = load_overrides()
     overrides[rule_id] = rule_data

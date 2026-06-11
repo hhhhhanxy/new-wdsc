@@ -31,19 +31,23 @@ Set-Location $ProjectRoot
 Write-Host "Starting web service at http://$HostName`:$Port/"
 Start-Process -FilePath uv -ArgumentList @("run", "python", "run.py") -WorkingDirectory $ProjectRoot -WindowStyle Hidden
 
-Start-Sleep -Seconds 3
-
 $url = "http://$HostName`:$Port/healthz"
-try {
-    $response = Invoke-WebRequest -UseBasicParsing $url -TimeoutSec 5
-    if ($response.StatusCode -eq 200) {
-        Write-Host "Web service is OK: http://$HostName`:$Port/"
-        exit 0
+for ($attempt = 1; $attempt -le 15; $attempt++) {
+    Start-Sleep -Seconds 1
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing $url -TimeoutSec 2
+        if ($response.StatusCode -eq 200) {
+            Write-Host "Web service is OK: http://$HostName`:$Port/"
+            exit 0
+        }
+    } catch {
+        if ($attempt -eq 15) {
+            Write-Host "Web service failed to start at http://$HostName`:$Port/"
+            Write-Host $_.Exception.Message
+            exit 1
+        }
     }
-    Write-Host "Unexpected status: $($response.StatusCode)"
-    exit 1
-} catch {
-    Write-Host "Web service failed to start at http://$HostName`:$Port/"
-    Write-Host $_.Exception.Message
-    exit 1
 }
+
+Write-Host "Web service failed to start at http://$HostName`:$Port/"
+exit 1

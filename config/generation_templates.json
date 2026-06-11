@@ -12,6 +12,7 @@
         "template_asset_id": "template_41a7cb5f"
       },
       "source_type": "uploaded_docx",
+      "input_fields": [],
       "chapters": [
         {
           "number": "",
@@ -291,5 +292,7 @@
       ]
     }
   ],
-  "hidden_builtin_template_ids": []
+  "hidden_builtin_template_ids": [
+    "verification"
+  ]
 }

@@ -37,6 +37,21 @@ class ChapterTemplate:
 
 
 @dataclass
+class TemplateInputField:
+    """Template-specific input field shown before document generation."""
+    key: str
+    label: str
+    field_type: str = "text"
+    required: bool = False
+    placeholder: str = ""
+    default_value: str = ""
+    example: str = ""
+    options: List[str] = field(default_factory=list)
+    chapter_keys: List[str] = field(default_factory=list)
+    placeholder_tokens: List[str] = field(default_factory=list)
+
+
+@dataclass
 class DocumentTemplate:
     """文档模板定义。"""
     name: str
@@ -46,6 +61,7 @@ class DocumentTemplate:
     doc_type: Optional[DocumentType] = None
     template_id: str = ""
     source_type: str = "built_in"
+    input_fields: List[TemplateInputField] = field(default_factory=list)
 
 
 class TemplateManager:
@@ -219,6 +235,34 @@ class TemplateManager:
             chapters=chapters,
             metadata=data.get("metadata", {}),
             source_type=data.get("source_type", "built_in" if doc_type else "uploaded_docx"),
+            input_fields=[
+                self._parse_input_field(item)
+                for item in data.get("input_fields", [])
+                if isinstance(item, dict)
+            ],
+        )
+
+    def _parse_input_field(self, data: dict) -> TemplateInputField:
+        field_type = str(data.get("type") or data.get("field_type") or "text")
+        if field_type not in {"text", "textarea", "number", "date", "select"}:
+            field_type = "text"
+        return TemplateInputField(
+            key=str(data.get("key") or "").strip(),
+            label=str(data.get("label") or "").strip(),
+            field_type=field_type,
+            required=bool(data.get("required", False)),
+            placeholder=str(data.get("placeholder") or ""),
+            default_value=str(data.get("default_value") or ""),
+            example=str(data.get("example") or ""),
+            options=[str(item).strip() for item in data.get("options", []) if str(item).strip()],
+            chapter_keys=[
+                str(item).strip() for item in data.get("chapter_keys", []) if str(item).strip()
+            ],
+            placeholder_tokens=[
+                str(item).strip()
+                for item in data.get("placeholder_tokens", [])
+                if str(item).strip()
+            ],
         )
 
     def _parse_chapter(self, data: dict) -> ChapterTemplate:
@@ -264,6 +308,7 @@ class TemplateManager:
         metadata: Optional[dict] = None,
         source_type: str = "uploaded_docx",
         template_id: Optional[str] = None,
+        input_fields: Optional[List[dict]] = None,
     ) -> DocumentTemplate:
         """创建并保存用户模板。"""
         now = datetime.now().isoformat(timespec="seconds")
@@ -280,6 +325,7 @@ class TemplateManager:
             "chapters": chapters,
             "metadata": merged_metadata,
             "source_type": source_type,
+            "input_fields": input_fields or [],
         }
         while data["id"] in self._templates:
             data["id"] = self._make_template_id(name)
@@ -296,6 +342,12 @@ class TemplateManager:
         template.description = data.get("description", template.description)
         if "chapters" in data:
             template.chapters = [self._parse_chapter(ch) for ch in data.get("chapters", [])]
+        if "input_fields" in data:
+            template.input_fields = [
+                self._parse_input_field(item)
+                for item in data.get("input_fields", [])
+                if isinstance(item, dict)
+            ]
         template.metadata.update(data.get("metadata", {}))
         template.metadata["updated_at"] = datetime.now().isoformat(timespec="seconds")
         self._templates[template.template_id] = template
@@ -366,6 +418,21 @@ class TemplateManager:
             "description": template.description,
             "metadata": template.metadata,
             "source_type": template.source_type,
+            "input_fields": [
+                {
+                    "key": item.key,
+                    "label": item.label,
+                    "type": item.field_type,
+                    "required": item.required,
+                    "placeholder": item.placeholder,
+                    "default_value": item.default_value,
+                    "example": item.example,
+                    "options": item.options,
+                    "chapter_keys": item.chapter_keys,
+                    "placeholder_tokens": item.placeholder_tokens,
+                }
+                for item in template.input_fields
+            ],
             "chapters": [self.serialize_chapter(ch) for ch in template.chapters],
         }
 

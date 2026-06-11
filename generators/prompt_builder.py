@@ -12,11 +12,21 @@ class ChapterPromptBuilder:
         "不得编造未提供的数据、编号、结论或标准条款；缺失信息写“待补充”。"
     )
 
-    def build(self, *, title: str, template_name: str, chapter: Any, inputs: dict[str, Any]) -> str:
+    def build(
+        self,
+        *,
+        title: str,
+        template_name: str,
+        chapter: Any,
+        inputs: dict[str, Any],
+        target_text: str = "",
+        target_index: int = 0,
+        target_total: int = 0,
+    ) -> str:
         chapter_name = self._chapter_name(chapter)
         template_text = self._blocks_text(chapter, {"template_text", "template_table"})
         guidance_text = self._blocks_text(chapter, {"instruction", "instruction_table", "example", "example_table"})
-        user_material = self._user_material(inputs)
+        user_material = self._user_material(inputs, chapter)
         requirements = str(inputs.get("generation_requirements", "")).strip()
         return "\n".join(part for part in [
             f"文档标题：{title}",
@@ -34,6 +44,13 @@ class ChapterPromptBuilder:
             "",
             "【模板说明和示例】",
             (getattr(chapter, "guidance_prompt", "") or guidance_text or "无"),
+            "",
+            "【本次回填位置】",
+            (
+                f"第 {target_index}/{target_total} 处：{target_text}"
+                if target_text and target_total
+                else target_text or "当前章节正文"
+            ),
             "",
             "【输出要求】",
             "1. 只输出当前章节可直接写入正式文档的正文内容。",
@@ -59,7 +76,7 @@ class ChapterPromptBuilder:
                 lines.append(f"{block.get('label') or block.get('type')}：{text}")
         return "\n".join(lines[:12])
 
-    def _user_material(self, inputs: dict[str, Any]) -> str:
+    def _user_material(self, inputs: dict[str, Any], chapter: Any = None) -> str:
         labels = [
             ("产品名称", "product_name"),
             ("项目名称", "project_name"),
@@ -76,4 +93,31 @@ class ChapterPromptBuilder:
             value = str(inputs.get(key, "") or "").strip()
             if value:
                 parts.append(f"{label}：{value}")
+        dynamic_values = inputs.get("dynamic_fields") or {}
+        definitions = inputs.get("dynamic_field_definitions") or []
+        labels_by_key = {
+            str(item.get("key") or ""): str(item.get("label") or item.get("key") or "")
+            for item in definitions
+            if isinstance(item, dict)
+        }
+        current_chapter = self._chapter_name(chapter) if chapter is not None else ""
+        current_number = str(getattr(chapter, "number", "") or "").strip()
+        current_title = str(getattr(chapter, "title", "") or "").strip()
+        current_key = f"{current_number}::{current_title}".strip(":")
+        definitions_by_key = {
+            str(item.get("key") or ""): item
+            for item in definitions
+            if isinstance(item, dict)
+        }
+        for key, value in dynamic_values.items():
+            text = str(value or "").strip()
+            definition = definitions_by_key.get(str(key), {})
+            chapter_keys = [str(item).strip() for item in definition.get("chapter_keys", [])]
+            if chapter_keys and not any(
+                item in {current_chapter, current_number, current_title, current_key}
+                for item in chapter_keys
+            ):
+                continue
+            if text:
+                parts.append(f"{labels_by_key.get(str(key), str(key))}：{text}")
         return "\n".join(parts)

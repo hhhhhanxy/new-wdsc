@@ -4,6 +4,7 @@ Generate routes for the web application.
 import os
 import json
 import threading
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,13 @@ from flask import Blueprint, render_template, request, jsonify, send_file, curre
 from werkzeug.utils import secure_filename
 
 bp = Blueprint('generate', __name__)
+RUNNING_STATUSES = {'pending', 'processing', 'paused'}
+
+
+class GenerationTaskCanceled(Exception):
+    """Raised when a generation task is stopped by the user."""
+
+    is_task_control = True
 
 
 @bp.route('/')
@@ -20,16 +28,15 @@ def index():
 
 @bp.route('/api/templates')
 def templates():
-    """Return templates that can generate by filling a saved source DOCX."""
+    """Return all templates and identify which ones have a source DOCX."""
     from templates.template_manager import TemplateManager
 
     manager = TemplateManager()
-    return jsonify({
-        "templates": [
-            template for template in manager.list_template_dicts()
-            if _has_source_docx(template)
-        ]
-    })
+    templates = manager.list_template_dicts()
+    for template in templates:
+        template["can_generate"] = _has_source_docx(template)
+        template["unavailable_reason"] = "" if template["can_generate"] else "缺少原始 DOCX 模板文件"
+    return jsonify({"templates": templates})
 
 
 @bp.route('/api/templates/<template_id>')
@@ -93,6 +100,59 @@ def status(task_id):
     return jsonify(dict(task))
 
 
+@bp.route('/pause/<int:task_id>', methods=['POST'])
+def pause(task_id):
+    db = current_app.db
+    task = db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成任务不存在'}), 404
+    if task.get('status') != 'processing':
+        return jsonify({'error': '只有生成中的任务可以暂停'}), 400
+    db.update_generate_task(
+        task_id,
+        status='paused',
+        progress_stage='paused',
+        progress_message='生成已暂停，点击继续后恢复',
+    )
+    return jsonify({'ok': True, 'status': 'paused', 'progress': task.get('progress', 0)})
+
+
+@bp.route('/resume/<int:task_id>', methods=['POST'])
+def resume(task_id):
+    db = current_app.db
+    task = db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成任务不存在'}), 404
+    if task.get('status') != 'paused':
+        return jsonify({'error': '只有已暂停的生成任务可以继续'}), 400
+    db.update_generate_task(
+        task_id,
+        status='processing',
+        progress_stage='filling',
+        progress_message='正在恢复文档生成',
+    )
+    return jsonify({'ok': True, 'status': 'processing', 'progress': task.get('progress', 0)})
+
+
+@bp.route('/cancel/<int:task_id>', methods=['POST'])
+def cancel(task_id):
+    db = current_app.db
+    task = db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成任务不存在'}), 404
+    if task.get('status') not in RUNNING_STATUSES:
+        return jsonify({'error': '只有等待中、生成中或已暂停的任务可以停止'}), 400
+    db.update_generate_task(
+        task_id,
+        status='canceled',
+        progress_stage='canceled',
+        progress_message='用户手动停止生成',
+        error='用户手动停止生成任务',
+        completed_at=datetime.now().isoformat(timespec='seconds'),
+    )
+    return jsonify({'ok': True, 'status': 'canceled', 'progress': task.get('progress', 0)})
+
+
 @bp.route('/api/recent')
 def recent():
     """Return recent generation task records."""
@@ -126,7 +186,7 @@ def rerun(task_id):
     task = current_app.db.get_generate_task(task_id)
     if not task:
         return jsonify({'error': '生成记录不存在'}), 404
-    if task.get('status') in ('pending', 'processing'):
+    if task.get('status') in RUNNING_STATUSES:
         return jsonify({'error': '该生成任务仍在执行，不能重新生成'}), 400
     try:
         params_data = json.loads(task.get('params') or '{}')
@@ -162,7 +222,7 @@ def delete_task(task_id):
     task = current_app.db.get_generate_task(task_id)
     if not task:
         return jsonify({'error': '生成记录不存在'}), 404
-    if task.get('status') in ('pending', 'processing'):
+    if task.get('status') in RUNNING_STATUSES:
         return jsonify({'error': '生成任务仍在执行，完成或失败后再删除'}), 400
     deleted = current_app.db.delete_generate_task(task_id)
     return jsonify({'ok': True, 'deleted': deleted})
@@ -185,6 +245,24 @@ def _create_generation_task(data: dict):
     inputs = data.get('inputs') or {}
     if not str(inputs.get('product_name', '')).strip():
         return jsonify({'error': '请输入产品名称'}), 400
+    dynamic_values = inputs.get('dynamic_fields') or {}
+    missing_dynamic = [
+        field.label
+        for field in template.input_fields
+        if field.required and not str(dynamic_values.get(field.key, '')).strip()
+    ]
+    if missing_dynamic:
+        return jsonify({'error': f"请填写模板必填项：{'、'.join(missing_dynamic)}"}), 400
+    inputs['dynamic_field_definitions'] = [
+        {
+            'key': field.key,
+            'label': field.label,
+            'chapter_keys': field.chapter_keys,
+            'placeholder_tokens': field.placeholder_tokens,
+        }
+        for field in template.input_fields
+    ]
+    data['inputs'] = inputs
     template_dict = manager.serialize_template(template)
     if not _has_source_docx(template_dict):
         return jsonify({'error': '该模板没有原始 DOCX 文件，请先在生成模板库中上传模板'}), 400
@@ -222,6 +300,7 @@ def _create_generation_task(data: dict):
 def run_generate_task(task_id, data, upload_folder, db):
     """Execute document generation task."""
     try:
+        _wait_if_generation_paused(db, task_id)
         db.update_generate_task(
             task_id,
             progress=5,
@@ -263,6 +342,7 @@ def run_generate_task(task_id, data, upload_folder, db):
             )
 
         def update_chapter_progress(current, total, chapter):
+            _wait_if_generation_paused(db, task_id)
             percent = 20 + int((current - 1) / max(total, 1) * 75)
             title = f"{getattr(chapter, 'number', '')} {getattr(chapter, 'title', '')}".strip()
             db.update_generate_task(
@@ -287,11 +367,13 @@ def run_generate_task(task_id, data, upload_folder, db):
             llm_client=llm_client,
             output_dir=output_dir,
             progress_callback=update_chapter_progress,
+            control_callback=lambda: _wait_if_generation_paused(db, task_id),
         )
 
         if result.error:
             raise RuntimeError(result.error)
 
+        _wait_if_generation_paused(db, task_id)
         task = db.get_generate_task(task_id)
         if task:
             params_data = json.loads(task['params']) if isinstance(task['params'], str) else task['params']
@@ -309,6 +391,7 @@ def run_generate_task(task_id, data, upload_folder, db):
             )
             db.conn.commit()
 
+        _wait_if_generation_paused(db, task_id)
         db.update_generate_task(
             task_id,
             progress=100,
@@ -320,9 +403,24 @@ def run_generate_task(task_id, data, upload_folder, db):
             completed_at=datetime.now().isoformat(timespec='seconds'),
         )
 
+    except GenerationTaskCanceled as e:
+        task = db.get_generate_task(task_id)
+        if task and task.get('status') != 'canceled':
+            db.update_generate_task(
+                task_id,
+                status='canceled',
+                error=str(e),
+                progress_stage='canceled',
+                progress_message=str(e),
+                completed_at=datetime.now().isoformat(timespec='seconds'),
+            )
+
     except Exception as e:
         import traceback
         traceback.print_exc()
+        task = db.get_generate_task(task_id)
+        if not task or task.get('status') == 'canceled':
+            return
         db.update_generate_task(
             task_id,
             status='failed',
@@ -336,6 +434,20 @@ def run_generate_task(task_id, data, upload_folder, db):
 def _has_source_docx(template: dict) -> bool:
     metadata = template.get("metadata") or {}
     return bool(metadata.get("source_docx_path") or metadata.get("source_path"))
+
+
+def _wait_if_generation_paused(db, task_id: int):
+    """Block the worker while paused and stop it cooperatively when canceled."""
+    while True:
+        task = db.get_generate_task(task_id)
+        if not task:
+            raise GenerationTaskCanceled("生成任务已删除")
+        status = task.get('status')
+        if status == 'canceled':
+            raise GenerationTaskCanceled("生成任务已停止")
+        if status != 'paused':
+            return
+        time.sleep(1)
 
 
 def _extract_docx_reference_text(path: Path, max_chars: int = 12000) -> str:
@@ -365,6 +477,7 @@ def _decorate_generate_task(task: dict) -> dict:
     labels = {
         'pending': ('等待中', 'warning'),
         'processing': ('生成中', 'info'),
+        'paused': ('已暂停', 'warning'),
         'generated': ('已生成', 'success'),
         'completed': ('已完成', 'success'),
         'failed': ('失败', 'danger'),

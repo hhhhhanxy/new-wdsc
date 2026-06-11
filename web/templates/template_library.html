@@ -157,6 +157,43 @@
     background: #fbefef;
     border-color: #e2bcbc;
 }
+.input-field-list {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.input-field-item {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fbfdff;
+}
+.input-field-main {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) 120px auto auto;
+    gap: 8px;
+    align-items: center;
+}
+.input-field-detail {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+.input-field-item input,
+.input-field-item select {
+    width: 100%;
+}
+.input-field-required {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    white-space: nowrap;
+    font-size: 13px;
+}
+.input-field-required input {
+    width: auto;
+}
 </style>
 
 <div class="page-header">
@@ -201,6 +238,11 @@
                     <textarea id="templateDescription" placeholder="说明模板用途、适用文档或生成口径"></textarea>
                 </div>
                 <div class="template-asset-meta" id="templateAssetMeta"></div>
+                <div class="modal-divider" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>生成输入字段</span>
+                    <button class="btn btn-outline btn-sm" id="addInputFieldBtn" onclick="addInputField()" style="display:none;">+ 字段</button>
+                </div>
+                <div id="inputFieldEditor"></div>
                 <div class="modal-divider">章节结构</div>
                 <div id="chapterEditor"></div>
             </div>
@@ -275,6 +317,7 @@ document.getElementById('templateFile').addEventListener('change', e => {
                 description: data.description || '',
                 metadata: data.metadata || {},
                 source_type: 'uploaded_docx',
+                input_fields: data.input_fields || [],
                 chapters: data.chapters || []
             };
             currentMode = 'create';
@@ -314,6 +357,7 @@ function renderEditor() {
     const deleteBtn = document.getElementById('deleteTemplateBtn');
     const copyBtn = document.getElementById('copyTemplateBtn');
     const replaceBtn = document.getElementById('replaceSourceBtn');
+    const addInputBtn = document.getElementById('addInputFieldBtn');
     if (!currentTemplate) {
         editor.style.display = 'none';
         hint.style.display = '';
@@ -322,6 +366,7 @@ function renderEditor() {
         deleteBtn.style.display = 'none';
         copyBtn.style.display = 'none';
         replaceBtn.style.display = 'none';
+        addInputBtn.style.display = 'none';
         return;
     }
     editor.style.display = '';
@@ -336,7 +381,9 @@ function renderEditor() {
     document.getElementById('templateDescription').value = currentTemplate.description || '';
     document.getElementById('templateName').disabled = currentMode === 'view';
     document.getElementById('templateDescription').disabled = currentMode === 'view';
+    addInputBtn.style.display = currentMode === 'view' ? 'none' : '';
     renderTemplateAssetMeta();
+    renderInputFieldEditor();
     renderChapterEditor();
 }
 
@@ -350,6 +397,95 @@ function renderTemplateAssetMeta() {
         <div>格式来源：${sourcePath ? escapeHtml(sourcePath) : '内置模板或复制模板，暂无原始格式文件'}</div>
         <div>模板版本：v${escapeHtml(metadata.version || 1)}${metadata.updated_at ? ' · 更新时间：' + escapeHtml(metadata.updated_at) : ''}</div>
     `;
+}
+
+function renderInputFieldEditor() {
+    const target = document.getElementById('inputFieldEditor');
+    const fields = currentTemplate.input_fields || [];
+    if (!fields.length) {
+        target.innerHTML = '<div class="empty-state">未配置模板专属字段，生成页面将继续显示通用输入项</div>';
+        return;
+    }
+    target.innerHTML = `<div class="input-field-list">${fields.map((field, index) => renderInputField(field, index)).join('')}</div>`;
+}
+
+function renderInputField(field, index) {
+    const disabled = currentMode === 'view' ? 'disabled' : '';
+    const optionsText = (field.options || []).join('、');
+    return `
+        <div class="input-field-item">
+            <div class="input-field-main">
+                <input type="text" value="${escapeHtml(field.label || '')}" placeholder="字段名称" ${disabled} oninput="updateInputField(${index}, 'label', this.value)">
+                <input type="text" value="${escapeHtml(field.key || '')}" placeholder="字段键，如 test_voltage" ${disabled} oninput="updateInputField(${index}, 'key', normalizeFieldKey(this.value))">
+                <select ${disabled} onchange="updateInputField(${index}, 'type', this.value);renderInputFieldEditor()">
+                    ${renderInputTypeOptions(field.type || 'text')}
+                </select>
+                <label class="input-field-required">
+                    <input type="checkbox" ${field.required ? 'checked' : ''} ${disabled} onchange="updateInputField(${index}, 'required', this.checked)">
+                    必填
+                </label>
+                ${currentMode === 'view' ? '' : `<button class="btn btn-outline btn-sm btn-danger-text" onclick="removeInputField(${index})">删除</button>`}
+            </div>
+            <div class="input-field-detail">
+                <input type="text" value="${escapeHtml(field.placeholder || '')}" placeholder="填写提示" ${disabled} oninput="updateInputField(${index}, 'placeholder', this.value)">
+                <input type="text" value="${escapeHtml(field.default_value || '')}" placeholder="默认值" ${disabled} oninput="updateInputField(${index}, 'default_value', this.value)">
+                <input type="text" value="${escapeHtml(field.example || '')}" placeholder="示例" ${disabled} oninput="updateInputField(${index}, 'example', this.value)">
+                <input type="text" value="${escapeHtml((field.chapter_keys || []).join('、'))}" placeholder="关联章节，如 1::范围、3::需求" ${disabled} oninput="updateInputFieldList(${index}, 'chapter_keys', this.value)">
+                <input type="text" value="${escapeHtml((field.placeholder_tokens || []).join('、'))}" placeholder="关联占位符，如 NNNNN、XXX" ${disabled} oninput="updateInputFieldList(${index}, 'placeholder_tokens', this.value)">
+                ${field.type === 'select' ? `<input type="text" value="${escapeHtml(optionsText)}" placeholder="下拉选项，用顿号或换行分隔" ${disabled} oninput="updateInputFieldList(${index}, 'options', this.value)">` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function renderInputTypeOptions(value) {
+    return [
+        ['text', '单行文本'],
+        ['textarea', '长文本'],
+        ['number', '数字'],
+        ['date', '日期'],
+        ['select', '下拉选择'],
+    ].map(([key, label]) =>
+        `<option value="${key}" ${value === key ? 'selected' : ''}>${label}</option>`
+    ).join('');
+}
+
+function addInputField() {
+    currentTemplate.input_fields = currentTemplate.input_fields || [];
+    const index = currentTemplate.input_fields.length + 1;
+    currentTemplate.input_fields.push({
+        key: `custom_field_${index}`,
+        label: `自定义字段${index}`,
+        type: 'text',
+        required: false,
+        placeholder: '',
+        default_value: '',
+        example: '',
+        options: [],
+        chapter_keys: [],
+        placeholder_tokens: [],
+    });
+    renderInputFieldEditor();
+}
+
+function removeInputField(index) {
+    currentTemplate.input_fields.splice(index, 1);
+    renderInputFieldEditor();
+}
+
+function updateInputField(index, field, value) {
+    currentTemplate.input_fields[index][field] = value;
+}
+
+function updateInputFieldList(index, field, value) {
+    currentTemplate.input_fields[index][field] = String(value || '')
+        .split(/[、,，\n]/)
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+function normalizeFieldKey(value) {
+    return String(value || '').trim().replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
 }
 
 function renderChapterEditor() {

@@ -237,6 +237,38 @@
     padding: 5px 10px;
     font-size: 12px;
 }
+.dynamic-input-section {
+    display: none;
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid #cfe5f3;
+    border-radius: 6px;
+    background: #f8fcff;
+}
+.dynamic-input-section.active {
+    display: block;
+}
+.dynamic-input-title {
+    margin-bottom: 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+}
+.dynamic-input-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.dynamic-input-grid .form-group {
+    margin-bottom: 0;
+}
+.dynamic-input-grid .wide {
+    grid-column: 1 / -1;
+}
+.required-mark {
+    margin-left: 3px;
+    color: var(--danger);
+}
 </style>
 <div class="page-header">
     <h1>文档生成</h1>
@@ -274,6 +306,10 @@
                     <option value="smart">智能生成：逐章节调用大模型并回填模板</option>
                     <option value="template_fill">模板填充：仅删除说明并替换占位符</option>
                 </select>
+            </div>
+            <div class="dynamic-input-section" id="dynamicInputSection">
+                <div class="dynamic-input-title">模板专属输入</div>
+                <div class="dynamic-input-grid" id="dynamicInputFields"></div>
             </div>
             <div class="form-group">
                 <label>产品名称</label>
@@ -388,15 +424,15 @@
             </ul>
         </div>
 
+        <div class="alert alert-warning" style="margin-top:12px;">
+            提示：生成定义越明确，输出越稳定；请勿输入不应在平台处理的敏感内容。
+        </div>
+
         <div class="panel" style="margin-top:16px;">
             <div class="panel-title">最近生成记录</div>
             <div class="generation-record-list" id="recentGenerationList">
                 <div class="empty-state">暂无生成记录</div>
             </div>
-        </div>
-
-        <div class="alert alert-warning" style="margin-top:12px;">
-            提示：生成定义越明确，输出越稳定；请勿输入不应在平台处理的敏感内容。
         </div>
     </div>
 </div>
@@ -420,6 +456,8 @@
             </div>
         </div>
         <div class="modal-footer">
+            <button class="btn btn-outline" id="genPauseBtn" onclick="toggleGeneratePause()" style="display:none;">暂停生成</button>
+            <button class="btn btn-outline btn-danger-text" id="genCancelBtn" onclick="cancelGeneration()" style="display:none;">停止生成</button>
             <button class="btn btn-outline" onclick="closeGenProgressModal()">收起</button>
         </div>
     </div>
@@ -435,6 +473,7 @@
 <script>
 let currentGenTaskId = null;
 let genPollTimer = null;
+let isGenPaused = false;
 let generationTemplates = [];
 let selectedTemplate = null;
 let expandedChapterKeys = new Set();
@@ -535,17 +574,21 @@ function loadTemplates() {
         .then(data => {
             generationTemplates = data.templates || [];
             const select = document.getElementById('templateSelect');
-            select.innerHTML = generationTemplates.map(t =>
-                `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`
-            ).join('');
-            if (generationTemplates.length) {
-                selectedTemplate = generationTemplates[0];
+            select.innerHTML = '<option value="">请选择文档模板</option>' + generationTemplates.map(t => {
+                const suffix = t.can_generate ? '' : '（不可生成：缺少 DOCX）';
+                return `<option value="${escapeHtml(t.id)}" ${t.can_generate ? '' : 'disabled'}>${escapeHtml(t.name + suffix)}</option>`;
+            }).join('');
+            const firstAvailable = generationTemplates.find(t => t.can_generate);
+            if (firstAvailable) {
+                selectedTemplate = firstAvailable;
                 select.value = selectedTemplate.id;
                 resetTemplateTreeState(selectedTemplate);
                 renderTemplatePreview(selectedTemplate);
                 applyDefaultGenerationRequirements(selectedTemplate);
+                renderDynamicInputs(selectedTemplate);
             } else {
-                document.getElementById('templatePreview').innerHTML = '<div class="empty-state">暂无可生成模板，请先到生成模板库上传 DOCX 模板</div>';
+                selectedTemplate = null;
+                document.getElementById('templatePreview').innerHTML = '<div class="empty-state">暂无可生成模板，请先到生成模板库上传 DOCX 模板；内置模板没有原始格式文件，暂不能用于正式生成。</div>';
             }
         })
         .catch(() => {
@@ -555,10 +598,65 @@ function loadTemplates() {
 
 document.getElementById('templateSelect').addEventListener('change', e => {
     selectedTemplate = generationTemplates.find(t => t.id === e.target.value) || null;
+    if (!selectedTemplate) {
+        document.getElementById('templatePreview').innerHTML = '<div class="empty-state">请选择一个可生成的文档模板</div>';
+        renderDynamicInputs(null);
+        return;
+    }
     resetTemplateTreeState(selectedTemplate);
     renderTemplatePreview(selectedTemplate);
     applyDefaultGenerationRequirements(selectedTemplate);
+    renderDynamicInputs(selectedTemplate);
 });
+
+function renderDynamicInputs(template) {
+    const section = document.getElementById('dynamicInputSection');
+    const target = document.getElementById('dynamicInputFields');
+    const fields = template && Array.isArray(template.input_fields) ? template.input_fields : [];
+    if (!fields.length) {
+        section.classList.remove('active');
+        target.innerHTML = '';
+        return;
+    }
+    section.classList.add('active');
+    target.innerHTML = fields.map(field => {
+        const key = escapeHtml(field.key || '');
+        const label = escapeHtml(field.label || field.key || '');
+        const required = field.required ? '<span class="required-mark">*</span>' : '';
+        const placeholder = escapeHtml(field.placeholder || field.example || '');
+        const value = escapeHtml(field.default_value || '');
+        const wideClass = field.type === 'textarea' ? 'wide' : '';
+        let control = '';
+        if (field.type === 'textarea') {
+            control = `<textarea class="form-control dynamic-template-input" data-field-key="${key}" data-field-label="${label}" data-required="${field.required ? 'true' : 'false'}" placeholder="${placeholder}" style="min-height:76px;">${value}</textarea>`;
+        } else if (field.type === 'select') {
+            const options = (field.options || []).map(option => {
+                const text = escapeHtml(option);
+                return `<option value="${text}" ${String(field.default_value || '') === String(option) ? 'selected' : ''}>${text}</option>`;
+            }).join('');
+            control = `<select class="form-control dynamic-template-input" data-field-key="${key}" data-field-label="${label}" data-required="${field.required ? 'true' : 'false'}"><option value="">请选择</option>${options}</select>`;
+        } else {
+            const inputType = ['number', 'date'].includes(field.type) ? field.type : 'text';
+            control = `<input type="${inputType}" class="form-control dynamic-template-input" data-field-key="${key}" data-field-label="${label}" data-required="${field.required ? 'true' : 'false'}" value="${value}" placeholder="${placeholder}">`;
+        }
+        const hint = field.example ? `<div class="form-hint">示例：${escapeHtml(field.example)}</div>` : '';
+        return `<div class="form-group ${wideClass}"><label>${label}${required}</label>${control}${hint}</div>`;
+    }).join('');
+}
+
+function collectDynamicInputs() {
+    const values = {};
+    const missing = [];
+    document.querySelectorAll('.dynamic-template-input').forEach(input => {
+        const value = String(input.value || '').trim();
+        const key = input.dataset.fieldKey || '';
+        if (key) values[key] = value;
+        if (input.dataset.required === 'true' && !value) {
+            missing.push(input.dataset.fieldLabel || key);
+        }
+    });
+    return { values, missing };
+}
 
 function applyDefaultGenerationRequirements(template) {
     if (generationRequirementsTouched && generationRequirementsInput.value.trim()) return;
@@ -777,6 +875,11 @@ function startGenerate() {
     const productName = document.getElementById('productName').value.trim();
     if (!productName) { alert('请输入产品名称'); return; }
     if (supplementDocUploading) { alert('补充材料仍在解析，请稍后再生成'); return; }
+    const dynamicInputs = collectDynamicInputs();
+    if (dynamicInputs.missing.length) {
+        alert('请填写模板必填项：' + dynamicInputs.missing.join('、'));
+        return;
+    }
 
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
@@ -796,7 +899,8 @@ function startGenerate() {
             supplement_doc_text: supplementDocText,
             references: document.getElementById('references').value.trim(),
             generation_requirements: document.getElementById('generationRequirements').value.trim(),
-            generation_mode: document.getElementById('generationMode').value
+            generation_mode: document.getElementById('generationMode').value,
+            dynamic_fields: dynamicInputs.values
         }
     };
 
@@ -809,6 +913,7 @@ function startGenerate() {
     .then(data => {
         if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '按模板生成文档'; return; }
         currentGenTaskId = data.task_id;
+        isGenPaused = false;
         document.getElementById('genProgressSection').style.display = 'block';
         openGenProgressModal();
         updateGenProgress({
@@ -838,7 +943,7 @@ function pollGenProgressOnce() {
         .then(r => r.json())
         .then(data => {
             updateGenProgress(data);
-            if (['completed', 'failed'].includes(data.status)) {
+            if (['completed', 'failed', 'canceled'].includes(data.status)) {
                 clearInterval(genPollTimer);
                 handleGenFinalState(data);
             }
@@ -847,6 +952,7 @@ function pollGenProgressOnce() {
 
 function updateGenProgress(data) {
     const pct = data.progress || 0;
+    isGenPaused = data.status === 'paused';
     const statusText = getGenStatusText(data);
     const detailText = getGenProgressDetailText(data);
     document.getElementById('genProgressBar').style.width = pct + '%';
@@ -856,8 +962,20 @@ function updateGenProgress(data) {
     document.getElementById('genModalProgressPercent').textContent = pct + '%';
     document.getElementById('genModalProgressStatus').textContent = statusText;
     if (genProgressDetail) genProgressDetail.textContent = detailText;
-    document.getElementById('genProgressDockStatus').textContent = detailText ? `生成中：${detailText}` : statusText;
+    const dockLabel = isGenPaused ? '已暂停' : '生成中';
+    document.getElementById('genProgressDockStatus').textContent = detailText ? `${dockLabel}：${detailText}` : statusText;
     document.getElementById('genProgressDockPercent').textContent = pct + '%';
+    const pauseBtn = document.getElementById('genPauseBtn');
+    const cancelBtn = document.getElementById('genCancelBtn');
+    if (pauseBtn) {
+        pauseBtn.style.display = ['processing', 'paused'].includes(data.status) ? '' : 'none';
+        pauseBtn.textContent = isGenPaused ? '继续生成' : '暂停生成';
+        pauseBtn.disabled = false;
+    }
+    if (cancelBtn) {
+        cancelBtn.style.display = ['pending', 'processing', 'paused'].includes(data.status) ? '' : 'none';
+        cancelBtn.disabled = false;
+    }
     updateGenProgressDockVisibility();
 }
 
@@ -865,9 +983,11 @@ function getGenStatusText(data) {
     const statusTexts = {
         'pending': '等待生成...',
         'processing': '正在填充模板...',
+        'paused': '生成已暂停',
         'generated': '文档已生成',
         'completed': '生成完成',
         'failed': '生成失败',
+        'canceled': '生成已停止',
         'review_failed': '审查未通过',
     };
     return statusTexts[data.status] || data.status || '正在生成...';
@@ -904,6 +1024,77 @@ function updateGenProgressDockVisibility() {
     genProgressDock.style.display = isGenTaskActive() && !modalOpen ? 'flex' : 'none';
 }
 
+function toggleGeneratePause(taskId = currentGenTaskId) {
+    if (!taskId) return;
+    const taskIsCurrent = taskId === currentGenTaskId;
+    const paused = taskIsCurrent && isGenPaused;
+    const endpoint = paused ? '/generate/resume/' : '/generate/pause/';
+    const pauseBtn = document.getElementById('genPauseBtn');
+    if (taskIsCurrent && pauseBtn) pauseBtn.disabled = true;
+    fetch(endpoint + taskId, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                if (taskIsCurrent && pauseBtn) pauseBtn.disabled = false;
+                return;
+            }
+            if (taskIsCurrent) {
+                isGenPaused = data.status === 'paused';
+                updateGenProgress({
+                    status: data.status,
+                    progress: data.progress || 0,
+                    progress_message: isGenPaused ? '生成已暂停，点击继续后恢复' : '正在恢复文档生成'
+                });
+            }
+            loadRecentGenerations();
+        })
+        .catch(err => {
+            alert((paused ? '继续失败：' : '暂停失败：') + err.message);
+            if (taskIsCurrent && pauseBtn) pauseBtn.disabled = false;
+        });
+}
+
+function resumeGeneration(taskId) {
+    currentGenTaskId = taskId;
+    isGenPaused = true;
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('generateBtn').textContent = '生成中...';
+    document.getElementById('genProgressSection').style.display = 'block';
+    openGenProgressModal();
+    toggleGeneratePause(taskId);
+    pollGenProgress();
+}
+
+function cancelGeneration(taskId = currentGenTaskId) {
+    if (!taskId) return;
+    if (!confirm('确定停止当前生成任务？停止后可以重新生成或删除该记录。')) return;
+    const cancelBtn = document.getElementById('genCancelBtn');
+    if (taskId === currentGenTaskId && cancelBtn) cancelBtn.disabled = true;
+    fetch('/generate/cancel/' + taskId, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+                if (taskId === currentGenTaskId && cancelBtn) cancelBtn.disabled = false;
+                return;
+            }
+            if (taskId === currentGenTaskId) {
+                clearInterval(genPollTimer);
+                handleGenFinalState({
+                    status: 'canceled',
+                    progress: data.progress || 0,
+                    error: '用户手动停止生成任务'
+                });
+            }
+            loadRecentGenerations();
+        })
+        .catch(err => {
+            alert('停止失败：' + err.message);
+            if (taskId === currentGenTaskId && cancelBtn) cancelBtn.disabled = false;
+        });
+}
+
 function handleGenFinalState(data) {
     document.getElementById('genProgressSection').style.display = 'none';
     document.getElementById('generateBtn').disabled = false;
@@ -921,6 +1112,8 @@ function handleGenFinalState(data) {
         document.getElementById('retryGenBtn').style.display = 'none';
         showGenReview(data);
 
+    } else if (data.status === 'canceled') {
+        alert('生成已停止');
     } else {
         alert('生成失败: ' + (data.error || '未知错误'));
     }
@@ -1029,8 +1222,8 @@ function renderRecentGenerations(tasks, pagination) {
     const recordsHtml = tasks.map(task => {
         const filename = task.result_path ? task.result_path.split(/[/\\]/).pop() : task.template_name;
         const canDownload = task.status === 'completed' && task.result_path;
-        const canDelete = !['pending', 'processing'].includes(task.status);
-        const isRunning = ['pending', 'processing'].includes(task.status);
+        const canDelete = !['pending', 'processing', 'paused'].includes(task.status);
+        const isRunning = ['pending', 'processing', 'paused'].includes(task.status);
         const statusLabel = task.status_label || getGenStatusText(task);
         const badgeClass = task.badge_class || getGenBadgeClass(task.status);
         return `
@@ -1050,6 +1243,9 @@ function renderRecentGenerations(tasks, pagination) {
                     ${task.status === 'failed' && task.error ? `<div class="generation-record-error" title="${escapeHtml(task.error)}">${escapeHtml(task.error)}</div>` : ''}
                 </div>
                 <div class="generation-record-actions">
+                    ${task.status === 'processing' ? `<button type="button" class="btn btn-outline" onclick="currentGenTaskId=${task.id};isGenPaused=false;toggleGeneratePause(${task.id})">暂停</button>` : ''}
+                    ${task.status === 'paused' ? `<button type="button" class="btn btn-outline" onclick="resumeGeneration(${task.id})">继续</button>` : ''}
+                    ${isRunning ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="cancelGeneration(${task.id})">停止</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn btn-outline" onclick="rerunGeneration(${task.id})">重新生成</button>` : ''}
                     ${canDownload ? `<button type="button" class="btn btn-outline" onclick="window.location.href='/generate/download/${task.id}'">下载</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="deleteGenerateRecord(${task.id})">删除</button>` : ''}
@@ -1084,6 +1280,7 @@ function getGenBadgeClass(status) {
     return {
         pending: 'warning',
         processing: 'info',
+        paused: 'warning',
         generated: 'success',
         completed: 'success',
         failed: 'danger',

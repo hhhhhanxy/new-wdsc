@@ -11,6 +11,28 @@ from templates.template_manager import TemplateManager
 bp = Blueprint("template_library", __name__)
 
 
+def _validate_input_fields(items):
+    seen = set()
+    for index, item in enumerate(items or [], start=1):
+        if not isinstance(item, dict):
+            return f"第 {index} 个输入字段格式不正确"
+        key = str(item.get("key") or "").strip()
+        label = str(item.get("label") or "").strip()
+        field_type = str(item.get("type") or item.get("field_type") or "text")
+        if not key or not label:
+            return f"第 {index} 个输入字段的字段键和名称不能为空"
+        if key in seen:
+            return f"输入字段键不能重复：{key}"
+        if field_type not in {"text", "textarea", "number", "date", "select"}:
+            return f"输入字段类型不支持：{field_type}"
+        if field_type == "select" and not [
+            value for value in item.get("options", []) if str(value).strip()
+        ]:
+            return f"下拉字段“{label}”至少需要一个选项"
+        seen.add(key)
+    return ""
+
+
 @bp.route("/")
 def index():
     return render_template("template_library.html", active_page="template_library")
@@ -65,6 +87,9 @@ def api_create_template():
     chapters = data.get("chapters") or []
     if not chapters:
         return jsonify({"error": "模板章节不能为空"}), 400
+    field_error = _validate_input_fields(data.get("input_fields") or [])
+    if field_error:
+        return jsonify({"error": field_error}), 400
 
     manager = TemplateManager()
     template = manager.create_template(
@@ -74,6 +99,7 @@ def api_create_template():
         metadata=data.get("metadata") or {},
         source_type=data.get("source_type", "uploaded_docx"),
         template_id=data.get("id") or None,
+        input_fields=data.get("input_fields") or [],
     )
     return jsonify({"ok": True, "template": manager.serialize_template(template)})
 
@@ -81,6 +107,9 @@ def api_create_template():
 @bp.route("/api/templates/<template_id>", methods=["PUT"])
 def api_update_template(template_id: str):
     data = request.get_json() or {}
+    field_error = _validate_input_fields(data.get("input_fields") or [])
+    if field_error:
+        return jsonify({"error": field_error}), 400
     manager = TemplateManager()
     template = manager.update_template(template_id, data)
     if not template:

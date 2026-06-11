@@ -205,6 +205,26 @@ class Database:
         self.conn.commit()
         return cursor.rowcount
 
+    def interrupt_running_generate_tasks(self, message: str) -> int:
+        """Mark generation workers left by a previous process as canceled."""
+        from datetime import datetime
+
+        cursor = self.conn.cursor()
+        cursor.execute(
+            '''
+            UPDATE generate_tasks
+            SET status = 'canceled',
+                progress_stage = 'canceled',
+                progress_message = ?,
+                error = ?,
+                completed_at = ?
+            WHERE status IN ('pending', 'processing', 'paused')
+            ''',
+            (message, message, datetime.now().isoformat(timespec='seconds')),
+        )
+        self.conn.commit()
+        return cursor.rowcount
+
     def get_recent_review_tasks(self, limit: int = 5, offset: int = 0):
         """Get recent review tasks"""
         cursor = self.conn.cursor()

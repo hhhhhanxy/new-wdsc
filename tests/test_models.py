@@ -122,3 +122,24 @@ def test_generate_task_progress_detail_and_recent_records():
         assert db.get_generate_task(task_id) is None
 
         db.close()
+
+
+def test_interrupt_running_generate_tasks_preserves_completed_records():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, 'test.db')
+        db = Database(db_path)
+
+        running_id = db.create_generate_task('template_a', '运行模板', {'title': '运行任务'})
+        paused_id = db.create_generate_task('template_b', '暂停模板', {'title': '暂停任务'})
+        completed_id = db.create_generate_task('template_c', '完成模板', {'title': '完成任务'})
+        db.update_generate_task(running_id, status='processing', progress=30)
+        db.update_generate_task(paused_id, status='paused', progress=40)
+        db.update_generate_task(completed_id, status='completed', progress=100)
+
+        interrupted = db.interrupt_running_generate_tasks('服务重启，原生成任务已中断')
+
+        assert interrupted == 2
+        assert db.get_generate_task(running_id)['status'] == 'canceled'
+        assert db.get_generate_task(paused_id)['status'] == 'canceled'
+        assert db.get_generate_task(completed_id)['status'] == 'completed'
+        db.close()

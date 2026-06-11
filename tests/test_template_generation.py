@@ -69,6 +69,37 @@ def test_template_manager_persists_chapter_generation_strategy(tmp_path):
     assert TemplateManager(custom_store_path=str(store_path)).serialize_template(reloaded)["chapters"][0]["generation_strategy"] == "fixed_keep"
 
 
+def test_template_manager_persists_dynamic_input_fields(tmp_path):
+    from templates.template_manager import TemplateManager
+
+    store_path = tmp_path / "generation_templates.json"
+    manager = TemplateManager(custom_store_path=str(store_path))
+    template = manager.create_template(
+        name="动态字段模板",
+        description="",
+        chapters=[{"number": "1", "title": "范围", "sub_chapters": []}],
+        input_fields=[{
+            "key": "rated_voltage",
+            "label": "额定电压",
+            "type": "number",
+            "required": True,
+            "default_value": "28",
+            "example": "28 V",
+            "chapter_keys": ["1::范围"],
+            "placeholder_tokens": ["VVVV"],
+        }],
+    )
+
+    reloaded = TemplateManager(custom_store_path=str(store_path)).get_template(template.template_id)
+    field = reloaded.input_fields[0]
+
+    assert field.key == "rated_voltage"
+    assert field.label == "额定电压"
+    assert field.required is True
+    assert field.chapter_keys == ["1::范围"]
+    assert field.placeholder_tokens == ["VVVV"]
+
+
 def test_template_manager_can_hide_builtin_templates(tmp_path):
     from templates.template_manager import TemplateManager
 
@@ -199,6 +230,61 @@ def test_template_docx_generator_uses_uploaded_template_styles(tmp_path, monkeyp
     assert generated_doc.paragraphs[0].style.name == "CustomHeadingOne"
     assert generated_doc.paragraphs[1].style.name == "CustomBodyText"
     assert "样式继承验证" not in "\n".join(p.text for p in generated_doc.paragraphs)
+
+
+def test_dynamic_input_field_replaces_configured_placeholder(tmp_path, monkeypatch):
+    from generators.base_generator import GeneratorFactory
+    from templates.template_manager import ChapterTemplate, DocumentTemplate
+
+    template_path = tmp_path / "dynamic_placeholder.docx"
+    doc = Document()
+    doc.add_heading("1 参数", level=1)
+    doc.add_paragraph("额定电压为 VVVV。")
+    doc.save(template_path)
+    template = DocumentTemplate(
+        template_id="dynamic_placeholder",
+        name="动态占位符模板",
+        description="",
+        source_type="uploaded_docx",
+        metadata={"source_path": str(template_path)},
+        chapters=[
+            ChapterTemplate(
+                number="1",
+                title="参数",
+                generation_strategy="placeholder_replace",
+                placeholders=["VVVV"],
+            ),
+        ],
+    )
+
+    class FakeTemplateManager:
+        def get_template(self, template_id):
+            return template if template_id == "dynamic_placeholder" else None
+
+    monkeypatch.setattr("templates.template_manager.TemplateManager", FakeTemplateManager)
+    output_path = tmp_path / "dynamic_placeholder_generated.docx"
+    GeneratorFactory.create("template_docx").generate(
+        title="动态字段替换",
+        params={
+            "template_id": "dynamic_placeholder",
+            "inputs": {
+                "product_name": "某产品",
+                "generation_mode": "template_fill",
+                "dynamic_fields": {"rated_voltage": "28 V"},
+                "dynamic_field_definitions": [{
+                    "key": "rated_voltage",
+                    "label": "额定电压",
+                    "placeholder_tokens": ["VVVV"],
+                }],
+            },
+        },
+        llm_client=None,
+        output_path=str(output_path),
+    )
+
+    text = "\n".join(p.text for p in Document(output_path).paragraphs)
+    assert "额定电压为 28 V" in text
+    assert "VVVV" not in text
 
 
 def test_template_docx_generator_fills_source_docx_and_removes_red_instructions(tmp_path, monkeypatch):
@@ -397,6 +483,79 @@ def test_smart_generation_targets_placeholder_paragraph_instead_of_first_body(tm
     assert section["response"] == "某型产品适用于试验验证阶段。"
 
 
+def test_smart_generation_fills_multiple_targets_in_one_chapter(tmp_path, monkeypatch):
+    from generators.base_generator import GeneratorFactory
+    from templates.template_manager import ChapterTemplate, DocumentTemplate
+
+    template_path = tmp_path / "multiple_targets.docx"
+    template_doc = Document()
+    template_doc.add_heading("1 范围", level=1)
+    template_doc.add_paragraph("本段为固定正文，应保持不变。")
+    template_doc.add_paragraph("NNNNN 的适用对象待补充。")
+    template_doc.add_paragraph("NNNNN 的使用限制待补充。")
+    template_doc.save(template_path)
+
+    template = DocumentTemplate(
+        template_id="multiple_targets",
+        name="多目标模板",
+        description="",
+        source_type="uploaded_docx",
+        metadata={"source_path": str(template_path)},
+        chapters=[
+            ChapterTemplate(
+                number="1",
+                title="范围",
+                guidance_prompt="分别填写适用对象和使用限制。",
+                generation_strategy="smart_generate",
+                placeholders=["NNNNN", "待补充"],
+            ),
+        ],
+    )
+
+    class FakeTemplateManager:
+        def get_template(self, template_id):
+            return template if template_id == "multiple_targets" else None
+
+    class SequenceLLM:
+        def __init__(self):
+            self.responses = iter([
+                "本文件适用于某型产品的设计验证。",
+                "本文件不适用于未经批准的改型产品。",
+            ])
+            self.prompts = []
+
+        def generate(self, prompt, system_prompt=None):
+            self.prompts.append(prompt)
+            return FakeLLMResponse(next(self.responses))
+
+    monkeypatch.setattr("templates.template_manager.TemplateManager", FakeTemplateManager)
+    llm = SequenceLLM()
+    output_path = tmp_path / "multiple_targets_generated.docx"
+    params = {
+        "template_id": "multiple_targets",
+        "inputs": {"product_name": "某型产品", "generation_mode": "smart"},
+    }
+
+    GeneratorFactory.create("template_docx").generate(
+        title="多目标生成测试",
+        params=params,
+        llm_client=llm,
+        output_path=str(output_path),
+    )
+
+    paragraphs = [p.text for p in Document(output_path).paragraphs if p.text.strip()]
+    assert "本段为固定正文，应保持不变。" in paragraphs
+    assert "本文件适用于某型产品的设计验证。" in paragraphs
+    assert "本文件不适用于未经批准的改型产品。" in paragraphs
+    assert len(llm.prompts) == 2
+    assert "第 1/2 处" in llm.prompts[0]
+    assert "第 2/2 处" in llm.prompts[1]
+    section = params["_generation_meta"]["sections"][0]
+    assert section["target_count"] == 2
+    assert section["applied_count"] == 2
+    assert len(section["requests"]) == 2
+
+
 def test_fixed_keep_strategy_does_not_replace_placeholders(tmp_path, monkeypatch):
     from generators.base_generator import GeneratorFactory
     from templates.template_manager import ChapterTemplate, DocumentTemplate
@@ -443,6 +602,64 @@ def test_fixed_keep_strategy_does_not_replace_placeholders(tmp_path, monkeypatch
     text = "\n".join(p.text for p in Document(output_path).paragraphs)
     assert "NNNNN" in text
     assert "某产品" not in text
+
+
+def test_table_fill_strategy_maps_structured_material_and_expands_rows(tmp_path, monkeypatch):
+    from generators.base_generator import GeneratorFactory
+    from templates.template_manager import ChapterTemplate, DocumentTemplate
+
+    template_path = tmp_path / "generic_table.docx"
+    template_doc = Document()
+    template_doc.add_heading("3 技术参数", level=1)
+    table = template_doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "参数"
+    table.cell(0, 1).text = "要求"
+    table.cell(1, 0).text = ""
+    table.cell(1, 1).text = "待填写"
+    template_doc.save(template_path)
+
+    template = DocumentTemplate(
+        template_id="generic_table",
+        name="通用参数表模板",
+        description="",
+        source_type="uploaded_docx",
+        metadata={"source_path": str(template_path)},
+        chapters=[
+            ChapterTemplate(
+                number="3",
+                title="技术参数",
+                generation_strategy="table_fill",
+            ),
+        ],
+    )
+
+    class FakeTemplateManager:
+        def get_template(self, template_id):
+            return template if template_id == "generic_table" else None
+
+    monkeypatch.setattr("templates.template_manager.TemplateManager", FakeTemplateManager)
+    output_path = tmp_path / "generic_table_generated.docx"
+
+    GeneratorFactory.create("template_docx").generate(
+        title="参数表生成测试",
+        params={
+            "template_id": "generic_table",
+            "inputs": {
+                "product_name": "某型产品",
+                "generation_mode": "template_fill",
+                "technical_params": "额定电压：28 V\n最大电流：5 A\n工作温度：-55 ℃～70 ℃",
+            },
+        },
+        llm_client=None,
+        output_path=str(output_path),
+    )
+
+    generated_table = Document(output_path).tables[0]
+    rows = [[cell.text for cell in row.cells] for row in generated_table.rows]
+    assert rows[0] == ["参数", "要求"]
+    assert rows[1] == ["额定电压", "28 V"]
+    assert rows[2] == ["最大电流", "5 A"]
+    assert rows[3] == ["工作温度", "-55 ℃～70 ℃"]
 
 
 def test_template_docx_generator_keeps_template_table_and_removes_example_table(tmp_path, monkeypatch):
@@ -768,6 +985,25 @@ def test_chapter_prompt_builder_combines_template_guidance_and_inputs():
     )
     assert "上传材料：环境试验范围包含温度和湿热。" in prompt_with_doc
 
+    prompt_with_dynamic = ChapterPromptBuilder().build(
+        title="测试文档",
+        template_name="测试模板",
+        chapter=chapter,
+        inputs={
+            "product_name": "某产品",
+            "dynamic_fields": {
+                "range_limit": "仅用于鉴定试验",
+                "other_value": "不应出现在本章",
+            },
+            "dynamic_field_definitions": [
+                {"key": "range_limit", "label": "适用限制", "chapter_keys": ["1::范围"]},
+                {"key": "other_value", "label": "其他章节字段", "chapter_keys": ["2::引用文件"]},
+            ],
+        },
+    )
+    assert "适用限制：仅用于鉴定试验" in prompt_with_dynamic
+    assert "不应出现在本章" not in prompt_with_dynamic
+
 
 def test_generate_template_api_returns_templates():
     from web.app import app
@@ -775,8 +1011,10 @@ def test_generate_template_api_returns_templates():
     response = app.test_client().get("/generate/api/templates")
     assert response.status_code == 200
     data = response.get_json()
-    assert all((t.get("metadata") or {}).get("source_docx_path") or (t.get("metadata") or {}).get("source_path")
-               for t in data["templates"])
+    assert data["templates"]
+    assert all("can_generate" in template for template in data["templates"])
+    assert any(template["can_generate"] for template in data["templates"])
+    assert any(not template["can_generate"] for template in data["templates"])
 
 
 def test_template_library_page_and_api_load():
@@ -791,6 +1029,27 @@ def test_template_library_page_and_api_load():
     assert "templates" in response.get_json()
 
 
+def test_template_library_rejects_invalid_dynamic_input_fields():
+    from web.app import app
+
+    response = app.test_client().post(
+        "/template-library/api/templates",
+        data=json.dumps({
+            "name": "无效字段模板",
+            "chapters": [{"number": "1", "title": "范围"}],
+            "input_fields": [{
+                "key": "",
+                "label": "额定电压",
+                "type": "text",
+            }],
+        }),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "字段键和名称不能为空" in response.get_json()["error"]
+
+
 def test_generate_page_default_prompt_is_template_agnostic():
     from web.app import app
 
@@ -800,6 +1059,7 @@ def test_generate_page_default_prompt_is_template_agnostic():
     assert "某型电动作动器鉴定试验项目".encode("utf-8") not in page.data
     assert "温度、高度、温度变化、湿热等自然环境类鉴定试验".encode("utf-8") not in page.data
     assert "collectTemplateGenerationSignals".encode("utf-8") in page.data
+    assert "模板专属输入".encode("utf-8") in page.data
 
 
 def test_generate_supplement_doc_upload_extracts_text_and_tables():
@@ -1069,4 +1329,54 @@ def test_running_generate_record_cannot_be_deleted():
     assert response.status_code == 400
     assert "仍在执行" in response.get_json()["error"]
     assert db.get_generate_task(task_id) is not None
+    db.delete_generate_task(task_id)
+
+
+def test_generate_task_can_pause_resume_and_cancel():
+    from web.app import app
+
+    db = app.db
+    task_id = db.create_generate_task(
+        doc_type="template_control",
+        template_name="生成控制测试模板",
+        params={"title": "生成控制测试"},
+    )
+    db.update_generate_task(task_id, status="processing", progress=35)
+    client = app.test_client()
+
+    pause_response = client.post(f"/generate/pause/{task_id}")
+    assert pause_response.status_code == 200
+    assert db.get_generate_task(task_id)["status"] == "paused"
+
+    resume_response = client.post(f"/generate/resume/{task_id}")
+    assert resume_response.status_code == 200
+    assert db.get_generate_task(task_id)["status"] == "processing"
+
+    cancel_response = client.post(f"/generate/cancel/{task_id}")
+    assert cancel_response.status_code == 200
+    canceled = db.get_generate_task(task_id)
+    assert canceled["status"] == "canceled"
+    assert canceled["progress_stage"] == "canceled"
+    assert canceled["completed_at"]
+    db.delete_generate_task(task_id)
+
+
+def test_paused_generate_record_cannot_be_deleted_or_rerun():
+    from web.app import app
+
+    db = app.db
+    task_id = db.create_generate_task(
+        doc_type="template_paused",
+        template_name="暂停任务测试模板",
+        params={"title": "暂停任务测试"},
+    )
+    db.update_generate_task(task_id, status="paused", progress=40)
+    client = app.test_client()
+
+    delete_response = client.delete(f"/generate/delete/{task_id}")
+    rerun_response = client.post(f"/generate/rerun/{task_id}")
+
+    assert delete_response.status_code == 400
+    assert rerun_response.status_code == 400
+    assert db.get_generate_task(task_id)["status"] == "paused"
     db.delete_generate_task(task_id)

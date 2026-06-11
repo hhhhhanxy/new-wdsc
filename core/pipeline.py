@@ -44,6 +44,7 @@ def generate_document_only(
     llm_client,
     output_dir: str,
     progress_callback: Optional[Callable[[int, int, Any], None]] = None,
+    control_callback: Optional[Callable[[], None]] = None,
 ) -> PipelineResult:
     """
     Generate a document from a saved DOCX template asset.
@@ -67,6 +68,7 @@ def generate_document_only(
             llm_client=llm_client,
             output_path=output_path,
             progress_callback=progress_callback,
+            control_callback=control_callback,
         )
         result.generation_meta = params.get("_generation_meta") or {}
         result.generated_path = output_path
@@ -81,6 +83,8 @@ def generate_document_only(
         result.passed_review = True
         result.status = "generated"
     except Exception as e:
+        if getattr(e, "is_task_control", False):
+            raise
         result.status = "failed"
         result.error = f"生成失败: {e}"
 

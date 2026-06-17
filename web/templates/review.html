@@ -10,6 +10,48 @@
     background: rgba(47, 116, 224, 0.13);
     border-left-color: #2f74e0;
 }
+.report-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+.report-meta-grid > div {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #f8fbff;
+}
+.report-meta-grid span {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.report-meta-grid strong {
+    display: block;
+    margin-top: 4px;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.trace-note {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.suggestion-list {
+    margin: 0;
+    padding-left: 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.issue-review-select {
+    min-width: 92px;
+    padding: 5px 6px;
+    font-size: 12px;
+}
 </style>
 <div class="page-header">
     <h1>文档审查</h1>
@@ -96,6 +138,29 @@
 
                     <div id="resultStatus"></div>
 
+                    <div id="traceabilitySection" style="display:none; margin-top:14px;">
+                        <p class="section-title">可信追溯</p>
+                        <div class="report-meta-grid">
+                            <div>
+                                <span>规则集</span>
+                                <strong id="traceRuleSet">-</strong>
+                            </div>
+                            <div>
+                                <span>规则快照</span>
+                                <strong id="traceRuleCount">-</strong>
+                            </div>
+                            <div>
+                                <span>LLM问题</span>
+                                <strong id="traceLlmIssues">0</strong>
+                            </div>
+                            <div>
+                                <span>审查耗时</span>
+                                <strong id="traceDuration">-</strong>
+                            </div>
+                        </div>
+                        <div class="trace-note">报告保存本次启用规则快照；后续规则调整不影响已完成任务的审查依据。</div>
+                    </div>
+
                     <div id="summarySection" style="display:none; margin-top:14px;">
                         <p class="section-title">审查总结</p>
                         <p id="summaryText" style="font-size:15px;color:var(--text-secondary);line-height:1.7;"></p>
@@ -113,6 +178,8 @@
                                     <th>来源</th>
                                     <th>依据</th>
                                     <th>问题描述</th>
+                                    <th>修改建议</th>
+                                    <th>复核</th>
                                 </tr>
                             </thead>
                             <tbody id="issueTableBody"></tbody>
@@ -211,6 +278,12 @@ const scopeLabels = {
     signature: '签署页',
     preface: '前言',
     body: '正文',
+};
+const issueSourceLabels = {
+    RULE: '规则引擎',
+    LLM: 'LLM语义审查',
+    BOTH: '规则+LLM',
+    'RULE+LLM': '规则+LLM',
 };
 
 function openProgressModal() {
@@ -402,6 +475,7 @@ function startReview() {
             document.getElementById('resultContent').style.display = 'none';
             document.getElementById('summarySection').style.display = 'none';
             document.getElementById('issueListSection').style.display = 'none';
+            document.getElementById('traceabilitySection').style.display = 'none';
             document.getElementById('issueTableBody').innerHTML = '';
             document.getElementById('issuePager').innerHTML = '';
             resultIssues = [];
@@ -562,6 +636,7 @@ function showResult(data) {
     document.getElementById('resultTotal').textContent = result.total_issues || 0;
     document.getElementById('resultErrors').textContent = result.errors || 0;
     document.getElementById('resultWarnings').textContent = result.warnings || 0;
+    renderTraceability(result);
 
     const passed = result.passed !== false;
     document.getElementById('resultStatus').innerHTML =
@@ -586,6 +661,7 @@ function showResult(data) {
                 source: iss.rule_source || 'RULE',
                 reference: iss.rule_reference || '-',
                 message: iss.message || '',
+                suggestions: iss.suggestions || [],
             });
         });
     });
@@ -594,6 +670,17 @@ function showResult(data) {
     resultIssuePage = 1;
     renderIssuePage();
     resetUI();
+}
+
+function renderTraceability(result) {
+    const trace = document.getElementById('traceabilitySection');
+    trace.style.display = 'block';
+    const snapshot = result.rule_snapshot || {};
+    const snapshotCount = Object.keys(snapshot).length;
+    document.getElementById('traceRuleSet').textContent = result.rule_set || '全部规则';
+    document.getElementById('traceRuleCount').textContent = snapshotCount ? `${snapshotCount} 条` : '已记录';
+    document.getElementById('traceLlmIssues').textContent = result.llm_issues || 0;
+    document.getElementById('traceDuration').textContent = result.review_duration || '-';
 }
 
 function changeIssuePage(page) {
@@ -628,9 +715,18 @@ function renderIssuePage() {
             <td>${escapeHtml(iss.rule_code || iss.rule_id)}</td>
             <td>${escapeHtml(iss.rule)}</td>
             <td><span class="badge badge-${iss.severity === 'error' ? 'danger' : iss.severity === 'warning' ? 'warning' : 'info'}">${iss.severity === 'error' ? '错误' : iss.severity === 'warning' ? '警告' : '信息'}</span></td>
-            <td>${escapeHtml(iss.source)}</td>
+            <td>${escapeHtml(issueSourceLabels[iss.source] || iss.source)}</td>
             <td>${escapeHtml(iss.reference)}</td>
             <td>${escapeHtml(iss.message)}</td>
+            <td>${renderSuggestionCell(iss.suggestions)}</td>
+            <td>
+                <select class="form-control issue-review-select">
+                    <option>待复核</option>
+                    <option>确认问题</option>
+                    <option>误报</option>
+                    <option>已整改</option>
+                </select>
+            </td>
         </tr>
     `).join('');
 
@@ -643,6 +739,12 @@ function renderIssuePage() {
     } else {
         pager.innerHTML = '';
     }
+}
+
+function renderSuggestionCell(suggestions) {
+    const items = Array.isArray(suggestions) ? suggestions.filter(Boolean) : [];
+    if (!items.length) return '<span style="color:var(--text-secondary);">-</span>';
+    return `<ul class="suggestion-list">${items.slice(0, 3).map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
 }
 
 function downloadReport() {

@@ -406,6 +406,7 @@
 
                 <div style="text-align:center;margin-top:12px;">
                     <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载生成文档</button>
+                    <button class="btn btn-outline" id="reviewGeneratedBtn" style="margin-left:8px;" onclick="reviewGenerated()">送入审查</button>
                     <button class="btn btn-outline" id="retryGenBtn" style="display:none;margin-left:8px;" onclick="retryGenerate()">重新生成</button>
                 </div>
             </div>
@@ -418,7 +419,7 @@
                 <li>生成时会保留上传 DOCX 模板的正文、样式、页眉页脚和页面设置</li>
                 <li>智能生成模式会按章节组织模板说明、示例和用户素材调用大模型</li>
                 <li>平台会删除说明/举例内容，并替换模板中的占位内容</li>
-                <li>生成后自动审查功能已预留，当前版本暂不执行</li>
+                <li>生成后可一键送入文档审查，形成生成—审查—修改闭环</li>
                 <li>生成后可在 Word 中进一步编辑调整</li>
                 <li>支持导出为 DOCX 格式</li>
             </ul>
@@ -1140,7 +1141,7 @@ function showGenReview(data) {
         document.getElementById('genReviewSection').style.display = 'block';
         document.getElementById('genReviewSection').innerHTML = `
             <p class="section-title">审查预留</p>
-            <div class="empty-state">${escapeHtml(reviewResult.message || '生成后自动审查功能已预留，当前版本暂不执行。')}</div>
+            <div class="empty-state">${escapeHtml(reviewResult.message || '生成完成后可一键送入文档审查。')}</div>
         `;
         return;
     }
@@ -1183,7 +1184,7 @@ function renderQualityResult(qualityResult, reviewResult) {
     `).join('') : '<div class="empty-state">暂无基础检查结果</div>';
     const reviewMessage = reviewResult && reviewResult.message
         ? reviewResult.message
-        : '生成后自动审查功能已预留，当前版本暂不执行。';
+        : '生成完成后可一键送入文档审查。';
     return `
         <p class="section-title">基础检查</p>
         <div style="font-size:14px;margin-top:8px;">${checkHtml}</div>
@@ -1200,6 +1201,39 @@ function retryGenerate() {
 
 function downloadGenerated() {
     if (currentGenTaskId) window.location.href = '/generate/download/' + currentGenTaskId;
+}
+
+function reviewGenerated(taskId = currentGenTaskId) {
+    if (!taskId) return;
+    const btn = taskId === currentGenTaskId ? document.getElementById('reviewGeneratedBtn') : null;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '正在送审...';
+    }
+    fetch('/generate/review/' + taskId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rule_set: 'all' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            alert('送审失败：' + data.error);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '送入审查';
+            }
+            return;
+        }
+        window.location.href = '/review/?task_id=' + data.review_task_id;
+    })
+    .catch(err => {
+        alert('送审失败：' + err.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '送入审查';
+        }
+    });
 }
 
 function loadRecentGenerations() {
@@ -1222,6 +1256,7 @@ function renderRecentGenerations(tasks, pagination) {
     const recordsHtml = tasks.map(task => {
         const filename = task.result_path ? task.result_path.split(/[/\\]/).pop() : task.template_name;
         const canDownload = task.status === 'completed' && task.result_path;
+        const canReview = task.status === 'completed' && task.result_path;
         const canDelete = !['pending', 'processing', 'paused'].includes(task.status);
         const isRunning = ['pending', 'processing', 'paused'].includes(task.status);
         const statusLabel = task.status_label || getGenStatusText(task);
@@ -1248,6 +1283,7 @@ function renderRecentGenerations(tasks, pagination) {
                     ${isRunning ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="cancelGeneration(${task.id})">停止</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn btn-outline" onclick="rerunGeneration(${task.id})">重新生成</button>` : ''}
                     ${canDownload ? `<button type="button" class="btn btn-outline" onclick="window.location.href='/generate/download/${task.id}'">下载</button>` : ''}
+                    ${canReview ? `<button type="button" class="btn btn-outline" onclick="reviewGenerated(${task.id})">送审</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="deleteGenerateRecord(${task.id})">删除</button>` : ''}
                 </div>
             </div>

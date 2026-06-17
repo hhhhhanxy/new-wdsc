@@ -217,6 +217,56 @@ def download(task_id):
     return '文件不存在', 404
 
 
+@bp.route('/review/<int:task_id>', methods=['POST'])
+def review_generated(task_id):
+    """Create a review task for a generated DOCX and jump into the review flow."""
+    task = current_app.db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成记录不存在'}), 404
+    if task.get('status') != 'completed':
+        return jsonify({'error': '只有已完成的生成文档可以送审'}), 400
+
+    result_path = task.get('result_path')
+    if not result_path or not os.path.exists(result_path):
+        return jsonify({'error': '生成文档文件不存在，无法送审'}), 404
+    if not result_path.lower().endswith('.docx'):
+        return jsonify({'error': '当前仅支持 DOCX 生成文档送审'}), 400
+
+    from web.tasks import run_review_task
+
+    filename = os.path.basename(result_path)
+    rule_set = request.get_json(silent=True) or {}
+    rule_set = str(rule_set.get('rule_set') or 'all')
+    review_task_id = current_app.db.create_review_task(
+        filename=filename,
+        filepath=result_path,
+        mode='generated_doc',
+        rule_set=rule_set,
+    )
+
+    try:
+        params_data = json.loads(task.get('params') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        params_data = {}
+    params_data['linked_review_task_id'] = review_task_id
+    params_data['auto_review'] = True
+    cursor = current_app.db.conn.cursor()
+    cursor.execute(
+        'UPDATE generate_tasks SET params = ? WHERE id = ?',
+        (json.dumps(params_data, ensure_ascii=False), task_id),
+    )
+    current_app.db.conn.commit()
+
+    thread = threading.Thread(
+        target=run_review_task,
+        args=(review_task_id, result_path, rule_set, current_app.db),
+    )
+    thread.daemon = True
+    thread.start()
+
+    return jsonify({'ok': True, 'review_task_id': review_task_id})
+
+
 @bp.route('/delete/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
     task = current_app.db.get_generate_task(task_id)
@@ -277,7 +327,7 @@ def _create_generation_task(data: dict):
         'auto_review': False,
         'review_result': {
             'reserved': True,
-            'message': '生成后自动审查功能已预留，当前版本暂不执行。',
+            'message': '生成完成后可一键送入文档审查。',
         },
     }
 
@@ -381,7 +431,7 @@ def run_generate_task(task_id, data, upload_folder, db):
             params_data['generation_meta'] = result.generation_meta
             params_data['review_result'] = {
                 'reserved': True,
-                'message': '生成后自动审查功能已预留，当前版本暂不执行。',
+                'message': '生成完成后可一键送入文档审查。',
                 'executed': False,
             }
             cursor = db.conn.cursor()
@@ -397,7 +447,7 @@ def run_generate_task(task_id, data, upload_folder, db):
             progress=100,
             status='completed',
             progress_stage='completed',
-            progress_message='文档生成完成，自动审查暂未执行',
+            progress_message='文档生成完成，可一键送入审查',
             result_path=result.generated_path,
             error=None,
             completed_at=datetime.now().isoformat(timespec='seconds'),

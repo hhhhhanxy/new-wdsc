@@ -278,6 +278,14 @@ def delete_task(task_id):
     return jsonify({'ok': True, 'deleted': deleted})
 
 
+@bp.route('/delete-all', methods=['DELETE'])
+def delete_all_tasks():
+    db = current_app.db
+    deleted = db.delete_finished_generate_tasks()
+    remaining = db.count_generate_tasks()
+    return jsonify({'ok': True, 'deleted': deleted, 'remaining': remaining})
+
+
 def _create_generation_task(data: dict):
     db = current_app.db
     if not data or not data.get('title'):

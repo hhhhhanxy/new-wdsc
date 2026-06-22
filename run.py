@@ -1,16 +1,20 @@
 """
 Application launcher for the web interface.
 """
-from web.app import app
 import os
 from pathlib import Path
 
-if __name__ == '__main__':
-    project_root = Path(__file__).resolve().parent
-    os.environ.setdefault('UV_CACHE_DIR', str(project_root / '.uv-cache'))
+from dotenv import load_dotenv
 
-    port = 5000
-    host = '127.0.0.1'
+project_root = Path(__file__).resolve().parent
+load_dotenv(project_root / ".env")
+os.environ.setdefault("UV_CACHE_DIR", str(project_root / ".uv-cache"))
+
+from web.app import app
+
+if __name__ == '__main__':
+    port = int(os.environ.get('WEB_PORT', '5000'))
+    host = os.environ.get('WEB_HOST', '127.0.0.1')
     debug = os.environ.get('DEBUG', 'False').lower() == 'true'
     use_reloader = False
     interrupted = app.db.interrupt_running_generate_tasks('服务重启，原生成任务已中断')

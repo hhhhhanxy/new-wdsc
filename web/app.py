@@ -14,7 +14,8 @@ def create_app():
         import secrets
         secret_key = secrets.token_hex(32)
     app.config['SECRET_KEY'] = secret_key
-    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), '..', 'uploads')
+    default_upload_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads')
+    app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', default_upload_folder)
     app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 
     # Ensure upload directory exists
@@ -22,7 +23,7 @@ def create_app():
 
     # Initialize database
     from web.models import Database
-    db = Database()
+    db = Database(os.environ.get('DATABASE_PATH', 'web/database.db'))
     app.db = db
 
     # Register blueprints

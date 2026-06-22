@@ -15,7 +15,9 @@ class Database:
         self.db_path = db_path
         self._local = threading.local()
         import os
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        db_dir = os.path.dirname(db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
         self.init_db()
 
     @property
@@ -29,7 +31,9 @@ class Database:
         """Create database tables"""
         # Ensure directory exists
         import os
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
 
         cursor = self.conn.cursor()
 
@@ -202,6 +206,16 @@ class Database:
         """Delete one generate task record."""
         cursor = self.conn.cursor()
         cursor.execute('DELETE FROM generate_tasks WHERE id = ?', (task_id,))
+        self.conn.commit()
+        return cursor.rowcount
+
+    def delete_finished_generate_tasks(self) -> int:
+        """Delete generation task records that are no longer running."""
+        cursor = self.conn.cursor()
+        cursor.execute('''
+            DELETE FROM generate_tasks
+            WHERE status NOT IN ('pending', 'processing', 'paused')
+        ''')
         self.conn.commit()
         return cursor.rowcount
 

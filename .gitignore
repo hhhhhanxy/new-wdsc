@@ -16,6 +16,7 @@ env/
 .env.prod
 .env.local
 .env.*.local
+config/model_service.json
 
 # IDE
 .vscode/

@@ -60,8 +60,8 @@ class MarkdownReporter(BaseReporter):
             # 规则问题
             if any(not r.passed for r in section.rule_results):
                 lines.append("#### 规则问题\n")
-                lines.append("| 规则 | 来源 | 严重程度 | 描述 | 建议 |")
-                lines.append("|------|------|----------|------|------|")
+                lines.append("| 规则 | 来源 | 严重程度 | 复核状态 | 描述 | 建议 |")
+                lines.append("|------|------|----------|----------|------|------|")
                 for r in section.rule_results:
                     if not r.passed:
                         severity_str = {
@@ -70,7 +70,8 @@ class MarkdownReporter(BaseReporter):
                             RuleSeverity.INFO: "🔵 信息"
                         }.get(r.severity, "未知")
                         suggestions = "; ".join(r.suggestions) if r.suggestions else "-"
-                        lines.append(f"| {r.rule_name} | {r.rule_source} | {severity_str} | {r.message} | {suggestions} |")
+                        review_status = r.details.get("review_status_label", "待复核")
+                        lines.append(f"| {r.rule_name} | {r.rule_source} | {severity_str} | {review_status} | {r.message} | {suggestions} |")
                 lines.append("")
             
 
@@ -121,6 +122,8 @@ class JsonReporter(BaseReporter):
                         "rule_name": r.rule_name,
                         "rule_source": r.rule_source,
                         "severity": r.severity.name,
+                        "review_status": r.details.get("review_status", "pending"),
+                        "review_status_label": r.details.get("review_status_label", "待复核"),
                         "message": r.message,
                         "suggestions": r.suggestions or []
                     })
@@ -218,9 +221,9 @@ class DocxReporter(BaseReporter):
         if not issues:
             doc.add_paragraph('未发现不符合项。')
         else:
-            overview = doc.add_table(rows=1, cols=7)
+            overview = doc.add_table(rows=1, cols=8)
             self._set_table_style(overview)
-            headers = ['序号', '位置', '规则', '审查方式', '级别', '问题描述', '建议']
+            headers = ['序号', '位置', '规则', '审查方式', '级别', '复核状态', '问题描述', '建议']
             for idx, header in enumerate(headers):
                 overview.rows[0].cells[idx].text = header
             for idx, (section, issue) in enumerate(issues, start=1):
@@ -230,8 +233,9 @@ class DocxReporter(BaseReporter):
                 row[2].text = issue.rule_name or issue.rule_id or '-'
                 row[3].text = issue.details.get('source_label') or self._source_label(issue.rule_source)
                 row[4].text = self._severity_label(issue.severity)
-                row[5].text = issue.message or '-'
-                row[6].text = '；'.join(issue.suggestions) if issue.suggestions else '-'
+                row[5].text = issue.details.get('review_status_label', '待复核')
+                row[6].text = issue.message or '-'
+                row[7].text = '；'.join(issue.suggestions) if issue.suggestions else '-'
 
         # 三、本次审查规则依据与定位详情
         doc.add_heading('三、本次审查规则依据与定位详情', level=1)
@@ -239,12 +243,13 @@ class DocxReporter(BaseReporter):
             for idx, (section, issue) in enumerate(issues, start=1):
                 rule_code = issue.details.get("rule_code") or issue.rule_id or "-"
                 doc.add_heading(f"{idx}. {issue.rule_name or rule_code}", level=2)
-                detail_table = doc.add_table(rows=6, cols=2)
+                detail_table = doc.add_table(rows=7, cols=2)
                 self._set_table_style(detail_table)
                 detail_rows = [
                     ('规则编号', rule_code),
                     ('审查方式', issue.details.get('source_label') or self._source_label(issue.rule_source)),
                     ('严重级别', self._severity_label(issue.severity)),
+                    ('复核状态', issue.details.get('review_status_label', '待复核')),
                     ('标准依据', issue.rule_reference or '-'),
                     ('问题描述', issue.message or '-'),
                     ('修改建议', '；'.join(issue.suggestions) if issue.suggestions else '-'),

@@ -73,6 +73,8 @@
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span id="currentSetTitle">请选择规则集</span>
                 <div class="panel-actions">
+                    <button class="btn btn-outline" id="copySetBtn" style="display:none;" onclick="openCopySetModal()">复制规则集</button>
+                    <button class="btn btn-outline" id="exportSetBtn" style="display:none;" onclick="exportCurrentSet()">导出规则集</button>
                     <button class="btn btn-outline" id="downloadTemplateBtn" style="display:none;" onclick="downloadImportTemplate()">下载模板</button>
                     <button class="btn btn-outline" id="importHistoryBtn" style="display:none;" onclick="openImportHistory()">导入记录</button>
                     <button class="btn btn-outline" id="importRuleBtn" style="display:none;" onclick="openImportModal()">导入规则</button>
@@ -95,6 +97,33 @@
             </table>
             <div class="pager" id="rulePager" style="display:none;"></div>
             <div class="empty-state" id="noRulesHint">选择左侧规则集查看规则列表</div>
+        </div>
+    </div>
+</div>
+
+<!-- Copy Set Modal -->
+<div class="modal-overlay" id="copySetModal">
+    <div class="modal" style="width:440px;">
+        <div class="modal-header">
+            <h3 id="copySetTitle">复制规则集</h3>
+            <button class="modal-close" onclick="closeCopySetModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-field">
+                <label>新规则集标识（英文，如 test_report_rules）</label>
+                <input type="text" id="copySetSource" placeholder="test_report_rules">
+            </div>
+            <div class="modal-field">
+                <label>新规则集显示名称</label>
+                <input type="text" id="copySetName" placeholder="试验报告规则">
+            </div>
+            <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+                复制会把当前规则集中的规则另存为新的自定义规则集，后续启用、禁用和编辑不会影响原规则集。
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeCopySetModal()">取消</button>
+            <button class="btn btn-primary" onclick="copyCurrentSet()">确认复制</button>
         </div>
     </div>
 </div>
@@ -507,6 +536,8 @@ function selectGroup(source) {
     document.getElementById('currentSetTitle').textContent = currentGroup.display_name;
     document.getElementById('noRulesHint').style.display = 'none';
     document.getElementById('ruleTable').style.display = '';
+    document.getElementById('copySetBtn').style.display = '';
+    document.getElementById('exportSetBtn').style.display = '';
     document.getElementById('addRuleBtn').style.display = '';
     document.getElementById('downloadTemplateBtn').style.display = '';
     document.getElementById('importHistoryBtn').style.display = '';
@@ -903,6 +934,10 @@ document.getElementById('createSetModal').addEventListener('click', function(e) 
     if (e.target === this) closeCreateSetModal();
 });
 
+document.getElementById('copySetModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCopySetModal();
+});
+
 document.getElementById('createRuleModal').addEventListener('click', function(e) {
     if (e.target === this) closeCreateRuleModal();
 });
@@ -1189,6 +1224,54 @@ function createSet() {
     });
 }
 
+function slugifySetSource(value) {
+    let text = String(value || '').trim().toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    if (!text || !/^[a-z]/.test(text)) text = 'rules_' + text;
+    return text.slice(0, 41);
+}
+
+function openCopySetModal() {
+    if (!currentGroup) return;
+    document.getElementById('copySetTitle').textContent = '复制规则集 - ' + currentGroup.display_name;
+    document.getElementById('copySetSource').value = slugifySetSource(currentGroup.source + '_copy');
+    document.getElementById('copySetName').value = currentGroup.display_name + ' 副本';
+    document.getElementById('copySetModal').classList.add('open');
+}
+
+function closeCopySetModal() {
+    document.getElementById('copySetModal').classList.remove('open');
+}
+
+function copyCurrentSet() {
+    if (!currentGroup) return;
+    const targetSource = document.getElementById('copySetSource').value.trim();
+    const displayName = document.getElementById('copySetName').value.trim();
+    if (!targetSource || !displayName) {
+        alert('请填写新规则集标识和显示名称');
+        return;
+    }
+    fetch(`/rules/api/sets/${encodeURIComponent(currentGroup.source)}/copy`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({target_source: targetSource, display_name: displayName}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        closeCopySetModal();
+        alert(`已复制 ${data.copied_count || 0} 条规则到“${data.display_name}”`);
+        reloadProfiles(() => selectGroup(data.source));
+    })
+    .catch(err => alert('复制失败：' + err.message));
+}
+
+function exportCurrentSet() {
+    if (!currentGroup) return;
+    window.location.href = `/rules/api/sets/${encodeURIComponent(currentGroup.source)}/export`;
+}
+
 function deleteSet(source) {
     if (!confirm('确定删除规则集？')) return;
     fetch('/rules/api/sets/' + source, {method: 'DELETE'})
@@ -1200,6 +1283,8 @@ function deleteSet(source) {
             document.getElementById('currentSetTitle').textContent = '请选择规则集';
             document.getElementById('ruleTable').style.display = 'none';
             document.getElementById('noRulesHint').style.display = '';
+            document.getElementById('copySetBtn').style.display = 'none';
+            document.getElementById('exportSetBtn').style.display = 'none';
             document.getElementById('addRuleBtn').style.display = 'none';
             document.getElementById('downloadTemplateBtn').style.display = 'none';
             document.getElementById('importHistoryBtn').style.display = 'none';

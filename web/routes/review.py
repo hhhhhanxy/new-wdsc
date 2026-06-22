@@ -5,6 +5,7 @@ import os
 import json
 import threading
 import uuid
+import hashlib
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify, send_file, current_app
 from web.tasks import run_review_task
@@ -104,6 +105,25 @@ def _status_display(status: str) -> tuple[str, str]:
         "blocked": ("安全阻断", "danger"),
     }
     return labels.get(status or "", (status or "未知", "default"))
+
+
+ISSUE_REVIEW_STATUSES = {
+    "pending": "待复核",
+    "confirmed": "确认问题",
+    "false_positive": "误报",
+    "fixed": "已整改",
+}
+
+
+def _issue_id(section_id: str, issue: dict, index: int) -> str:
+    fingerprint = "|".join([
+        str(section_id or ""),
+        str(issue.get("rule_id") or ""),
+        str(issue.get("rule_name") or ""),
+        str(issue.get("message") or ""),
+        str(index),
+    ])
+    return hashlib.sha1(fingerprint.encode("utf-8")).hexdigest()[:16]
 
 
 def _parse_task_time(value: str):
@@ -260,6 +280,63 @@ def status(task_id):
     if not task:
         return jsonify({'error': '任务不存在'}), 404
     return jsonify(dict(task))
+
+
+@bp.route('/api/issues/<int:task_id>/<issue_id>/status', methods=['POST'])
+def update_issue_status(task_id, issue_id):
+    db = current_app.db
+    task = db.get_review_task(task_id)
+    if not task:
+        return jsonify({'error': '任务不存在'}), 404
+    if task.get('status') != 'completed':
+        return jsonify({'error': '只有已完成的审查任务可以更新问题复核状态'}), 400
+
+    data = request.get_json(silent=True) or {}
+    review_status = str(data.get('review_status') or '').strip()
+    if review_status not in ISSUE_REVIEW_STATUSES:
+        return jsonify({'error': '复核状态不支持'}), 400
+    issue_key = data.get('issue_key') if isinstance(data.get('issue_key'), dict) else {}
+
+    try:
+        result_data = json.loads(task.get('result') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        return jsonify({'error': '审查结果不可解析'}), 400
+
+    matched = False
+    matched_issue_id = issue_id
+    for sec in result_data.get('sections', []):
+        section_id = sec.get('section_id', '')
+        for index, issue in enumerate(sec.get('issues', []), start=1):
+            current_issue_id = issue.get('issue_id') or _issue_id(section_id, issue, index)
+            issue.setdefault('issue_id', current_issue_id)
+            issue.setdefault('review_status', 'pending')
+            key_matches = (
+                str(issue_key.get('section_id') or '') == str(section_id or '')
+                and int(issue_key.get('issue_index') or 0) == index
+                and str(issue_key.get('rule_id') or '') == str(issue.get('rule_id') or '')
+                and str(issue_key.get('message') or '') == str(issue.get('message') or '')
+            )
+            if current_issue_id == issue_id or key_matches:
+                issue['review_status'] = review_status
+                matched = True
+                matched_issue_id = current_issue_id
+                break
+        if matched:
+            break
+
+    if not matched:
+        return jsonify({'error': '问题不存在或已变化'}), 404
+
+    db.update_review_task(
+        task_id,
+        result=json.dumps(result_data, ensure_ascii=False),
+    )
+    return jsonify({
+        'ok': True,
+        'issue_id': matched_issue_id,
+        'review_status': review_status,
+        'review_status_label': ISSUE_REVIEW_STATUSES[review_status],
+    })
 
 
 @bp.route('/pause/<int:task_id>', methods=['POST'])
@@ -422,6 +499,11 @@ def report(task_id):
             rr.details["rule_code"] = rule_code
             rr.details["rule_logic"] = rule_logic
             rr.details["source_label"] = _display_source(rule_source)
+            rr.details["review_status"] = issue.get("review_status", "pending")
+            rr.details["review_status_label"] = ISSUE_REVIEW_STATUSES.get(
+                issue.get("review_status", "pending"),
+                "待复核",
+            )
             sr.rule_results.append(rr)
             result.total_issues += 1
             if rr.severity == RuleSeverity.ERROR:

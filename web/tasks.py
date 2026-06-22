@@ -17,6 +17,7 @@ from web.time_utils import beijing_now_str
 import json
 import logging
 import time
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -187,9 +188,18 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
         sections_data = []
         for sr in result.section_results:
             issues = []
-            for rr in sr.rule_results:
+            for issue_index, rr in enumerate(sr.rule_results, start=1):
                 if not rr.passed:
+                    issue_fingerprint = "|".join([
+                        str(sr.section_id or ""),
+                        str(rr.rule_id or ""),
+                        str(rr.rule_name or ""),
+                        str(rr.message or ""),
+                        str(issue_index),
+                    ])
                     issues.append({
+                        'issue_id': hashlib.sha1(issue_fingerprint.encode('utf-8')).hexdigest()[:16],
+                        'review_status': 'pending',
                         'rule_id': rr.rule_id,
                         'rule_name': rr.rule_name,
                         'rule_code': rule_snapshot.get(rr.rule_id, {}).get('code', ''),

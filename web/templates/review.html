@@ -12,7 +12,7 @@
 }
 .report-meta-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 8px;
 }
 .report-meta-grid > div {
@@ -157,6 +157,10 @@
                                 <span>审查耗时</span>
                                 <strong id="traceDuration">-</strong>
                             </div>
+                            <div>
+                                <span>复核进度</span>
+                                <strong id="traceReviewProgress">-</strong>
+                            </div>
                         </div>
                         <div class="trace-note">报告保存本次启用规则快照；后续规则调整不影响已完成任务的审查依据。</div>
                     </div>
@@ -284,6 +288,12 @@ const issueSourceLabels = {
     LLM: 'LLM语义审查',
     BOTH: '规则+LLM',
     'RULE+LLM': '规则+LLM',
+};
+const issueReviewStatusLabels = {
+    pending: '待复核',
+    confirmed: '确认问题',
+    false_positive: '误报',
+    fixed: '已整改',
 };
 
 function openProgressModal() {
@@ -636,7 +646,6 @@ function showResult(data) {
     document.getElementById('resultTotal').textContent = result.total_issues || 0;
     document.getElementById('resultErrors').textContent = result.errors || 0;
     document.getElementById('resultWarnings').textContent = result.warnings || 0;
-    renderTraceability(result);
 
     const passed = result.passed !== false;
     document.getElementById('resultStatus').innerHTML =
@@ -651,9 +660,11 @@ function showResult(data) {
     // 渲染问题详情表格
     const issues = [];
     (result.sections || []).forEach(sec => {
-        (sec.issues || []).forEach(iss => {
+        (sec.issues || []).forEach((iss, issueIndex) => {
             issues.push({
                 section: sec.section_id || '-',
+                issue_index: issueIndex + 1,
+                issue_id: iss.issue_id || buildClientIssueId(sec.section_id || '', iss, issueIndex + 1),
                 rule_id: iss.rule_id || '-',
                 rule_code: iss.rule_code || '',
                 rule: iss.rule_name || '-',
@@ -662,14 +673,26 @@ function showResult(data) {
                 reference: iss.rule_reference || '-',
                 message: iss.message || '',
                 suggestions: iss.suggestions || [],
+                review_status: iss.review_status || 'pending',
             });
         });
     });
 
     resultIssues = issues;
     resultIssuePage = 1;
+    renderTraceability(result);
     renderIssuePage();
     resetUI();
+}
+
+function buildClientIssueId(sectionId, issue, index) {
+    const source = [sectionId, issue.rule_id || '', issue.rule_name || '', issue.message || '', index].join('|');
+    let hash = 0;
+    for (let i = 0; i < source.length; i++) {
+        hash = ((hash << 5) - hash) + source.charCodeAt(i);
+        hash |= 0;
+    }
+    return 'legacy_' + Math.abs(hash);
 }
 
 function renderTraceability(result) {
@@ -677,10 +700,13 @@ function renderTraceability(result) {
     trace.style.display = 'block';
     const snapshot = result.rule_snapshot || {};
     const snapshotCount = Object.keys(snapshot).length;
+    const total = result.total_issues || resultIssues.length || 0;
+    const reviewed = resultIssues.filter(iss => iss.review_status && iss.review_status !== 'pending').length;
     document.getElementById('traceRuleSet').textContent = result.rule_set || '全部规则';
     document.getElementById('traceRuleCount').textContent = snapshotCount ? `${snapshotCount} 条` : '已记录';
     document.getElementById('traceLlmIssues').textContent = result.llm_issues || 0;
     document.getElementById('traceDuration').textContent = result.review_duration || '-';
+    document.getElementById('traceReviewProgress').textContent = total ? `${reviewed}/${total}` : '-';
 }
 
 function changeIssuePage(page) {
@@ -720,11 +746,10 @@ function renderIssuePage() {
             <td>${escapeHtml(iss.message)}</td>
             <td>${renderSuggestionCell(iss.suggestions)}</td>
             <td>
-                <select class="form-control issue-review-select">
-                    <option>待复核</option>
-                    <option>确认问题</option>
-                    <option>误报</option>
-                    <option>已整改</option>
+                <select class="form-control issue-review-select" onchange="updateIssueReviewStatus('${escapeHtml(iss.issue_id)}', this.value)">
+                    ${Object.entries(issueReviewStatusLabels).map(([value, label]) =>
+                        `<option value="${value}" ${iss.review_status === value ? 'selected' : ''}>${label}</option>`
+                    ).join('')}
                 </select>
             </td>
         </tr>
@@ -745,6 +770,47 @@ function renderSuggestionCell(suggestions) {
     const items = Array.isArray(suggestions) ? suggestions.filter(Boolean) : [];
     if (!items.length) return '<span style="color:var(--text-secondary);">-</span>';
     return `<ul class="suggestion-list">${items.slice(0, 3).map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+}
+
+function updateIssueReviewStatus(issueId, status) {
+    if (!currentTaskId || !issueId) return;
+    const issue = resultIssues.find(item => item.issue_id === issueId);
+    fetch(`/review/api/issues/${currentTaskId}/${encodeURIComponent(issueId)}/status`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            review_status: status,
+            issue_key: issue ? {
+                section_id: issue.section,
+                issue_index: issue.issue_index,
+                rule_id: issue.rule_id,
+                rule_name: issue.rule,
+                message: issue.message,
+            } : null,
+        }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            alert('保存复核状态失败: ' + data.error);
+            renderIssuePage();
+            return;
+        }
+        if (issue) {
+            issue.review_status = data.review_status;
+            issue.issue_id = data.issue_id || issue.issue_id;
+        }
+        renderTraceability({
+            total_issues: resultIssues.length,
+            rule_set: document.getElementById('traceRuleSet').textContent,
+            llm_issues: document.getElementById('traceLlmIssues').textContent,
+            review_duration: document.getElementById('traceDuration').textContent,
+        });
+    })
+    .catch(err => {
+        alert('保存复核状态失败: ' + err.message);
+        renderIssuePage();
+    });
 }
 
 function downloadReport() {

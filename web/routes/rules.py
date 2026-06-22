@@ -226,6 +226,18 @@ def _make_rule_id(data: dict, existing_ids: set) -> str:
     return candidate
 
 
+def _make_copied_rule_id(source_rule_id: str, target_source: str, existing_ids: set) -> str:
+    base = re.sub(r"[^a-z0-9]+", "_", f"rule_{target_source}_{source_rule_id}".lower()).strip("_")
+    if not base:
+        base = f"rule_{target_source}_{uuid.uuid4().hex[:8]}"
+    candidate = base
+    counter = 2
+    while candidate in existing_ids:
+        candidate = f"{base}_{counter}"
+        counter += 1
+    return candidate
+
+
 def _rule_set_exists(source: str) -> bool:
     if source in SOURCE_DISPLAY or source in _load_custom_sets():
         return True
@@ -250,6 +262,31 @@ def _build_custom_rule_data(payload: dict) -> dict:
         "scope": RuleScope(payload.get("scope", "all")).value,
         "target_headings": _normalize_list(payload.get("target_headings")),
         "required_elements": _normalize_list(payload.get("required_elements")),
+    }
+
+
+def _copied_rule_data(rule: dict, target_source: str) -> dict:
+    params = _normalize_rule_params(rule.get("params") or {})
+    code = str(rule.get("code") or rule.get("rule_id") or "").strip()
+    name = str(rule.get("name") or rule.get("rule_id") or "").strip()
+    aliases = rule.get("aliases") or []
+    merged_aliases = list(dict.fromkeys([value for value in [*aliases, code, name] if value]))
+    return {
+        "source": target_source,
+        "name": name,
+        "description": str(rule.get("description") or "").strip(),
+        "category": "custom",
+        "severity": RuleSeverity(rule.get("severity", "warning")).value,
+        "review_type": ReviewType(rule.get("review_type", "llm")).value,
+        "enabled": bool(rule.get("enabled", True)),
+        "code": code,
+        "logic": str(rule.get("logic") or "").strip(),
+        "standard_ref": str(rule.get("standard_ref") or "").strip(),
+        "aliases": merged_aliases,
+        "params": params,
+        "scope": RuleScope(rule.get("scope", "all")).value,
+        "target_headings": _normalize_list(rule.get("target_headings")),
+        "required_elements": _normalize_list(rule.get("required_elements")),
     }
 
 
@@ -421,6 +458,79 @@ def api_create_set():
     _save_custom_sets(custom_sets)
 
     return jsonify({"ok": True, "source": source, "display_name": display_name})
+
+
+@bp.route("/api/sets/<source>/copy", methods=["POST"])
+def api_copy_set(source: str):
+    """复制一个规则集为新的自定义规则集。"""
+    rules = RuleLoader.load_all_rules("default", include_extensions=False)
+    groups, _, _ = _group_rules_by_source(rules)
+    source_group = next((g for g in groups if g["source"] == source), None)
+    if not source_group:
+        return jsonify({"error": f"规则集 '{source}' 不存在"}), 404
+
+    data = request.get_json() or {}
+    target_source = str(data.get("target_source") or "").strip()
+    display_name = str(data.get("display_name") or "").strip()
+    if not target_source or not display_name:
+        return jsonify({"error": "需要填写新规则集标识和显示名称"}), 400
+    if not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_]{1,40}", target_source):
+        return jsonify({"error": "规则集标识需以字母开头，仅包含字母、数字和下划线，长度 2-41"}), 400
+
+    custom_sets = _load_custom_sets()
+    if target_source in custom_sets or target_source in SOURCE_DISPLAY or any(g["source"] == target_source for g in groups):
+        return jsonify({"error": f"规则集 '{target_source}' 已存在"}), 400
+
+    overrides = load_overrides()
+    existing_ids = {rule.rule_id for rule in rules} | set(overrides)
+    copied_count = 0
+    for rule in source_group.get("rules", []):
+        new_rule_id = _make_copied_rule_id(rule.get("rule_id", ""), target_source, existing_ids)
+        existing_ids.add(new_rule_id)
+        overrides[new_rule_id] = _copied_rule_data(rule, target_source)
+        copied_count += 1
+
+    custom_sets[target_source] = {
+        "display_name": display_name,
+        "copied_from": source,
+        "copied_at": beijing_now_str(),
+    }
+    _save_custom_sets(custom_sets)
+    save_overrides(overrides)
+
+    return jsonify({
+        "ok": True,
+        "source": target_source,
+        "display_name": display_name,
+        "copied_from": source,
+        "copied_count": copied_count,
+    })
+
+
+@bp.route("/api/sets/<source>/export")
+def api_export_set(source: str):
+    """导出规则集 JSON 包。"""
+    rules = RuleLoader.load_all_rules("default", include_extensions=False)
+    groups, _, _ = _group_rules_by_source(rules)
+    group = next((g for g in groups if g["source"] == source), None)
+    if not group:
+        return jsonify({"error": f"规则集 '{source}' 不存在"}), 404
+    payload = {
+        "exported_at": beijing_now_str(),
+        "source": group["source"],
+        "display_name": group["display_name"],
+        "custom": group["custom"],
+        "total": group["total"],
+        "enabled": group["enabled"],
+        "rules": group["rules"],
+    }
+    filename = f"{source}_rules_export.json"
+    return send_file(
+        BytesIO(json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")),
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/json",
+    )
 
 
 @bp.route("/api/test-rule", methods=["POST"])

@@ -1,0 +1,11 @@
+{
+  "provider": "siliconflow",
+  "model_name": "deepseek-ai/DeepSeek-V3.2",
+  "base_url": "https://api.siliconflow.cn/v1",
+  "api_key": "sk-your-api-key-here",
+  "timeout": 120,
+  "connect_timeout": 30,
+  "trust_env": true,
+  "max_tokens": 4096,
+  "temperature": 0.1
+}

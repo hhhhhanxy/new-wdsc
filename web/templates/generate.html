@@ -153,6 +153,19 @@
     display: grid;
     gap: 8px;
 }
+.generation-record-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+.generation-record-header .panel-title {
+    margin-bottom: 0;
+}
+.generation-record-header .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+}
 .generation-record {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -268,6 +281,25 @@
 .required-mark {
     margin-left: 3px;
     color: var(--danger);
+}
+.review-rule-set-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+}
+.review-rule-set-row label {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.review-rule-set-row select {
+    width: auto;
+    min-width: 180px;
+    padding: 6px 10px;
+    font-size: 13px;
 }
 </style>
 <div class="page-header">
@@ -405,6 +437,12 @@
                 </div>
 
                 <div style="text-align:center;margin-top:12px;">
+                    <div class="review-rule-set-row">
+                        <label for="generatedReviewRuleSet">送审规则集</label>
+                        <select class="form-control" id="generatedReviewRuleSet">
+                            <option value="all">全部规则</option>
+                        </select>
+                    </div>
                     <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载生成文档</button>
                     <button class="btn btn-outline" id="reviewGeneratedBtn" style="margin-left:8px;" onclick="reviewGenerated()">送入审查</button>
                     <button class="btn btn-outline" id="retryGenBtn" style="display:none;margin-left:8px;" onclick="retryGenerate()">重新生成</button>
@@ -419,7 +457,7 @@
                 <li>生成时会保留上传 DOCX 模板的正文、样式、页眉页脚和页面设置</li>
                 <li>智能生成模式会按章节组织模板说明、示例和用户素材调用大模型</li>
                 <li>平台会删除说明/举例内容，并替换模板中的占位内容</li>
-                <li>生成后可一键送入文档审查，形成生成—审查—修改闭环</li>
+                <li>生成后可选择规则集并一键送入文档审查，形成生成—审查—修改闭环</li>
                 <li>生成后可在 Word 中进一步编辑调整</li>
                 <li>支持导出为 DOCX 格式</li>
             </ul>
@@ -430,7 +468,10 @@
         </div>
 
         <div class="panel" style="margin-top:16px;">
-            <div class="panel-title">最近生成记录</div>
+            <div class="generation-record-header">
+                <div class="panel-title">最近生成记录</div>
+                <button type="button" class="btn btn-outline btn-danger-text" id="clearGenerationRecordsBtn" onclick="deleteAllGenerateRecords()" style="display:none;">全部清除历史记录</button>
+            </div>
             <div class="generation-record-list" id="recentGenerationList">
                 <div class="empty-state">暂无生成记录</div>
             </div>
@@ -484,6 +525,7 @@ let recentGenerationPage = 1;
 let supplementDocText = '';
 let supplementDocName = '';
 let supplementDocUploading = false;
+let reviewRuleSets = [{source: 'all', name: '全部规则'}];
 const genProgressModal = document.getElementById('genProgressModal');
 const genProgressDock = document.getElementById('genProgressDock');
 const genProgressDetail = document.getElementById('genProgressDetail');
@@ -1203,6 +1245,40 @@ function downloadGenerated() {
     if (currentGenTaskId) window.location.href = '/generate/download/' + currentGenTaskId;
 }
 
+function loadReviewRuleSets() {
+    fetch('/rules/api/profiles')
+        .then(r => r.json())
+        .then(data => {
+            const groups = data.groups || [];
+            reviewRuleSets = [{source: 'all', name: '全部规则'}].concat(
+                groups.map(g => ({
+                    source: g.source,
+                    name: `${g.display_name || g.source}（${g.enabled || 0}/${g.total || 0}启用）`
+                }))
+            );
+            renderGeneratedReviewRuleSet();
+        })
+        .catch(() => {
+            reviewRuleSets = [{source: 'all', name: '全部规则'}];
+            renderGeneratedReviewRuleSet();
+        });
+}
+
+function renderGeneratedReviewRuleSet() {
+    const select = document.getElementById('generatedReviewRuleSet');
+    if (!select) return;
+    const current = select.value || 'all';
+    select.innerHTML = reviewRuleSets.map(item =>
+        `<option value="${escapeHtml(item.source)}">${escapeHtml(item.name)}</option>`
+    ).join('');
+    select.value = reviewRuleSets.some(item => item.source === current) ? current : 'all';
+}
+
+function getGeneratedReviewRuleSet() {
+    const select = document.getElementById('generatedReviewRuleSet');
+    return select && select.value ? select.value : 'all';
+}
+
 function reviewGenerated(taskId = currentGenTaskId) {
     if (!taskId) return;
     const btn = taskId === currentGenTaskId ? document.getElementById('reviewGeneratedBtn') : null;
@@ -1213,7 +1289,7 @@ function reviewGenerated(taskId = currentGenTaskId) {
     fetch('/generate/review/' + taskId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rule_set: 'all' })
+        body: JSON.stringify({ rule_set: getGeneratedReviewRuleSet() })
     })
     .then(r => r.json())
     .then(data => {
@@ -1249,6 +1325,10 @@ function loadRecentGenerations() {
 
 function renderRecentGenerations(tasks, pagination) {
     const list = document.getElementById('recentGenerationList');
+    const clearBtn = document.getElementById('clearGenerationRecordsBtn');
+    if (clearBtn) {
+        clearBtn.style.display = pagination && pagination.total > 0 ? '' : 'none';
+    }
     if (!tasks.length) {
         list.innerHTML = '<div class="empty-state">暂无生成记录</div>';
         return;
@@ -1283,7 +1363,7 @@ function renderRecentGenerations(tasks, pagination) {
                     ${isRunning ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="cancelGeneration(${task.id})">停止</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn btn-outline" onclick="rerunGeneration(${task.id})">重新生成</button>` : ''}
                     ${canDownload ? `<button type="button" class="btn btn-outline" onclick="window.location.href='/generate/download/${task.id}'">下载</button>` : ''}
-                    ${canReview ? `<button type="button" class="btn btn-outline" onclick="reviewGenerated(${task.id})">送审</button>` : ''}
+                    ${canReview ? `<button type="button" class="btn btn-outline" title="使用当前选择的送审规则集" onclick="reviewGenerated(${task.id})">送审</button>` : ''}
                     ${canDelete ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="deleteGenerateRecord(${task.id})">删除</button>` : ''}
                 </div>
             </div>
@@ -1370,6 +1450,35 @@ function deleteGenerateRecord(taskId) {
         .catch(err => alert('删除失败: ' + err.message));
 }
 
+function deleteAllGenerateRecords() {
+    if (!confirm('确定清除全部已结束的生成历史记录？正在生成、暂停或等待中的记录会保留。')) return;
+    const btn = document.getElementById('clearGenerationRecordsBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '清除中...';
+    }
+    fetch('/generate/delete-all', { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('清除失败: ' + data.error);
+                return;
+            }
+            recentGenerationPage = 1;
+            loadRecentGenerations();
+            const remaining = Number(data.remaining || 0);
+            const suffix = remaining > 0 ? `，${remaining} 条运行中记录已保留` : '';
+            alert(`已清除 ${Number(data.deleted || 0)} 条生成历史记录${suffix}`);
+        })
+        .catch(err => alert('清除失败: ' + err.message))
+        .finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '全部清除历史记录';
+            }
+        });
+}
+
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, ch => ({
         '&': '&amp;',
@@ -1381,6 +1490,7 @@ function escapeHtml(value) {
 }
 
 loadTemplates();
+loadReviewRuleSets();
 loadRecentGenerations();
 </script>
 {% endblock %}

@@ -6,6 +6,7 @@ import sqlite3
 import threading
 from typing import Optional, Dict, Any
 import json
+from web.time_utils import beijing_now_str
 
 
 class Database:
@@ -106,9 +107,9 @@ class Database:
         """Create a new review task and return its ID"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO review_tasks (filename, filepath, mode, rule_set, status)
-            VALUES (?, ?, ?, ?, 'pending')
-        ''', (filename, filepath, mode, rule_set))
+            INSERT INTO review_tasks (filename, filepath, mode, rule_set, status, created_at)
+            VALUES (?, ?, ?, ?, 'pending', ?)
+        ''', (filename, filepath, mode, rule_set, beijing_now_str()))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -150,9 +151,9 @@ class Database:
         """Create a new generate task and return its ID"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO generate_tasks (doc_type, template_name, params, status)
-            VALUES (?, ?, ?, 'pending')
-        ''', (doc_type, template_name, json.dumps(params)))
+            INSERT INTO generate_tasks (doc_type, template_name, params, status, created_at)
+            VALUES (?, ?, ?, 'pending', ?)
+        ''', (doc_type, template_name, json.dumps(params), beijing_now_str()))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -221,8 +222,6 @@ class Database:
 
     def interrupt_running_generate_tasks(self, message: str) -> int:
         """Mark generation workers left by a previous process as canceled."""
-        from datetime import datetime
-
         cursor = self.conn.cursor()
         cursor.execute(
             '''
@@ -234,7 +233,25 @@ class Database:
                 completed_at = ?
             WHERE status IN ('pending', 'processing', 'paused')
             ''',
-            (message, message, datetime.now().isoformat(timespec='seconds')),
+            (message, message, beijing_now_str()),
+        )
+        self.conn.commit()
+        return cursor.rowcount
+
+    def interrupt_running_review_tasks(self, message: str) -> int:
+        """Mark review workers left by a previous process as canceled."""
+        cursor = self.conn.cursor()
+        cursor.execute(
+            '''
+            UPDATE review_tasks
+            SET status = 'canceled',
+                progress_stage = 'canceled',
+                progress_message = ?,
+                error = ?,
+                completed_at = ?
+            WHERE status IN ('pending', 'processing', 'paused')
+            ''',
+            (message, message, beijing_now_str()),
         )
         self.conn.commit()
         return cursor.rowcount

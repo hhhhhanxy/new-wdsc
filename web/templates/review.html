@@ -229,8 +229,13 @@
 </div>
 
 <button class="progress-dock" id="progressDock" onclick="openProgressModal()" style="display:none;">
-    <span id="progressDockStatus">审查中</span>
-    <strong id="progressDockPercent">0%</strong>
+    <div class="progress-dock-main">
+        <span id="progressDockStatus">审查中</span>
+        <strong id="progressDockPercent">0%</strong>
+    </div>
+    <div class="progress-dock-bar">
+        <div class="progress-dock-fill" id="progressDockFill" style="width:0%"></div>
+    </div>
 </button>
 {% endblock %}
 
@@ -257,6 +262,7 @@ const progressModal = document.getElementById('progressModal');
 const progressDock = document.getElementById('progressDock');
 const progressDockStatus = document.getElementById('progressDockStatus');
 const progressDockPercent = document.getElementById('progressDockPercent');
+const progressDockFill = document.getElementById('progressDockFill');
 const progressDetail = document.getElementById('progressDetail');
 
 const reviewTypeLabels = {
@@ -313,7 +319,7 @@ function isTaskActive() {
 function updateProgressDockVisibility() {
     if (!progressDock) return;
     const modalOpen = progressModal && progressModal.classList.contains('open');
-    progressDock.style.display = isTaskActive() && !modalOpen ? 'flex' : 'none';
+    progressDock.style.display = isTaskActive() && !modalOpen ? 'grid' : 'none';
 }
 
 // Upload zone interactions
@@ -565,6 +571,7 @@ function updateProgress(data) {
         progressDockStatus.textContent = detailText ? `${dockStatus}：${detailText}` : dockStatus;
     }
     if (progressDockPercent) progressDockPercent.textContent = pct + '%';
+    if (progressDockFill) progressDockFill.style.width = pct + '%';
     updateProgressDockVisibility();
     const pauseBtn = document.getElementById('pauseBtn');
     if (pauseBtn) {

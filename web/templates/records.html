@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}任务记录 - 文档审查与生成平台{% endblock %}
+
+{% block content %}
+<div class="records-page">
+    <div class="page-header">
+        <div>
+            <h1>任务记录</h1>
+            <p>集中查看文档审查与文档生成历史，处理下载、送审、暂停、继续、停止和删除操作。</p>
+        </div>
+    </div>
+
+    <div class="records-stat-grid">
+        <a class="records-stat-card" href="/records/">
+            <span>全部任务</span>
+            <strong>{{ stats.all }}</strong>
+        </a>
+        <a class="records-stat-card review" href="/records/?type=review">
+            <span>审查任务</span>
+            <strong>{{ stats.review }}</strong>
+        </a>
+        <a class="records-stat-card generate" href="/records/?type=generate">
+            <span>生成任务</span>
+            <strong>{{ stats.generate }}</strong>
+        </a>
+        <a class="records-stat-card running" href="/records/?status=running">
+            <span>运行中</span>
+            <strong>{{ stats.running }}</strong>
+        </a>
+    </div>
+
+    <div class="panel">
+        <form class="records-toolbar" method="get" action="/records/">
+            <div class="records-filter">
+                <label>任务类型</label>
+                <select class="form-control" name="type">
+                    <option value="all" {% if filters.type == 'all' %}selected{% endif %}>全部</option>
+                    <option value="review" {% if filters.type == 'review' %}selected{% endif %}>文档审查</option>
+                    <option value="generate" {% if filters.type == 'generate' %}selected{% endif %}>文档生成</option>
+                </select>
+            </div>
+            <div class="records-filter">
+                <label>状态</label>
+                <select class="form-control" name="status">
+                    <option value="all" {% if filters.status == 'all' %}selected{% endif %}>全部</option>
+                    <option value="running" {% if filters.status == 'running' %}selected{% endif %}>运行中</option>
+                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>已完成</option>
+                    <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>失败</option>
+                    <option value="canceled" {% if filters.status == 'canceled' %}selected{% endif %}>已停止</option>
+                    <option value="stale" {% if filters.status == 'stale' %}selected{% endif %}>已卡住</option>
+                </select>
+            </div>
+            <div class="records-filter records-search">
+                <label>关键词</label>
+                <input class="form-control" type="search" name="q" value="{{ filters.q }}" placeholder="文件名、规则集、模板或状态">
+            </div>
+            <button class="btn btn-primary" type="submit">筛选</button>
+            <a class="btn btn-outline" href="/records/">重置</a>
+        </form>
+
+        {% if records %}
+        <div class="records-list">
+            {% for item in records %}
+            <div class="records-item">
+                <div class="records-item-main">
+                    <div class="records-item-top">
+                        <span class="records-kind {{ item.kind }}">{{ item.kind_label }}</span>
+                        <strong title="{{ item.name }}">{{ item.name }}</strong>
+                        <span class="badge badge-{{ item.badge_class }}">{{ item.status_label }}</span>
+                    </div>
+                    <div class="records-meta">
+                        <span>{{ item.source }}</span>
+                        <span>创建：{{ item.created_at_display or '-' }}</span>
+                        {% if item.completed_at_display %}
+                        <span>完成：{{ item.completed_at_display }}</span>
+                        {% endif %}
+                    </div>
+                    {% if item.is_running or item.stale %}
+                    <div class="records-progress">
+                        <span style="width:{{ item.progress }}%"></span>
+                    </div>
+                    <div class="records-progress-text">{{ item.progress }}% · {{ item.progress_message or '正在处理' }}</div>
+                    {% elif item.summary %}
+                    <div class="records-summary">{{ item.summary }}</div>
+                    {% endif %}
+                </div>
+                <div class="records-actions">
+                    {% if item.kind == 'review' %}
+                        {% if item.is_running %}
+                            {% if item.is_paused %}
+                            <button type="button" class="btn btn-outline" onclick="postRecordAction('/review/resume/{{ item.id }}')">继续</button>
+                            {% else %}
+                            <button type="button" class="btn btn-outline" onclick="postRecordAction('/review/pause/{{ item.id }}')">暂停</button>
+                            {% endif %}
+                            <button type="button" class="btn btn-outline btn-danger-text" onclick="confirmPostRecordAction('/review/cancel/{{ item.id }}', '确定停止这条审查任务？')">停止</button>
+                            <a class="btn btn-outline" href="/review/?task_id={{ item.id }}">查看进度</a>
+                        {% elif item.can_download %}
+                            <a class="btn btn-outline" href="/review/?task_id={{ item.id }}">查看结果</a>
+                            <a class="btn btn-primary" href="/review/report/{{ item.id }}">下载报告</a>
+                        {% endif %}
+                        {% if item.can_delete %}
+                            <button type="button" class="btn btn-outline btn-danger-text" onclick="deleteRecord('/review/delete/{{ item.id }}')">删除</button>
+                        {% endif %}
+                    {% else %}
+                        {% if item.is_running %}
+                            {% if item.is_paused %}
+                            <button type="button" class="btn btn-outline" onclick="postRecordAction('/generate/resume/{{ item.id }}')">继续</button>
+                            {% else %}
+                            <button type="button" class="btn btn-outline" onclick="postRecordAction('/generate/pause/{{ item.id }}')">暂停</button>
+                            {% endif %}
+                            <button type="button" class="btn btn-outline btn-danger-text" onclick="confirmPostRecordAction('/generate/cancel/{{ item.id }}', '确定停止这条生成任务？')">停止</button>
+                        {% endif %}
+                        {% if item.can_download %}
+                            <a class="btn btn-outline" href="/generate/download/{{ item.id }}">下载</a>
+                            <button type="button" class="btn btn-outline" onclick="reviewGeneratedRecord({{ item.id }})">送审</button>
+                        {% endif %}
+                        {% if not item.is_running %}
+                            <button type="button" class="btn btn-outline" onclick="rerunGenerationRecord({{ item.id }})">重新生成</button>
+                        {% endif %}
+                        {% if item.can_delete %}
+                            <button type="button" class="btn btn-outline btn-danger-text" onclick="deleteRecord('/generate/delete/{{ item.id }}')">删除</button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if pagination.total_pages > 1 %}
+        <div class="pager">
+            <a class="pager-btn {% if not pagination.has_prev %}disabled{% endif %}" href="{% if pagination.has_prev %}/records/?type={{ filters.type }}&status={{ filters.status }}&q={{ filters.q|urlencode }}&page={{ pagination.page - 1 }}{% else %}#{% endif %}">上一页</a>
+            <span class="pager-info">{{ pagination.page }}/{{ pagination.total_pages }}（{{ pagination.start }}-{{ pagination.end }}/{{ pagination.total }}）</span>
+            <a class="pager-btn {% if not pagination.has_next %}disabled{% endif %}" href="{% if pagination.has_next %}/records/?type={{ filters.type }}&status={{ filters.status }}&q={{ filters.q|urlencode }}&page={{ pagination.page + 1 }}{% else %}#{% endif %}">下一页</a>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="empty-state">暂无匹配的任务记录</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleRecordResponse(promise, fallbackMessage) {
+    promise
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert(fallbackMessage + '：' + data.error);
+                return;
+            }
+            window.location.reload();
+        })
+        .catch(err => alert(fallbackMessage + '：' + err.message));
+}
+
+function postRecordAction(url) {
+    handleRecordResponse(fetch(url, {method: 'POST'}), '操作失败');
+}
+
+function confirmPostRecordAction(url, message) {
+    if (!confirm(message)) return;
+    postRecordAction(url);
+}
+
+function deleteRecord(url) {
+    if (!confirm('确定删除这条任务记录？')) return;
+    handleRecordResponse(fetch(url, {method: 'DELETE'}), '删除失败');
+}
+
+function rerunGenerationRecord(taskId) {
+    if (!confirm('确定基于这条记录重新生成？')) return;
+    fetch('/generate/rerun/' + taskId, {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('重新生成失败：' + data.error);
+                return;
+            }
+            window.location.href = '/records/?type=generate&status=running';
+        })
+        .catch(err => alert('重新生成失败：' + err.message));
+}
+
+function reviewGeneratedRecord(taskId) {
+    fetch('/generate/review/' + taskId, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rule_set: 'all'})
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('送审失败：' + data.error);
+                return;
+            }
+            window.location.href = '/review/?task_id=' + encodeURIComponent(data.review_task_id);
+        })
+        .catch(err => alert('送审失败：' + err.message));
+}
+</script>
+{% endblock %}

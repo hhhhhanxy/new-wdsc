@@ -34,6 +34,9 @@
             <a href="/generate/" class="{{ 'active' if active_page == 'generate' else '' }}" onclick="closeSidebarMobile()">
                 <span>文档生成</span>
             </a>
+            <a href="/records/" class="{{ 'active' if active_page == 'records' else '' }}" onclick="closeSidebarMobile()">
+                <span>任务记录</span>
+            </a>
             <a href="/rules/" class="{{ 'active' if active_page == 'rules' else '' }}" onclick="closeSidebarMobile()">
                 <span>审查规则管理</span>
             </a>
@@ -50,7 +53,25 @@
         {% block content %}{% endblock %}
     </main>
 
+    <div class="global-review-dock" id="globalReviewDock" style="display:none;">
+        <button class="global-review-dock-main" type="button" onclick="openGlobalReviewTask()">
+            <span class="global-review-kicker">审查任务</span>
+            <span class="global-review-title" id="globalReviewTitle">正在审查</span>
+            <span class="global-review-detail" id="globalReviewDetail">等待同步进度</span>
+            <span class="global-review-bar"><span id="globalReviewFill" style="width:0%"></span></span>
+        </button>
+        <div class="global-review-actions">
+            <strong id="globalReviewPercent">0%</strong>
+            <button type="button" id="globalReviewPauseBtn" onclick="event.stopPropagation();toggleGlobalReviewPause()">暂停</button>
+            <button type="button" class="danger" onclick="event.stopPropagation();cancelGlobalReviewTask()">停止</button>
+        </div>
+    </div>
+
     <script>
+    const GLOBAL_ACTIVE_PAGE = "{{ active_page or '' }}";
+    let globalReviewTask = null;
+    let globalReviewPollTimer = null;
+
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
         document.getElementById('sidebarOverlay').classList.toggle('active');
@@ -61,6 +82,86 @@
             document.getElementById('sidebarOverlay').classList.remove('active');
         }
     }
+
+    function shouldShowGlobalReviewDock(task) {
+        if (!task) return false;
+        if (GLOBAL_ACTIVE_PAGE === 'review') return false;
+        return ['pending', 'processing', 'paused'].includes(task.status);
+    }
+
+    function syncGlobalReviewDock(task) {
+        globalReviewTask = task;
+        const dock = document.getElementById('globalReviewDock');
+        if (!dock) return;
+        if (!shouldShowGlobalReviewDock(task)) {
+            dock.style.display = 'none';
+            return;
+        }
+        const pct = Number(task.progress || 0);
+        const statusText = task.stale ? '已卡住' : (
+            task.status === 'paused' ? '已暂停' :
+            task.status === 'pending' ? '等待审查' : '正在审查'
+        );
+        document.getElementById('globalReviewTitle').textContent = task.filename || '审查任务';
+        document.getElementById('globalReviewDetail').textContent =
+            `${statusText}${task.progress_message ? '：' + task.progress_message : ''}`;
+        document.getElementById('globalReviewPercent').textContent = pct + '%';
+        document.getElementById('globalReviewFill').style.width = pct + '%';
+        const pauseBtn = document.getElementById('globalReviewPauseBtn');
+        pauseBtn.style.display = task.stale || task.status === 'pending' ? 'none' : '';
+        pauseBtn.textContent = task.status === 'paused' ? '继续' : '暂停';
+        dock.classList.toggle('is-paused', task.status === 'paused');
+        dock.classList.toggle('is-stale', !!task.stale);
+        dock.style.display = 'grid';
+    }
+
+    function pollGlobalReviewTask() {
+        if (GLOBAL_ACTIVE_PAGE === 'review') return;
+        fetch('/review/api/active')
+            .then(r => r.json())
+            .then(data => syncGlobalReviewDock(data.task || null))
+            .catch(() => {});
+    }
+
+    function openGlobalReviewTask() {
+        if (!globalReviewTask) return;
+        window.location.href = '/review/?task_id=' + encodeURIComponent(globalReviewTask.id);
+    }
+
+    function toggleGlobalReviewPause() {
+        if (!globalReviewTask) return;
+        const action = globalReviewTask.status === 'paused' ? 'resume' : 'pause';
+        fetch('/review/' + action + '/' + globalReviewTask.id, {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert((action === 'pause' ? '暂停' : '继续') + '失败: ' + data.error);
+                    return;
+                }
+                pollGlobalReviewTask();
+            })
+            .catch(err => alert('操作失败: ' + err.message));
+    }
+
+    function cancelGlobalReviewTask() {
+        if (!globalReviewTask) return;
+        if (!confirm('确定停止当前审查任务？')) return;
+        fetch('/review/cancel/' + globalReviewTask.id, {method: 'POST'})
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    alert('停止失败: ' + data.error);
+                    return;
+                }
+                pollGlobalReviewTask();
+            })
+            .catch(err => alert('停止失败: ' + err.message));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        pollGlobalReviewTask();
+        globalReviewPollTimer = setInterval(pollGlobalReviewTask, 5000);
+    });
     </script>
     {% block scripts %}{% endblock %}
 </body>

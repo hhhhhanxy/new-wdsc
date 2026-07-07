@@ -18,6 +18,7 @@ if __name__ == '__main__':
     debug = os.environ.get('DEBUG', 'False').lower() == 'true'
     use_reloader = False
     interrupted = app.db.interrupt_running_generate_tasks('服务重启，原生成任务已中断')
+    interrupted_reviews = app.db.interrupt_running_review_tasks('服务重启，原审查任务已中断')
 
     print(f"Starting Web Interface on http://{host}:{port}")
     print(f"Upload directory: {app.config['UPLOAD_FOLDER']}")
@@ -26,5 +27,7 @@ if __name__ == '__main__':
     print(f"Debug: {debug}, Reloader: {use_reloader}")
     if interrupted:
         print(f"Interrupted stale generation tasks: {interrupted}")
+    if interrupted_reviews:
+        print(f"Interrupted stale review tasks: {interrupted_reviews}")
 
     app.run(debug=debug, host=host, port=port, use_reloader=use_reloader)

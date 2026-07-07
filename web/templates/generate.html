@@ -149,64 +149,6 @@
     font-size: 14px;
     text-align: center;
 }
-.generation-record-list {
-    display: grid;
-    gap: 8px;
-}
-.generation-record-header {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-}
-.generation-record-header .panel-title {
-    margin-bottom: 0;
-}
-.generation-record-header .btn {
-    padding: 6px 12px;
-    font-size: 13px;
-}
-.generation-record {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #fbfdff;
-}
-.generation-record-title {
-    overflow: hidden;
-    color: var(--text);
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.generation-record-top {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    min-width: 0;
-}
-.generation-record-meta {
-    margin-top: 3px;
-    color: var(--text-secondary);
-    font-size: 12px;
-}
-.generation-record-progress {
-    width: 100%;
-    height: 6px;
-    margin-top: 7px;
-    overflow: hidden;
-    border-radius: 99px;
-    background: #edf2f5;
-}
-.generation-record-progress-bar {
-    height: 100%;
-    border-radius: inherit;
-    background: #21a8f3;
-}
 .generation-record-error {
     margin-top: 6px;
     overflow: hidden;
@@ -214,22 +156,6 @@
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-.generation-record-actions {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-.generation-record-pager {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    align-items: center;
-    margin-top: 10px;
-}
-.generation-record-pager-info {
-    color: var(--text-secondary);
-    font-size: 13px;
 }
 .progress-detail {
     margin-top: 8px;
@@ -468,12 +394,13 @@
         </div>
 
         <div class="panel" style="margin-top:16px;">
-            <div class="generation-record-header">
-                <div class="panel-title">最近生成记录</div>
-                <button type="button" class="btn btn-outline btn-danger-text" id="clearGenerationRecordsBtn" onclick="deleteAllGenerateRecords()" style="display:none;">全部清除历史记录</button>
-            </div>
-            <div class="generation-record-list" id="recentGenerationList">
-                <div class="empty-state">暂无生成记录</div>
+            <div class="panel-title">任务记录</div>
+            <div class="generation-record-entry">
+                <div>
+                    <h3>生成历史已集中到任务记录</h3>
+                    <p>可在统一页面查看生成状态、下载文档、重新生成或送入审查。</p>
+                </div>
+                <a class="btn btn-primary" href="/records/?type=generate">查看生成记录</a>
             </div>
         </div>
     </div>
@@ -521,7 +448,6 @@ let selectedTemplate = null;
 let expandedChapterKeys = new Set();
 let chapterSearchQuery = '';
 let generationRequirementsTouched = false;
-let recentGenerationPage = 1;
 let supplementDocText = '';
 let supplementDocName = '';
 let supplementDocUploading = false;
@@ -1090,7 +1016,6 @@ function toggleGeneratePause(taskId = currentGenTaskId) {
                     progress_message: isGenPaused ? '生成已暂停，点击继续后恢复' : '正在恢复文档生成'
                 });
             }
-            loadRecentGenerations();
         })
         .catch(err => {
             alert((paused ? '继续失败：' : '暂停失败：') + err.message);
@@ -1130,7 +1055,6 @@ function cancelGeneration(taskId = currentGenTaskId) {
                     error: '用户手动停止生成任务'
                 });
             }
-            loadRecentGenerations();
         })
         .catch(err => {
             alert('停止失败：' + err.message);
@@ -1144,8 +1068,6 @@ function handleGenFinalState(data) {
     document.getElementById('generateBtn').textContent = '按模板生成文档';
     closeGenProgressModal();
     updateGenProgressDockVisibility();
-    loadRecentGenerations();
-
     if (data.status === 'completed') {
         document.getElementById('genResultSection').style.display = 'block';
         document.getElementById('genResultEmoji').textContent = 'OK';
@@ -1312,173 +1234,6 @@ function reviewGenerated(taskId = currentGenTaskId) {
     });
 }
 
-function loadRecentGenerations() {
-    fetch('/generate/api/recent?page=' + encodeURIComponent(recentGenerationPage))
-        .then(r => r.json())
-        .then(data => {
-            renderRecentGenerations(data.tasks || [], data.pagination || null);
-        })
-        .catch(() => {
-            document.getElementById('recentGenerationList').innerHTML = '<div class="empty-state">生成记录加载失败</div>';
-        });
-}
-
-function renderRecentGenerations(tasks, pagination) {
-    const list = document.getElementById('recentGenerationList');
-    const clearBtn = document.getElementById('clearGenerationRecordsBtn');
-    if (clearBtn) {
-        clearBtn.style.display = pagination && pagination.total > 0 ? '' : 'none';
-    }
-    if (!tasks.length) {
-        list.innerHTML = '<div class="empty-state">暂无生成记录</div>';
-        return;
-    }
-    const recordsHtml = tasks.map(task => {
-        const filename = task.result_path ? task.result_path.split(/[/\\]/).pop() : task.template_name;
-        const canDownload = task.status === 'completed' && task.result_path;
-        const canReview = task.status === 'completed' && task.result_path;
-        const canDelete = !['pending', 'processing', 'paused'].includes(task.status);
-        const isRunning = ['pending', 'processing', 'paused'].includes(task.status);
-        const statusLabel = task.status_label || getGenStatusText(task);
-        const badgeClass = task.badge_class || getGenBadgeClass(task.status);
-        return `
-            <div class="generation-record">
-                <div>
-                    <div class="generation-record-top">
-                        <div class="generation-record-title" title="${escapeHtml(filename)}">${escapeHtml(filename)}</div>
-                        <span class="badge badge-${escapeHtml(badgeClass)}">${escapeHtml(statusLabel)}</span>
-                    </div>
-                    <div class="generation-record-meta">${escapeHtml(task.template_name)} · 创建：${escapeHtml(task.created_at || '')}${task.completed_at ? ' · 完成：' + escapeHtml(task.completed_at) : ''}</div>
-                    ${isRunning ? `
-                        <div class="generation-record-progress">
-                            <div class="generation-record-progress-bar" style="width:${Number(task.progress || 0)}%"></div>
-                        </div>
-                        <div class="generation-record-meta">${Number(task.progress || 0)}% · ${escapeHtml(task.progress_message || '正在处理')}</div>
-                    ` : ''}
-                    ${task.status === 'failed' && task.error ? `<div class="generation-record-error" title="${escapeHtml(task.error)}">${escapeHtml(task.error)}</div>` : ''}
-                </div>
-                <div class="generation-record-actions">
-                    ${task.status === 'processing' ? `<button type="button" class="btn btn-outline" onclick="currentGenTaskId=${task.id};isGenPaused=false;toggleGeneratePause(${task.id})">暂停</button>` : ''}
-                    ${task.status === 'paused' ? `<button type="button" class="btn btn-outline" onclick="resumeGeneration(${task.id})">继续</button>` : ''}
-                    ${isRunning ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="cancelGeneration(${task.id})">停止</button>` : ''}
-                    ${canDelete ? `<button type="button" class="btn btn-outline" onclick="rerunGeneration(${task.id})">重新生成</button>` : ''}
-                    ${canDownload ? `<button type="button" class="btn btn-outline" onclick="window.location.href='/generate/download/${task.id}'">下载</button>` : ''}
-                    ${canReview ? `<button type="button" class="btn btn-outline" title="使用当前选择的送审规则集" onclick="reviewGenerated(${task.id})">送审</button>` : ''}
-                    ${canDelete ? `<button type="button" class="btn btn-outline btn-danger-text" onclick="deleteGenerateRecord(${task.id})">删除</button>` : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-    const pagerHtml = renderGenerationPager(pagination);
-    list.innerHTML = recordsHtml + pagerHtml;
-}
-
-function renderGenerationPager(pagination) {
-    if (!pagination || pagination.total_pages <= 1) return '';
-    return `
-        <div class="generation-record-pager">
-            <button type="button" class="pager-btn" onclick="changeGenerationPage(${pagination.page - 1})" ${pagination.has_prev ? '' : 'disabled'}>上一页</button>
-            <span class="generation-record-pager-info">
-                ${pagination.page}/${pagination.total_pages}
-                （${pagination.start}-${pagination.end}/${pagination.total}）
-            </span>
-            <button type="button" class="pager-btn" onclick="changeGenerationPage(${pagination.page + 1})" ${pagination.has_next ? '' : 'disabled'}>下一页</button>
-        </div>
-    `;
-}
-
-function changeGenerationPage(page) {
-    recentGenerationPage = Math.max(1, Number(page || 1));
-    loadRecentGenerations();
-}
-
-function getGenBadgeClass(status) {
-    return {
-        pending: 'warning',
-        processing: 'info',
-        paused: 'warning',
-        generated: 'success',
-        completed: 'success',
-        failed: 'danger',
-        review_failed: 'danger',
-        canceled: 'default',
-    }[status] || 'default';
-}
-
-function rerunGeneration(taskId) {
-    if (!confirm('确定基于这条记录的模板和输入素材重新生成？')) return;
-    fetch('/generate/rerun/' + taskId, { method: 'POST' })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) {
-                alert('重新生成失败: ' + data.error);
-                return;
-            }
-            currentGenTaskId = data.task_id;
-            document.getElementById('genProgressSection').style.display = 'block';
-            openGenProgressModal();
-            updateGenProgress({
-                status: 'processing',
-                progress: 0,
-                progress_message: '重新生成任务已创建'
-            });
-            pollGenProgress();
-            loadRecentGenerations();
-        })
-        .catch(err => alert('重新生成失败: ' + err.message));
-}
-
-function deleteGenerateRecord(taskId) {
-    if (!confirm('确定删除这条生成记录？')) return;
-    fetch('/generate/delete/' + taskId, { method: 'DELETE' })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) {
-                alert('删除失败: ' + data.error);
-                return;
-            }
-            if (currentGenTaskId === taskId) {
-                currentGenTaskId = null;
-                document.getElementById('genResultSection').style.display = 'none';
-            }
-            const visibleRecords = document.querySelectorAll('.generation-record').length;
-            if (visibleRecords <= 1 && recentGenerationPage > 1) {
-                recentGenerationPage -= 1;
-            }
-            loadRecentGenerations();
-        })
-        .catch(err => alert('删除失败: ' + err.message));
-}
-
-function deleteAllGenerateRecords() {
-    if (!confirm('确定清除全部已结束的生成历史记录？正在生成、暂停或等待中的记录会保留。')) return;
-    const btn = document.getElementById('clearGenerationRecordsBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.textContent = '清除中...';
-    }
-    fetch('/generate/delete-all', { method: 'DELETE' })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) {
-                alert('清除失败: ' + data.error);
-                return;
-            }
-            recentGenerationPage = 1;
-            loadRecentGenerations();
-            const remaining = Number(data.remaining || 0);
-            const suffix = remaining > 0 ? `，${remaining} 条运行中记录已保留` : '';
-            alert(`已清除 ${Number(data.deleted || 0)} 条生成历史记录${suffix}`);
-        })
-        .catch(err => alert('清除失败: ' + err.message))
-        .finally(() => {
-            if (btn) {
-                btn.disabled = false;
-                btn.textContent = '全部清除历史记录';
-            }
-        });
-}
-
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, ch => ({
         '&': '&amp;',
@@ -1491,6 +1246,5 @@ function escapeHtml(value) {
 
 loadTemplates();
 loadReviewRuleSets();
-loadRecentGenerations();
 </script>
 {% endblock %}

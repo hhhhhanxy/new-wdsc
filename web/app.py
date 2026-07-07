@@ -30,6 +30,7 @@ def create_app():
     from web.routes import bp as index_bp
     from web.routes.review import bp as review_bp
     from web.routes.generate import bp as generate_bp
+    from web.routes.records import bp as records_bp
     from web.routes.rules import bp as rules_bp
     from web.routes.knowledge import bp as knowledge_bp
     from web.routes.template_library import bp as template_library_bp
@@ -37,6 +38,7 @@ def create_app():
     app.register_blueprint(index_bp)
     app.register_blueprint(review_bp, url_prefix='/review')
     app.register_blueprint(generate_bp, url_prefix='/generate')
+    app.register_blueprint(records_bp, url_prefix='/records')
     app.register_blueprint(rules_bp, url_prefix='/rules')
     app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
     app.register_blueprint(template_library_bp, url_prefix='/template-library')

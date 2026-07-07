@@ -191,35 +191,6 @@ def decorate_recent_review_tasks(tasks: list, groups: list = None) -> list:
     return decorated
 
 
-RECENT_REVIEW_PAGE_SIZE = 5
-
-
-def _recent_review_page_data(db, page: int = 1, groups: list = None, base_url: str = "/review/") -> tuple[list, dict]:
-    page = max(1, int(page or 1))
-    total = db.count_review_tasks()
-    total_pages = max(1, (total + RECENT_REVIEW_PAGE_SIZE - 1) // RECENT_REVIEW_PAGE_SIZE)
-    page = min(page, total_pages)
-    offset = (page - 1) * RECENT_REVIEW_PAGE_SIZE
-    recent = decorate_recent_review_tasks(
-        db.get_recent_review_tasks(limit=RECENT_REVIEW_PAGE_SIZE, offset=offset),
-        groups,
-    )
-    pagination = {
-        "page": page,
-        "page_size": RECENT_REVIEW_PAGE_SIZE,
-        "total": total,
-        "total_pages": total_pages,
-        "has_prev": page > 1,
-        "has_next": page < total_pages,
-        "prev_url": f"{base_url}?recent_page={page - 1}",
-        "next_url": f"{base_url}?recent_page={page + 1}",
-        "start": offset + 1 if total else 0,
-        "end": min(offset + RECENT_REVIEW_PAGE_SIZE, total),
-        "stale_count": sum(1 for task in db.get_recent_review_tasks(limit=total or 1) if _is_stale_running_task(task)),
-    }
-    return recent, pagination
-
-
 @bp.route('/')
 def index():
     db = current_app.db
@@ -230,15 +201,11 @@ def index():
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
     groups, _, _ = _group_rules_by_source(rules)
     rule_sets = [{"source": g["source"], "name": g["display_name"], "count": g["total"]} for g in groups]
-    recent_page = request.args.get("recent_page", 1, type=int)
     focus_task_id = request.args.get("task_id", type=int)
-    recent, recent_pagination = _recent_review_page_data(db, recent_page, groups, "/review/")
 
     return render_template(
         'review.html',
         active_page='review',
-        recent_tasks=recent,
-        recent_pagination=recent_pagination,
         rule_sets=rule_sets,
         focus_task_id=focus_task_id,
     )
@@ -280,6 +247,18 @@ def status(task_id):
     if not task:
         return jsonify({'error': '任务不存在'}), 404
     return jsonify(dict(task))
+
+
+@bp.route('/api/active')
+def active_review_task():
+    """Return the newest running review task for the global progress dock."""
+    db = current_app.db
+    tasks = db.get_recent_review_tasks(limit=max(db.count_review_tasks(), 1))
+    active = next((task for task in tasks if task.get('status') in RUNNING_STATUSES), None)
+    if not active:
+        return jsonify({'ok': True, 'task': None})
+    decorated = decorate_recent_review_tasks([active])[0]
+    return jsonify({'ok': True, 'task': decorated})
 
 
 @bp.route('/api/issues/<int:task_id>/<issue_id>/status', methods=['POST'])

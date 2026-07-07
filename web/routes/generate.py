@@ -6,10 +6,10 @@ import json
 import threading
 import time
 import uuid
-from datetime import datetime
 from pathlib import Path
 from flask import Blueprint, render_template, request, jsonify, send_file, current_app
 from werkzeug.utils import secure_filename
+from web.time_utils import beijing_now_str
 
 bp = Blueprint('generate', __name__)
 RUNNING_STATUSES = {'pending', 'processing', 'paused'}
@@ -148,7 +148,7 @@ def cancel(task_id):
         progress_stage='canceled',
         progress_message='用户手动停止生成',
         error='用户手动停止生成任务',
-        completed_at=datetime.now().isoformat(timespec='seconds'),
+        completed_at=beijing_now_str(),
     )
     return jsonify({'ok': True, 'status': 'canceled', 'progress': task.get('progress', 0)})
 
@@ -458,7 +458,7 @@ def run_generate_task(task_id, data, upload_folder, db):
             progress_message='文档生成完成，可一键送入审查',
             result_path=result.generated_path,
             error=None,
-            completed_at=datetime.now().isoformat(timespec='seconds'),
+            completed_at=beijing_now_str(),
         )
 
     except GenerationTaskCanceled as e:
@@ -470,7 +470,7 @@ def run_generate_task(task_id, data, upload_folder, db):
                 error=str(e),
                 progress_stage='canceled',
                 progress_message=str(e),
-                completed_at=datetime.now().isoformat(timespec='seconds'),
+                completed_at=beijing_now_str(),
             )
 
     except Exception as e:
@@ -485,7 +485,7 @@ def run_generate_task(task_id, data, upload_folder, db):
             error=str(e),
             progress_stage='failed',
             progress_message='生成失败',
-            completed_at=datetime.now().isoformat(timespec='seconds'),
+            completed_at=beijing_now_str(),
         )
 
 

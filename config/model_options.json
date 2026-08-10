@@ -1,0 +1,12 @@
+[
+  {
+    "enabled": false,
+    "id": "glm_5_1",
+    "name": "GLM-5.1",
+    "provider": "siliconflow",
+    "model": "Pro/zai-org/GLM-5.1",
+    "base_url": "https://api.xxx/v1",
+    "api_key": "可选，如果和默认一致可以不填",
+    "usage": ["generate", "review"]
+  }
+]

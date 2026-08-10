@@ -105,6 +105,15 @@
                 <div class="pager" id="reviewRulePager"></div>
                 <div class="empty-state" id="reviewNoRulesHint" style="display:none;">该规则集暂无规则</div>
             </div>
+            <div class="config-row" style="margin-top:14px;">
+                <div class="config-label">审查模型</div>
+                <div>
+                    <select class="form-control" id="reviewModelSelect" style="width:auto;min-width:220px;padding:7px 12px;font-size:15px;">
+                        <option value="system_default">系统默认</option>
+                    </select>
+                    <div class="form-hint">未选择时使用系统默认模型。</div>
+                </div>
+            </div>
         </div>
 
         <!-- Step 3: Start -->
@@ -258,6 +267,7 @@ const fileInput = document.getElementById('fileInput');
 const uploadText = document.getElementById('uploadText');
 const startBtn = document.getElementById('startBtn');
 const ruleSetSelect = document.getElementById('ruleSetSelect');
+const reviewModelSelect = document.getElementById('reviewModelSelect');
 const progressModal = document.getElementById('progressModal');
 const progressDock = document.getElementById('progressDock');
 const progressDockStatus = document.getElementById('progressDockStatus');
@@ -355,6 +365,21 @@ function loadReviewRules() {
         })
         .catch(() => {
             document.getElementById('reviewRuleStats').textContent = '规则加载失败';
+        });
+}
+
+function loadReviewModels() {
+    fetch('/api/models?usage=review')
+        .then(r => r.json())
+        .then(data => {
+            const models = data.models || [];
+            if (!models.length) return;
+            reviewModelSelect.innerHTML = models.map(model =>
+                `<option value="${escapeHtml(model.id)}" ${model.is_default ? 'selected' : ''}>${escapeHtml(model.name)}</option>`
+            ).join('');
+        })
+        .catch(() => {
+            reviewModelSelect.innerHTML = '<option value="system_default">系统默认</option>';
         });
 }
 
@@ -474,6 +499,7 @@ function startReview() {
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('rule_set', ruleSetSelect.value);
+    formData.append('model_id', reviewModelSelect.value || 'system_default');
 
     fetch('/review/upload', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -839,6 +865,7 @@ function resetUI() {
 }
 
 loadReviewRules();
+loadReviewModels();
 if (initialTaskId) {
     currentTaskId = initialTaskId;
     openProgressModal();

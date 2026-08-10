@@ -63,6 +63,8 @@ class Database:
         self._ensure_column(cursor, 'review_tasks', 'progress_message', "TEXT")
         self._ensure_column(cursor, 'review_tasks', 'current_section', "INTEGER DEFAULT 0")
         self._ensure_column(cursor, 'review_tasks', 'total_sections', "INTEGER DEFAULT 0")
+        self._ensure_column(cursor, 'review_tasks', 'model_id', "TEXT")
+        self._ensure_column(cursor, 'review_tasks', 'model_name', "TEXT")
 
         # Generate tasks table
         cursor.execute('''
@@ -87,6 +89,12 @@ class Database:
         self._ensure_column(cursor, 'generate_tasks', 'progress_message', "TEXT")
         self._ensure_column(cursor, 'generate_tasks', 'current_section', "INTEGER DEFAULT 0")
         self._ensure_column(cursor, 'generate_tasks', 'total_sections', "INTEGER DEFAULT 0")
+        self._ensure_column(cursor, 'generate_tasks', 'model_id', "TEXT")
+        self._ensure_column(cursor, 'generate_tasks', 'model_name', "TEXT")
+        self._ensure_column(cursor, 'generate_tasks', 'specialty_id', "TEXT")
+        self._ensure_column(cursor, 'generate_tasks', 'specialty_name', "TEXT")
+        self._ensure_column(cursor, 'generate_tasks', 'document_kind_name', "TEXT")
+        self._ensure_column(cursor, 'generate_tasks', 'reference_cases', "TEXT")
 
         self.conn.commit()
 
@@ -94,7 +102,11 @@ class Database:
         cursor.execute(f'PRAGMA table_info({table})')
         columns = {row[1] for row in cursor.fetchall()}
         if column not in columns:
-            cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+            try:
+                cursor.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+            except sqlite3.OperationalError as exc:
+                if "duplicate column name" not in str(exc).lower():
+                    raise
 
     def get_review_task(self, task_id: int) -> Optional[Dict[str, Any]]:
         """Get review task by ID"""
@@ -103,13 +115,21 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def create_review_task(self, filename: str, filepath: str, mode: str, rule_set: str = 'all') -> int:
+    def create_review_task(
+        self,
+        filename: str,
+        filepath: str,
+        mode: str,
+        rule_set: str = 'all',
+        model_id: str = None,
+        model_name: str = None,
+    ) -> int:
         """Create a new review task and return its ID"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO review_tasks (filename, filepath, mode, rule_set, status, created_at)
-            VALUES (?, ?, ?, ?, 'pending', ?)
-        ''', (filename, filepath, mode, rule_set, beijing_now_str()))
+            INSERT INTO review_tasks (filename, filepath, mode, rule_set, model_id, model_name, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+        ''', (filename, filepath, mode, rule_set, model_id, model_name, beijing_now_str()))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -147,13 +167,38 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def create_generate_task(self, doc_type: str, template_name: str, params: Dict[str, Any]) -> int:
+    def create_generate_task(
+        self,
+        doc_type: str,
+        template_name: str,
+        params: Dict[str, Any],
+        model_id: str = None,
+        model_name: str = None,
+        specialty_id: str = None,
+        specialty_name: str = None,
+        document_kind_name: str = None,
+        reference_cases: list = None,
+    ) -> int:
         """Create a new generate task and return its ID"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO generate_tasks (doc_type, template_name, params, status, created_at)
-            VALUES (?, ?, ?, 'pending', ?)
-        ''', (doc_type, template_name, json.dumps(params), beijing_now_str()))
+            INSERT INTO generate_tasks (
+                doc_type, template_name, params, model_id, model_name,
+                specialty_id, specialty_name, document_kind_name, reference_cases, status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        ''', (
+            doc_type,
+            template_name,
+            json.dumps(params),
+            model_id,
+            model_name,
+            specialty_id,
+            specialty_name,
+            document_kind_name,
+            json.dumps(reference_cases or [], ensure_ascii=False),
+            beijing_now_str(),
+        ))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -188,7 +233,8 @@ class Database:
         """Get recent generate tasks."""
         cursor = self.conn.cursor()
         cursor.execute('''
-            SELECT id, doc_type, template_name, status, progress, progress_stage,
+            SELECT id, doc_type, template_name, model_id, model_name,
+                   specialty_id, specialty_name, document_kind_name, reference_cases, status, progress, progress_stage,
                    progress_message, current_section, total_sections, result_path,
                    error, created_at, completed_at
             FROM generate_tasks
@@ -260,7 +306,7 @@ class Database:
         """Get recent review tasks"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            SELECT id, filename, status, progress, progress_stage, progress_message,
+            SELECT id, filename, model_id, model_name, status, progress, progress_stage, progress_message,
                    current_section, total_sections, rule_set, result, error, created_at, completed_at
             FROM review_tasks
             ORDER BY created_at DESC

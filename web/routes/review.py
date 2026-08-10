@@ -224,12 +224,21 @@ def upload():
 
     mode = 'by_rule'
     rule_set = request.form.get('rule_set', 'all')
+    from web.option_registry import resolve_model_option
+    model_option = resolve_model_option(request.form.get('model_id'), 'review')
     safe_name = os.path.basename(file.filename)
     unique_name = f"{uuid.uuid4().hex[:8]}_{safe_name}"
     filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_name)
     file.save(filepath)
 
-    task_id = db.create_review_task(file.filename, filepath, mode, rule_set=rule_set)
+    task_id = db.create_review_task(
+        file.filename,
+        filepath,
+        mode,
+        rule_set=rule_set,
+        model_id=model_option.get('id'),
+        model_name=model_option.get('name'),
+    )
 
     thread = threading.Thread(
         target=run_review_task,

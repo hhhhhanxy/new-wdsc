@@ -112,8 +112,20 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
         llm_rules = [r for r in enabled_rules if should_use_llm_check(r)]
         llm_client = None
         if llm_rules:
-            update_task_progress(db, task_id, 8, stage='llm', message='正在初始化大模型客户端')
-            llm_client = LLMClientFactory.create_client(settings.llm_provider)
+            task = db.get_review_task(task_id) or {}
+            model_id = task.get('model_id')
+            from web.option_registry import resolve_model_option
+            model_option = resolve_model_option(model_id, 'review')
+            provider = model_option.get('provider') or settings.llm_provider
+            model_name = model_option.get('model') or None
+            display_name = model_option.get('name') or model_name or settings.llm_model
+            client_kwargs = {'model': model_name}
+            if model_option.get('base_url'):
+                client_kwargs['base_url'] = model_option.get('base_url')
+            if model_option.get('api_key'):
+                client_kwargs['api_key'] = model_option.get('api_key')
+            update_task_progress(db, task_id, 8, stage='llm', message=f'正在初始化审查模型：{display_name}')
+            llm_client = LLMClientFactory.create_client(provider, **client_kwargs)
         else:
             update_task_progress(db, task_id, 8, stage='rules', message='本次审查不需要调用大模型')
 
@@ -227,6 +239,8 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
             'review_time': beijing_now_str(),
             'review_duration': result.review_time,
             'rule_set': rule_set or 'all',
+            'model_id': (db.get_review_task(task_id) or {}).get('model_id'),
+            'model_name': (db.get_review_task(task_id) or {}).get('model_name'),
             'rule_snapshot': rule_snapshot,
             'sections': sections_data,
         }

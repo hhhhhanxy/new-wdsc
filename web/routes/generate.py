@@ -199,6 +199,12 @@ def rerun(task_id):
         'template_id': template_id,
         'title': title,
         'inputs': inputs,
+        'model_id': params_data.get('model_id') or task.get('model_id'),
+        'specialty_id': params_data.get('specialty_id') or task.get('specialty_id'),
+        'reference_case_ids': [
+            item.get('id') for item in (params_data.get('reference_cases') or [])
+            if isinstance(item, dict) and item.get('id')
+        ],
         'rerun_from': task_id,
     }
     return _create_generation_task(rerun_data)
@@ -235,13 +241,17 @@ def review_generated(task_id):
     from web.tasks import run_review_task
 
     filename = os.path.basename(result_path)
-    rule_set = request.get_json(silent=True) or {}
-    rule_set = str(rule_set.get('rule_set') or 'all')
+    payload = request.get_json(silent=True) or {}
+    rule_set = str(payload.get('rule_set') or 'all')
+    from web.option_registry import resolve_model_option
+    review_model = resolve_model_option(payload.get('model_id'), 'review')
     review_task_id = current_app.db.create_review_task(
         filename=filename,
         filepath=result_path,
         mode='generated_doc',
         rule_set=rule_set,
+        model_id=review_model.get('id'),
+        model_name=review_model.get('name'),
     )
 
     try:
@@ -288,8 +298,8 @@ def delete_all_tasks():
 
 def _create_generation_task(data: dict):
     db = current_app.db
-    if not data or not data.get('title'):
-        return jsonify({'error': '请输入文档标题'}), 400
+    if not data:
+        return jsonify({'error': '请输入生成需求'}), 400
     if not data.get('template_id'):
         return jsonify({'error': '请选择文档模板'}), 400
 
@@ -301,8 +311,11 @@ def _create_generation_task(data: dict):
         return jsonify({'error': f"模板不存在: {data['template_id']}"}), 400
 
     inputs = data.get('inputs') or {}
-    if not str(inputs.get('product_name', '')).strip():
-        return jsonify({'error': '请输入产品名称'}), 400
+    generation_brief = str(inputs.get('generation_brief') or '').strip()
+    supplement_text = str(inputs.get('supplement_doc_text') or '').strip()
+    if not generation_brief and not supplement_text:
+        return jsonify({'error': '请输入生成需求，或上传补充材料'}), 400
+    data['title'] = str(data.get('title') or _derive_title_from_brief(generation_brief, template.name)).strip()
     dynamic_values = inputs.get('dynamic_fields') or {}
     missing_dynamic = [
         field.label
@@ -322,6 +335,27 @@ def _create_generation_task(data: dict):
     ]
     data['inputs'] = inputs
     template_dict = manager.serialize_template(template)
+    from web.option_registry import build_reference_case_context, get_specialty, resolve_model_option
+    model_option = resolve_model_option(data.get('model_id'), 'generate')
+    specialty = get_specialty(data.get('specialty_id'))
+    specialty_id = specialty.get('id') if specialty else ''
+    specialty_name = specialty.get('name') if specialty else ''
+    selected_cases = _resolve_template_reference_cases(
+        template_dict,
+        data.get('reference_case_ids') if isinstance(data.get('reference_case_ids'), list) else [],
+    )
+    document_kind_name = str(
+        data.get('document_kind_name')
+        or (template_dict.get('metadata') or {}).get('document_kind_name')
+        or template.name
+    ).strip()
+    reference_case_context = build_reference_case_context(selected_cases)
+    inputs['specialty_id'] = specialty_id
+    inputs['specialty_name'] = specialty_name
+    inputs['document_kind_name'] = document_kind_name
+    inputs['reference_case_ids'] = [case.get('id') for case in selected_cases]
+    inputs['reference_case_names'] = [case.get('name') for case in selected_cases]
+    inputs['reference_case_context'] = reference_case_context
     if not _has_source_docx(template_dict):
         return jsonify({'error': '该模板没有原始 DOCX 文件，请先在生成模板库中上传模板'}), 400
 
@@ -330,6 +364,19 @@ def _create_generation_task(data: dict):
         'template_id': template.template_id,
         'template_name': template.name,
         'template_version': (template.metadata or {}).get('version', 1),
+        'model_id': model_option.get('id'),
+        'model_name': model_option.get('name'),
+        'specialty_id': specialty_id,
+        'specialty_name': specialty_name,
+        'document_kind_name': document_kind_name,
+        'reference_cases': [
+            {
+                'id': case.get('id'),
+                'name': case.get('name'),
+                'doc_type': case.get('doc_type'),
+            }
+            for case in selected_cases
+        ],
         'inputs': inputs,
         'rerun_from': data.get('rerun_from'),
         'auto_review': False,
@@ -342,7 +389,13 @@ def _create_generation_task(data: dict):
     new_task_id = db.create_generate_task(
         doc_type=template.doc_type.value if template.doc_type else template.template_id,
         template_name=template.name,
-        params=params
+        params=params,
+        model_id=model_option.get('id'),
+        model_name=model_option.get('name'),
+        specialty_id=specialty_id,
+        specialty_name=specialty_name,
+        document_kind_name=document_kind_name,
+        reference_cases=params['reference_cases'],
     )
 
     thread = threading.Thread(
@@ -384,13 +437,23 @@ def run_generate_task(task_id, data, upload_folder, db):
 
         llm_client = None
         if generation_mode == 'smart':
+            from web.option_registry import resolve_model_option
+            model_option = resolve_model_option(data.get('model_id'), 'generate')
+            provider = model_option.get('provider') or settings.llm_provider
+            model_name = model_option.get('model') or None
+            display_name = model_option.get('name') or model_name or settings.llm_model
+            client_kwargs = {'model': model_name}
+            if model_option.get('base_url'):
+                client_kwargs['base_url'] = model_option.get('base_url')
+            if model_option.get('api_key'):
+                client_kwargs['api_key'] = model_option.get('api_key')
             db.update_generate_task(
                 task_id,
                 progress=18,
                 progress_stage='llm',
-                progress_message=f'正在初始化大模型客户端：{settings.llm_model}',
+                progress_message=f'正在初始化生成模型：{display_name}',
             )
-            llm_client = LLMClientFactory.create_client(settings.llm_provider)
+            llm_client = LLMClientFactory.create_client(provider, **client_kwargs)
         else:
             db.update_generate_task(
                 task_id,
@@ -487,6 +550,30 @@ def run_generate_task(task_id, data, upload_folder, db):
             progress_message='生成失败',
             completed_at=beijing_now_str(),
         )
+
+
+def _resolve_template_reference_cases(template: dict, case_ids: list[str]) -> list[dict]:
+    selected = set(str(item) for item in (case_ids or []) if item)
+    if not selected:
+        return []
+    metadata = template.get('metadata') or {}
+    cases = metadata.get('reference_cases') or []
+    return [
+        case for case in cases
+        if isinstance(case, dict) and str(case.get('id')) in selected
+    ]
+
+
+def _derive_title_from_brief(brief: str, fallback: str) -> str:
+    for line in str(brief or '').splitlines():
+        title = line.strip()
+        if title:
+            title = title.removeprefix('请生成').strip()
+            for sep in ('。', '；', ';', '，', ','):
+                if sep in title:
+                    title = title.split(sep, 1)[0].strip()
+            return title[:60] or fallback
+    return fallback or '未命名生成文档'
 
 
 def _has_source_docx(template: dict) -> bool:

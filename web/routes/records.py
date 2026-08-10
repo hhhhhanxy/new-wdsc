@@ -1,4 +1,5 @@
 """Unified task records page."""
+import json
 import os
 from flask import Blueprint, current_app, render_template, request
 
@@ -34,6 +35,9 @@ def _review_items(db):
             "id": task.get("id"),
             "name": task.get("filename") or "未命名审查任务",
             "source": task.get("rule_set_label") or "全部规则",
+            "model_name": task.get("model_name") or "系统默认",
+            "specialty_name": "",
+            "reference_case_names": [],
             "status": task.get("status"),
             "status_label": task.get("status_label") or "未知",
             "badge_class": task.get("badge_class") or "default",
@@ -68,6 +72,10 @@ def _generate_items(db):
             "id": task.get("id"),
             "name": filename,
             "source": task.get("template_name") or task.get("doc_type") or "生成模板",
+            "model_name": task.get("model_name") or "系统默认",
+            "specialty_name": task.get("specialty_name") or "",
+            "document_kind_name": task.get("document_kind_name") or "",
+            "reference_case_names": _reference_case_names(task.get("reference_cases")),
             "status": task.get("status"),
             "status_label": task.get("status_label") or "未知",
             "badge_class": task.get("badge_class") or "default",
@@ -84,6 +92,18 @@ def _generate_items(db):
             "can_delete": task.get("status") not in RUNNING_STATUSES,
         })
     return items
+
+
+def _reference_case_names(raw):
+    try:
+        cases = json.loads(raw or "[]") if isinstance(raw, str) else (raw or [])
+    except (TypeError, json.JSONDecodeError):
+        cases = []
+    return [
+        str(item.get("name") or item.get("id"))
+        for item in cases
+        if isinstance(item, dict) and (item.get("name") or item.get("id"))
+    ]
 
 
 def _review_summary(task):
@@ -132,6 +152,10 @@ def index():
             item for item in items
             if lowered in (item["name"] or "").lower()
             or lowered in (item["source"] or "").lower()
+            or lowered in (item.get("model_name") or "").lower()
+            or lowered in (item.get("specialty_name") or "").lower()
+            or lowered in (item.get("document_kind_name") or "").lower()
+            or any(lowered in name.lower() for name in item.get("reference_case_names") or [])
             or lowered in (item["status_label"] or "").lower()
         ]
 

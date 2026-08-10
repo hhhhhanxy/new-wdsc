@@ -1,0 +1,55 @@
+{
+  "specialties": [
+    {
+      "id": "actuation",
+      "name": "作动专业",
+      "usage": ["review", "generate"],
+      "reference_cases": [
+        {
+          "id": "actuation_tech_spec",
+          "name": "作动器技术说明书优秀案例",
+          "doc_type": "技术说明书",
+          "file_path": "",
+          "scenario": "航空作动产品方案、组成、接口、性能和试验要求描述",
+          "features": {
+            "chapter_structure": ["范围", "引用文件", "产品组成", "技术要求", "接口要求", "试验方法", "验收准则"],
+            "terminology": ["作动器", "伺服阀", "液压源", "位移反馈", "额定载荷", "响应时间"],
+            "writing_style": ["采用“应……”描述强制性技术要求", "参数描述优先给出条件、数值和允许偏差", "缺失参数标注待补充，不编造"],
+            "format_features": ["编号采用 1、1.1、1.1.1 层级", "表格用于归纳接口、性能指标和试验条件", "结论性文字保持简洁"]
+          }
+        },
+        {
+          "id": "actuation_test_outline",
+          "name": "作动系统试验大纲优秀案例",
+          "doc_type": "试验大纲",
+          "file_path": "",
+          "scenario": "作动系统性能、环境、可靠性和验收试验策划",
+          "features": {
+            "chapter_structure": ["试验目的", "试验依据", "试验条件", "试验项目", "试验步骤", "数据记录", "判据"],
+            "terminology": ["试验件", "加载装置", "控制指令", "位移精度", "压力脉动", "判据"],
+            "writing_style": ["步骤按动作顺序描述", "判据独立列出，避免与过程混写", "对测试条件、采样数据和异常处理分别说明"],
+            "format_features": ["试验项目用表格汇总", "步骤使用连续编号", "记录项和判据分列展示"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "hydraulic",
+      "name": "液压专业",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "flight_control",
+      "name": "飞控专业",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "electromechanical",
+      "name": "机电专业",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    }
+  ]
+}

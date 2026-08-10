@@ -28,6 +28,7 @@ class ChapterPromptBuilder:
         guidance_text = self._blocks_text(chapter, {"instruction", "instruction_table", "example", "example_table"})
         user_material = self._user_material(inputs, chapter)
         requirements = str(inputs.get("generation_requirements", "")).strip()
+        reference_case_context = str(inputs.get("reference_case_context", "") or "").strip()
         return "\n".join(part for part in [
             f"文档标题：{title}",
             f"模板名称：{template_name}",
@@ -38,6 +39,9 @@ class ChapterPromptBuilder:
             "",
             "【用户生成要求】",
             requirements or "按模板要求生成正式、准确、简洁的工程技术文档。",
+            "",
+            "【参考案例特征】",
+            reference_case_context or "无",
             "",
             "【模板正文/结构参考】",
             template_text or "无",
@@ -78,9 +82,11 @@ class ChapterPromptBuilder:
 
     def _user_material(self, inputs: dict[str, Any], chapter: Any = None) -> str:
         labels = [
+            ("生成需求", "generation_brief"),
             ("产品名称", "product_name"),
             ("项目名称", "project_name"),
             ("试验项目/受试对象", "test_item"),
+            ("专业方向", "specialty_name"),
             ("背景说明", "background"),
             ("关键参数/素材", "technical_params"),
             ("引用文件", "references"),

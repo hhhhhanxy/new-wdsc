@@ -34,6 +34,7 @@ def create_app():
     from web.routes.rules import bp as rules_bp
     from web.routes.knowledge import bp as knowledge_bp
     from web.routes.template_library import bp as template_library_bp
+    from web.routes.options import bp as options_bp
 
     app.register_blueprint(index_bp)
     app.register_blueprint(review_bp, url_prefix='/review')
@@ -42,6 +43,16 @@ def create_app():
     app.register_blueprint(rules_bp, url_prefix='/rules')
     app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
     app.register_blueprint(template_library_bp, url_prefix='/template-library')
+    app.register_blueprint(options_bp)
+
+    @app.context_processor
+    def inject_sidebar_options():
+        from web.option_registry import get_specialties
+
+        return {
+            'review_specialties': get_specialties('review'),
+            'generate_specialties': get_specialties('generate'),
+        }
 
     # Load extensions
     from extensions.registry import get_registry

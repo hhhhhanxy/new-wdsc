@@ -227,181 +227,375 @@
     padding: 6px 10px;
     font-size: 13px;
 }
+.reference-case-list {
+    display: grid;
+    gap: 8px;
+}
+.reference-case-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: flex-start;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fbfdff;
+    cursor: pointer;
+}
+.reference-case-item strong {
+    display: block;
+    color: var(--text);
+    font-size: 14px;
+}
+.reference-case-item span {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.reference-case-empty {
+    padding: 12px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+}
+.reference-case-note {
+    margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.agent-input-card {
+    border: 1px solid #cfe0f4;
+    border-radius: 8px;
+    background: #fbfdff;
+    overflow: hidden;
+}
+.agent-prompt-input {
+    width: 100%;
+    min-height: 180px;
+    padding: 14px 14px 8px;
+    border: none;
+    resize: vertical;
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+    outline: none;
+}
+.agent-input-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 10px 10px;
+    border-top: 1px solid #e5eef8;
+}
+.agent-upload-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid #cfe0f4;
+    border-radius: 7px;
+    background: #fff;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+.agent-upload-btn:hover {
+    background: #f1f7ff;
+    border-color: #aac8ef;
+}
+.agent-upload-status {
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.generate-workbench {
+    display: grid;
+    gap: 14px;
+}
+.asset-toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+.asset-toolbar .form-group,
+.generate-input-panel .form-group,
+.generate-side-panel .form-group {
+    margin-bottom: 0;
+}
+.generate-main-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+    gap: 14px;
+    align-items: stretch;
+}
+.generate-input-panel,
+.generate-side-panel {
+    display: grid;
+    gap: 12px;
+}
+.generate-input-panel > section,
+.generate-side-panel > section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.generate-input-panel > section > .config-section,
+.generate-side-panel > section > .config-section {
+    flex: 1;
+}
+.generate-input-panel > section > .config-section {
+    display: flex;
+    flex-direction: column;
+}
+.generate-input-panel .agent-input-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.generate-input-panel .agent-prompt-input {
+    flex: 1;
+}
+.generate-side-panel > section > .config-section {
+    display: flex;
+    flex-direction: column;
+}
+.generate-side-panel .template-preview {
+    flex: 1;
+}
+.generate-side-panel .template-preview {
+    max-height: 440px;
+    overflow: auto;
+}
+.generate-submit-bar {
+    display: flex;
+    justify-content: center;
+    padding: 14px 0 4px;
+}
+.generate-submit-bar .btn-block {
+    width: min(100%, 520px);
+    padding: 14px 24px;
+    font-size: 16px;
+    font-weight: 700;
+}
+.generate-assist-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.generate-compact-tips {
+    padding: 10px 12px;
+    border: 1px solid #d9e7f5;
+    border-radius: 8px;
+    background: #f8fbff;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.7;
+}
+.generate-compact-tips strong {
+    color: var(--text);
+}
+.generate-assist-row .generation-record-shortcut {
+    margin-top: 0;
+}
+@media (max-width: 1100px) {
+    .asset-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .generate-main-grid {
+        grid-template-columns: 1fr;
+    }
+    .generate-input-panel > section,
+    .generate-side-panel > section {
+        display: block;
+    }
+    .generate-input-panel > section > .config-section,
+    .generate-side-panel > section > .config-section {
+        display: block;
+    }
+}
+@media (max-width: 640px) {
+    .asset-toolbar {
+        grid-template-columns: 1fr;
+    }
+    .generate-assist-row {
+        grid-template-columns: 1fr;
+    }
+    .generate-submit-bar .btn-block {
+        width: 100%;
+    }
+}
 </style>
 <div class="page-header">
     <h1>文档生成</h1>
     <p>选择已上传的 DOCX 模板并填写生成素材，平台保留模板原文格式并替换占位内容</p>
 </div>
 
-<div class="two-col">
-    <!-- Left: Config -->
-    <div>
-        <!-- Step 1: Template -->
-        <p class="section-step">1. 选择文档模板</p>
-        <div class="config-section">
+<div class="generate-workbench">
+    <!-- Step 1: Professional asset -->
+    <section>
+        <p class="section-step">1. 选择专业资产</p>
+        <div class="config-section asset-toolbar">
             <div class="form-group">
-                <label>文档模板</label>
-                <select class="form-control" id="templateSelect"></select>
+                <label>专业方向</label>
+                <select class="form-control" id="specialtySelect">
+                    <option value="">通用专业</option>
+                </select>
+                <div class="form-hint">从侧边栏专业入口进入时会自动选择对应专业。</div>
             </div>
             <div class="form-group">
-                <label>模板章节结构</label>
-                <div class="template-preview" id="templatePreview">
-                    <div class="empty-state">正在加载模板...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 2: Input -->
-        <p class="section-step">2. 输入生成素材</p>
-        <div class="config-section">
-            <div class="form-group">
-                <label>文档标题</label>
-                <input type="text" class="form-control" id="docTitle" placeholder="请输入生成文档的标题">
-            </div>
-            <div class="form-group">
-                <label>生成模式</label>
-                <select class="form-control" id="generationMode">
-                    <option value="smart">智能生成：逐章节调用大模型并回填模板</option>
-                    <option value="template_fill">模板填充：仅删除说明并替换占位符</option>
+                <label>技术文档类型</label>
+                <select class="form-control" id="documentKindSelect">
+                    <option value="">请选择技术文档类型</option>
                 </select>
             </div>
-            <div class="dynamic-input-section" id="dynamicInputSection">
-                <div class="dynamic-input-title">模板专属输入</div>
-                <div class="dynamic-input-grid" id="dynamicInputFields"></div>
+            <div class="form-group">
+                <label>绑定模板</label>
+                <select class="form-control" id="templateSelect"></select>
+                <div class="form-hint">模板由“专业 + 技术文档类型”筛选得到；选择模板后只显示该模板绑定的案例。</div>
             </div>
             <div class="form-group">
-                <label>产品名称</label>
-                <input type="text" class="form-control" id="productName" placeholder="输入产品、系统或设备名称">
-            </div>
-            <div class="form-group">
-                <label>项目名称</label>
-                <input type="text" class="form-control" id="projectName" placeholder="输入项目、任务或文件适用对象名称">
-            </div>
-            <div class="form-group">
-                <label>试验项目/受试对象</label>
-                <input type="text" class="form-control" id="testItem" placeholder="输入试验范围、受试对象或适用场景">
-            </div>
-            <div class="form-group">
-                <label>背景说明</label>
-                <textarea class="form-control" id="docDesc" placeholder="输入任务背景、对象说明、适用范围等..."></textarea>
-            </div>
-            <div class="form-group">
-                <label>关键参数/素材</label>
-                <textarea class="form-control" id="docParams" placeholder="输入可用于生成的参数、条目、约束、数据或参考摘要..." style="min-height:80px;"></textarea>
-            </div>
-            <div class="form-group">
-                <label>补充信息/其他素材</label>
-                <textarea class="form-control" id="additionalContext" placeholder="输入除以上字段外的业务背景、约束条件、术语口径、特殊章节要求等..." style="min-height:80px;"></textarea>
-                <div class="upload-zone" id="supplementUploadZone" style="padding:14px;margin-top:10px;">
-                    <p style="font-size:14px;" id="supplementUploadText">上传补充材料 Word 文档</p>
-                    <input type="file" id="supplementFileInput" accept=".docx" style="display:none">
-                </div>
-                <div class="form-hint" id="supplementUploadHint">补充信息较多时可上传 .docx，系统会解析正文和表格内容作为生成素材。</div>
-            </div>
-            <div class="form-group">
-                <div class="field-action-row">
-                    <label>引用文件</label>
-                    <button type="button" class="btn btn-outline" onclick="fillReferenceExample()">填入示例</button>
-                </div>
-                <textarea class="form-control" id="references" placeholder="请逐行填写引用文件；有编号可写“编号 + 文件名称”，无编号可只写文件名称。例如：&#10;GJB 150A-2009 军用装备实验室环境试验方法&#10;某型电动作动器总体设计方案" style="min-height:96px;"></textarea>
-                <div class="form-hint">编号不是必填项；仅填写正式文档需要列出的标准、规范、设计依据或技术协议，不需要上传文件原文。</div>
-            </div>
-            <div class="form-group">
-                <label>生成要求</label>
-                <textarea class="form-control" id="generationRequirements" placeholder="输入写作口径、禁止事项、输出风格、重点章节要求等..." style="min-height:80px;"></textarea>
+                <label>生成模型</label>
+                <select class="form-control" id="generateModelSelect">
+                    <option value="system_default">系统默认</option>
+                </select>
+                <div class="form-hint" id="generateModelHint">正在读取实际可用模型...</div>
             </div>
         </div>
+    </section>
 
-        <!-- Step 4: Generate -->
+    <div class="generate-main-grid">
+        <div class="generate-input-panel">
+        <!-- Step 2: Input -->
+            <section>
+                <p class="section-step">2. 输入生成素材</p>
+                <div class="config-section">
+                    <div class="form-group">
+                        <label>生成需求</label>
+                        <div class="agent-input-card">
+                            <textarea class="agent-prompt-input" id="generationBrief" placeholder="像和智能体对话一样输入生成需求。例如：&#10;请生成某型电动作动器试验大纲，适用于 XX 项目。&#10;试验对象为……，重点包含性能试验、环境适应性试验和验收判据。&#10;关键参数包括……；引用文件包括……。&#10;写作要求：正式、准确，不编造未提供的数据，缺失内容标注“待补充”。"></textarea>
+                            <div class="agent-input-toolbar">
+                                <button type="button" class="agent-upload-btn" id="supplementUploadButton" title="上传补充材料 Word 文档">+</button>
+                                <div class="agent-upload-status" id="supplementUploadStatus">可上传 .docx 作为补充材料</div>
+                            </div>
+                            <input type="file" id="supplementFileInput" accept=".docx" style="display:none">
+                        </div>
+                        <div class="form-hint">文档标题、对象、背景、参数、引用文件和写作要求都可直接写在这里。</div>
+                    </div>
+                    <div class="form-group">
+                        <label>生成模式</label>
+                        <select class="form-control" id="generationMode">
+                            <option value="smart">智能生成：逐章节调用大模型并回填模板</option>
+                            <option value="template_fill">模板填充：仅删除说明并替换占位符</option>
+                        </select>
+                    </div>
+                    <div class="dynamic-input-section" id="dynamicInputSection">
+                        <div class="dynamic-input-title">模板专属输入</div>
+                        <div class="dynamic-input-grid" id="dynamicInputFields"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="generate-side-panel">
+            <section>
+                <p class="section-step">3. 模板与结果</p>
+                <div class="config-section">
+                    <div class="form-group">
+                        <label>该模板关联优秀案例</label>
+                        <div class="reference-case-list" id="referenceCaseList">
+                            <div class="reference-case-empty">选择专业、技术文档类型和模板后查看该模板的案例组</div>
+                        </div>
+                        <div class="form-hint">生成时会读取所选案例的章节结构、术语、写法和格式特点。</div>
+                    </div>
+                    <div class="form-group">
+                        <label>模板章节结构</label>
+                        <div class="template-preview" id="templatePreview">
+                            <div class="empty-state">正在加载模板...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="progress-section" id="genProgressSection" style="display:none;">
+                <p class="section-title">生成进度</p>
+                <div class="progress-info">
+                    <span id="genProgressStatus">正在生成...</span>
+                    <span id="genProgressPercent">0%</span>
+                </div>
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar-fill" id="genProgressBar" style="width:0%"></div>
+                </div>
+            </div>
+
+            <div id="genResultSection" style="display:none;">
+                <div class="report-section">
+                    <p class="section-title">生成结果</p>
+                    <div style="text-align:center;padding:16px;" id="genResultIcon">
+                        <div class="result-status-mark" id="genResultEmoji">OK</div>
+                        <p style="font-size:15px;font-weight:600;" id="genResultTitle">文档生成完成</p>
+                        <p style="font-size:14px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
+                    </div>
+
+                    <div id="genReviewSection" style="display:none;margin-top:12px;">
+                        <p class="section-title">审查预留</p>
+                        <div class="report-stats">
+                            <div class="report-stat">
+                                <div class="value" style="color:var(--primary);" id="genReviewTotal">0</div>
+                                <div class="label">总问题</div>
+                            </div>
+                            <div class="report-stat">
+                                <div class="value" style="color:var(--danger);" id="genReviewErrors">0</div>
+                                <div class="label">错误</div>
+                            </div>
+                            <div class="report-stat">
+                                <div class="value" style="color:var(--warning);" id="genReviewWarnings">0</div>
+                                <div class="label">警告</div>
+                            </div>
+                        </div>
+                        <div id="genPhaseResults" style="margin-top:10px;"></div>
+                    </div>
+
+                    <div style="text-align:center;margin-top:12px;">
+                        <div class="review-rule-set-row">
+                            <label for="generatedReviewRuleSet">送审规则集</label>
+                            <select class="form-control" id="generatedReviewRuleSet">
+                                <option value="all">全部规则</option>
+                            </select>
+                            <label for="generatedReviewModelSelect">审查模型</label>
+                            <select class="form-control" id="generatedReviewModelSelect">
+                                <option value="system_default">系统默认</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载生成文档</button>
+                        <button class="btn btn-outline" id="reviewGeneratedBtn" style="margin-left:8px;" onclick="reviewGenerated()">送入审查</button>
+                        <button class="btn btn-outline" id="retryGenBtn" style="display:none;margin-left:8px;" onclick="retryGenerate()">重新生成</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="generate-submit-bar">
         <button class="btn btn-success btn-block" id="generateBtn" onclick="startGenerate()">
             按模板生成文档
         </button>
     </div>
-
-    <!-- Right: Progress & Preview -->
-    <div>
-        <!-- Progress -->
-        <div class="progress-section" id="genProgressSection" style="display:none;">
-            <p class="section-title">生成进度</p>
-            <div class="progress-info">
-                <span id="genProgressStatus">正在生成...</span>
-                <span id="genProgressPercent">0%</span>
-            </div>
-            <div class="progress-bar-wrapper">
-                <div class="progress-bar-fill" id="genProgressBar" style="width:0%"></div>
-            </div>
+    <div class="generate-assist-row">
+        <div class="generate-compact-tips">
+            <strong>生成说明：</strong>系统会保留 DOCX 模板样式、页眉页脚和页面设置；智能生成会按章节组织模板、案例和用户素材；缺失依据的数据请填写为“待补充”。
         </div>
-
-        <!-- Result -->
-        <div id="genResultSection" style="display:none;">
-            <div class="report-section">
-                <p class="section-title">生成结果</p>
-                <div style="text-align:center;padding:16px;" id="genResultIcon">
-                    <div class="result-status-mark" id="genResultEmoji">OK</div>
-                    <p style="font-size:15px;font-weight:600;" id="genResultTitle">文档生成完成</p>
-                    <p style="font-size:14px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
-                </div>
-
-                <!-- Reserved review result -->
-                <div id="genReviewSection" style="display:none;margin-top:12px;">
-                    <p class="section-title">审查预留</p>
-                    <div class="report-stats">
-                        <div class="report-stat">
-                            <div class="value" style="color:var(--primary);" id="genReviewTotal">0</div>
-                            <div class="label">总问题</div>
-                        </div>
-                        <div class="report-stat">
-                            <div class="value" style="color:var(--danger);" id="genReviewErrors">0</div>
-                            <div class="label">错误</div>
-                        </div>
-                        <div class="report-stat">
-                            <div class="value" style="color:var(--warning);" id="genReviewWarnings">0</div>
-                            <div class="label">警告</div>
-                        </div>
-                    </div>
-                    <div id="genPhaseResults" style="margin-top:10px;"></div>
-                </div>
-
-                <div style="text-align:center;margin-top:12px;">
-                    <div class="review-rule-set-row">
-                        <label for="generatedReviewRuleSet">送审规则集</label>
-                        <select class="form-control" id="generatedReviewRuleSet">
-                            <option value="all">全部规则</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载生成文档</button>
-                    <button class="btn btn-outline" id="reviewGeneratedBtn" style="margin-left:8px;" onclick="reviewGenerated()">送入审查</button>
-                    <button class="btn btn-outline" id="retryGenBtn" style="display:none;margin-left:8px;" onclick="retryGenerate()">重新生成</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Info -->
-        <div class="panel" style="margin-top:16px;">
-            <div class="panel-title">生成说明</div>
-            <ul style="font-size:14px;color:var(--text-secondary);line-height:1.8;padding-left:16px;">
-                <li>生成时会保留上传 DOCX 模板的正文、样式、页眉页脚和页面设置</li>
-                <li>智能生成模式会按章节组织模板说明、示例和用户素材调用大模型</li>
-                <li>平台会删除说明/举例内容，并替换模板中的占位内容</li>
-                <li>生成后可选择规则集并一键送入文档审查，形成生成—审查—修改闭环</li>
-                <li>生成后可在 Word 中进一步编辑调整</li>
-                <li>支持导出为 DOCX 格式</li>
-            </ul>
-        </div>
-
-        <div class="alert alert-warning" style="margin-top:12px;">
-            提示：生成定义越明确，输出越稳定；请勿输入不应在平台处理的敏感内容。
-        </div>
-
-        <div class="panel" style="margin-top:16px;">
-            <div class="panel-title">任务记录</div>
-            <div class="generation-record-entry">
-                <div>
-                    <h3>生成历史已集中到任务记录</h3>
-                    <p>可在统一页面查看生成状态、下载文档、重新生成或送入审查。</p>
-                </div>
-                <a class="btn btn-primary" href="/records/?type=generate">查看生成记录</a>
-            </div>
+        <div class="generation-record-shortcut">
+            <span>任务记录</span>
+            <p>查看生成状态、下载文档、重新生成或送入审查</p>
+            <a class="btn btn-outline" href="/records/?type=generate">查看记录</a>
         </div>
     </div>
 </div>
@@ -447,25 +641,30 @@ let generationTemplates = [];
 let selectedTemplate = null;
 let expandedChapterKeys = new Set();
 let chapterSearchQuery = '';
-let generationRequirementsTouched = false;
+let defaultGenerationRequirements = '';
 let supplementDocText = '';
 let supplementDocName = '';
 let supplementDocUploading = false;
 let reviewRuleSets = [{source: 'all', name: '全部规则'}];
+let reviewModels = [{id: 'system_default', name: '系统默认', is_default: true}];
+let generationSpecialties = [];
+let generationModels = [];
 const genProgressModal = document.getElementById('genProgressModal');
 const genProgressDock = document.getElementById('genProgressDock');
 const genProgressDetail = document.getElementById('genProgressDetail');
-const generationRequirementsInput = document.getElementById('generationRequirements');
-generationRequirementsInput.addEventListener('input', () => {
-    generationRequirementsTouched = true;
-});
+const generationBriefInput = document.getElementById('generationBrief');
+const specialtySelect = document.getElementById('specialtySelect');
+const documentKindSelect = document.getElementById('documentKindSelect');
+const referenceCaseList = document.getElementById('referenceCaseList');
+const generateModelSelect = document.getElementById('generateModelSelect');
+const generateModelHint = document.getElementById('generateModelHint');
+const initialMajorId = new URLSearchParams(window.location.search).get('major') || '';
 
 // Supplement material upload
-const supplementZone = document.getElementById('supplementUploadZone');
+const supplementButton = document.getElementById('supplementUploadButton');
 const supplementInput = document.getElementById('supplementFileInput');
-const supplementText = document.getElementById('supplementUploadText');
-const supplementHint = document.getElementById('supplementUploadHint');
-supplementZone.addEventListener('click', () => supplementInput.click());
+const supplementStatus = document.getElementById('supplementUploadStatus');
+supplementButton.addEventListener('click', () => supplementInput.click());
 supplementInput.addEventListener('change', e => {
     if (!e.target.files.length) return;
     uploadSupplementDoc(e.target.files[0]);
@@ -476,17 +675,15 @@ function uploadSupplementDoc(file) {
     supplementDocName = '';
     if (!file.name.toLowerCase().endsWith('.docx')) {
         supplementInput.value = '';
-        supplementText.textContent = '上传补充材料 Word 文档';
-        supplementHint.textContent = '当前仅支持 .docx 格式的 Word 文档。';
-        supplementHint.style.color = 'var(--danger)';
+        supplementStatus.textContent = '当前仅支持 .docx 格式的 Word 文档';
+        supplementStatus.style.color = 'var(--danger)';
         return;
     }
     const formData = new FormData();
     formData.append('file', file);
     supplementDocUploading = true;
-    supplementText.innerHTML = '<span style="color:var(--primary);">正在解析：' + escapeHtml(file.name) + '</span>';
-    supplementHint.textContent = '正在提取段落和表格内容...';
-    supplementHint.style.color = 'var(--text-secondary)';
+    supplementStatus.textContent = '正在解析：' + file.name;
+    supplementStatus.style.color = 'var(--text-secondary)';
     fetch('/generate/api/supplement-doc', {
         method: 'POST',
         body: formData
@@ -498,43 +695,24 @@ function uploadSupplementDoc(file) {
             supplementDocName = '';
             supplementDocUploading = false;
             supplementInput.value = '';
-            supplementText.textContent = '上传补充材料 Word 文档';
-            supplementHint.textContent = data.error;
-            supplementHint.style.color = 'var(--danger)';
+            supplementStatus.textContent = data.error;
+            supplementStatus.style.color = 'var(--danger)';
             return;
         }
         supplementDocText = data.text || '';
         supplementDocName = data.filename || file.name;
         supplementDocUploading = false;
-        supplementText.innerHTML = '<span style="color:var(--primary);">' + escapeHtml(supplementDocName) + '</span>';
-        supplementHint.textContent = `已解析 ${Number(data.chars || 0)} 字，将作为补充素材使用。`;
-        supplementHint.style.color = 'var(--text-secondary)';
+        supplementStatus.textContent = `已上传：${supplementDocName}，解析 ${Number(data.chars || 0)} 字`;
+        supplementStatus.style.color = 'var(--primary)';
     })
     .catch(err => {
         supplementDocText = '';
         supplementDocName = '';
         supplementDocUploading = false;
         supplementInput.value = '';
-        supplementText.textContent = '上传补充材料 Word 文档';
-        supplementHint.textContent = '补充材料上传失败：' + err.message;
-        supplementHint.style.color = 'var(--danger)';
+        supplementStatus.textContent = '补充材料上传失败：' + err.message;
+        supplementStatus.style.color = 'var(--danger)';
     });
-}
-
-function fillReferenceExample() {
-    const referencesInput = document.getElementById('references');
-    const example = [
-        'GJB 150A-2009 军用装备实验室环境试验方法',
-        'GJB 899A-2009 可靠性鉴定和验收试验',
-        'Q/XXX-001 某型电动作动器产品规范',
-        '某型电动作动器技术协议',
-        '某型电动作动器总体设计方案',
-    ].join('\n');
-    if (referencesInput.value.trim() && !confirm('当前引用文件已有内容，是否用示例覆盖？')) {
-        return;
-    }
-    referencesInput.value = example;
-    referencesInput.focus();
 }
 
 function loadTemplates() {
@@ -542,23 +720,8 @@ function loadTemplates() {
         .then(r => r.json())
         .then(data => {
             generationTemplates = data.templates || [];
-            const select = document.getElementById('templateSelect');
-            select.innerHTML = '<option value="">请选择文档模板</option>' + generationTemplates.map(t => {
-                const suffix = t.can_generate ? '' : '（不可生成：缺少 DOCX）';
-                return `<option value="${escapeHtml(t.id)}" ${t.can_generate ? '' : 'disabled'}>${escapeHtml(t.name + suffix)}</option>`;
-            }).join('');
-            const firstAvailable = generationTemplates.find(t => t.can_generate);
-            if (firstAvailable) {
-                selectedTemplate = firstAvailable;
-                select.value = selectedTemplate.id;
-                resetTemplateTreeState(selectedTemplate);
-                renderTemplatePreview(selectedTemplate);
-                applyDefaultGenerationRequirements(selectedTemplate);
-                renderDynamicInputs(selectedTemplate);
-            } else {
-                selectedTemplate = null;
-                document.getElementById('templatePreview').innerHTML = '<div class="empty-state">暂无可生成模板，请先到生成模板库上传 DOCX 模板；内置模板没有原始格式文件，暂不能用于正式生成。</div>';
-            }
+            renderDocumentKindOptions();
+            renderTemplateOptions();
         })
         .catch(() => {
             document.getElementById('templatePreview').innerHTML = '<div class="empty-state">模板加载失败</div>';
@@ -576,7 +739,146 @@ document.getElementById('templateSelect').addEventListener('change', e => {
     renderTemplatePreview(selectedTemplate);
     applyDefaultGenerationRequirements(selectedTemplate);
     renderDynamicInputs(selectedTemplate);
+    renderReferenceCases();
 });
+
+specialtySelect.addEventListener('change', () => {
+    renderDocumentKindOptions();
+    renderTemplateOptions();
+});
+
+documentKindSelect.addEventListener('change', () => {
+    renderTemplateOptions();
+});
+
+function loadGenerationOptions() {
+    Promise.all([
+        fetch('/api/specialties?usage=generate').then(r => r.json()).catch(() => ({specialties: []})),
+        fetch('/api/models?usage=generate').then(r => r.json()).catch(() => ({models: []})),
+    ]).then(([specialtyData, modelData]) => {
+        generationSpecialties = specialtyData.specialties || [];
+        generationModels = modelData.models || [];
+        renderSpecialties();
+        renderGenerationModels();
+    });
+}
+
+function renderSpecialties() {
+    specialtySelect.innerHTML = '<option value="">通用专业</option>' + generationSpecialties.map(item =>
+        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`
+    ).join('');
+    if (initialMajorId && generationSpecialties.some(item => item.id === initialMajorId)) {
+        specialtySelect.value = initialMajorId;
+    }
+    renderDocumentKindOptions();
+    renderTemplateOptions();
+}
+
+function renderGenerationModels() {
+    if (!generationModels.length) {
+        generateModelSelect.innerHTML = '<option value="system_default">系统默认</option>';
+        updateGenerateModelHint();
+        return;
+    }
+    generateModelSelect.innerHTML = generationModels.map(model =>
+        `<option value="${escapeHtml(model.id)}" ${model.is_default ? 'selected' : ''}>${escapeHtml(model.name)}</option>`
+    ).join('');
+    updateGenerateModelHint();
+}
+
+generateModelSelect.addEventListener('change', updateGenerateModelHint);
+
+function updateGenerateModelHint() {
+    const selected = generationModels.find(model => model.id === generateModelSelect.value);
+    if (!selected) {
+        generateModelHint.textContent = '未读取到模型配置时，将使用系统默认模型。';
+        return;
+    }
+    const provider = selected.provider || '默认服务';
+    const model = selected.model || selected.name || '未命名模型';
+    generateModelHint.textContent = `当前实际使用：${provider} / ${model}`;
+}
+
+function getSelectedSpecialty() {
+    return generationSpecialties.find(item => item.id === specialtySelect.value) || null;
+}
+
+function getTemplateMetadata(template) {
+    return template && template.metadata ? template.metadata : {};
+}
+
+function getTemplateKindName(template) {
+    return getTemplateMetadata(template).document_kind_name || template.name || '';
+}
+
+function getTemplatesForSpecialty() {
+    const specialtyId = specialtySelect.value || '';
+    return generationTemplates.filter(template => {
+        if (!template.can_generate) return false;
+        const metadata = getTemplateMetadata(template);
+        if (!specialtyId) return true;
+        return metadata.specialty_id === specialtyId;
+    });
+}
+
+function renderDocumentKindOptions() {
+    if (!documentKindSelect) return;
+    const current = documentKindSelect.value;
+    const kinds = Array.from(new Set(getTemplatesForSpecialty().map(getTemplateKindName).filter(Boolean)));
+    documentKindSelect.innerHTML = '<option value="">请选择技术文档类型</option>' + kinds.map(kind =>
+        `<option value="${escapeHtml(kind)}">${escapeHtml(kind)}</option>`
+    ).join('');
+    documentKindSelect.value = kinds.includes(current) ? current : (kinds[0] || '');
+}
+
+function renderTemplateOptions() {
+    const select = document.getElementById('templateSelect');
+    if (!select) return;
+    const kind = documentKindSelect.value || '';
+    const candidates = getTemplatesForSpecialty().filter(template => !kind || getTemplateKindName(template) === kind);
+    select.innerHTML = candidates.length
+        ? candidates.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`).join('')
+        : '<option value="">暂无匹配模板</option>';
+    const previous = selectedTemplate && candidates.some(item => item.id === selectedTemplate.id)
+        ? selectedTemplate.id
+        : '';
+    select.value = previous || (candidates[0] ? candidates[0].id : '');
+    selectedTemplate = candidates.find(item => item.id === select.value) || null;
+    if (selectedTemplate) {
+        resetTemplateTreeState(selectedTemplate);
+        renderTemplatePreview(selectedTemplate);
+        applyDefaultGenerationRequirements(selectedTemplate);
+        renderDynamicInputs(selectedTemplate);
+    } else {
+        document.getElementById('templatePreview').innerHTML = '<div class="empty-state">暂无匹配模板，请先到专业资产库上传并绑定模板。</div>';
+        renderDynamicInputs(null);
+    }
+    renderReferenceCases();
+}
+
+function renderReferenceCases() {
+    const cases = selectedTemplate && selectedTemplate.metadata
+        ? (selectedTemplate.metadata.reference_cases || [])
+        : [];
+    if (!cases.length) {
+        referenceCaseList.innerHTML = '<div class="reference-case-empty">该模板暂无关联优秀案例；仍可生成，只是不加入案例写法参考。可到专业资产库中打开该模板后上传。</div>';
+        return;
+    }
+    const autoChecked = cases.length <= 3;
+    referenceCaseList.innerHTML = cases.map(item => `
+        <label class="reference-case-item">
+            <input type="checkbox" class="reference-case-check" value="${escapeHtml(item.id)}" ${autoChecked ? 'checked' : ''}>
+            <span>
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${escapeHtml(item.doc_type || '参考文档')} · ${escapeHtml(item.scenario || '用于生成参考')}</span>
+            </span>
+        </label>
+    `).join('') + `<div class="reference-case-note">${autoChecked ? '已默认选择全部关联案例，可按需取消。' : '案例较多，请勾选本次最需要参考的案例。'}</div>`;
+}
+
+function getSelectedReferenceCaseIds() {
+    return Array.from(document.querySelectorAll('.reference-case-check:checked')).map(item => item.value);
+}
 
 function renderDynamicInputs(template) {
     const section = document.getElementById('dynamicInputSection');
@@ -628,9 +930,7 @@ function collectDynamicInputs() {
 }
 
 function applyDefaultGenerationRequirements(template) {
-    if (generationRequirementsTouched && generationRequirementsInput.value.trim()) return;
-    generationRequirementsInput.value = getDefaultGenerationRequirements(template);
-    generationRequirementsTouched = false;
+    defaultGenerationRequirements = getDefaultGenerationRequirements(template);
 }
 
 function getDefaultGenerationRequirements(template) {
@@ -831,19 +1131,22 @@ function getMaxDepth(chapters) {
 }
 
 function openSelectedTemplateInLibrary() {
-    const suffix = selectedTemplate && selectedTemplate.id
-        ? '?template_id=' + encodeURIComponent(selectedTemplate.id)
-        : '';
+    const params = new URLSearchParams();
+    if (selectedTemplate && selectedTemplate.id) {
+        params.set('template_id', selectedTemplate.id);
+    }
+    if (specialtySelect.value) {
+        params.set('major', specialtySelect.value);
+    }
+    const suffix = params.toString() ? '?' + params.toString() : '';
     window.location.href = '/template-library/' + suffix;
 }
 
 function startGenerate() {
-    const title = document.getElementById('docTitle').value.trim();
-    if (!title) { alert('请输入文档标题'); return; }
+    const generationBrief = generationBriefInput.value.trim();
     if (!selectedTemplate) { alert('请选择文档模板'); return; }
-    const productName = document.getElementById('productName').value.trim();
-    if (!productName) { alert('请输入产品名称'); return; }
     if (supplementDocUploading) { alert('补充材料仍在解析，请稍后再生成'); return; }
+    if (!generationBrief && !supplementDocText) { alert('请输入生成需求，或上传补充材料'); return; }
     const dynamicInputs = collectDynamicInputs();
     if (dynamicInputs.missing.length) {
         alert('请填写模板必填项：' + dynamicInputs.missing.join('、'));
@@ -856,18 +1159,16 @@ function startGenerate() {
 
     const params = {
         template_id: selectedTemplate.id,
-        title: title,
+        title: deriveTitleFromBrief(generationBrief, selectedTemplate),
+        model_id: generateModelSelect.value || 'system_default',
+        specialty_id: specialtySelect.value || '',
+        document_kind_name: documentKindSelect.value || '',
+        reference_case_ids: getSelectedReferenceCaseIds(),
         inputs: {
-            product_name: productName,
-            project_name: document.getElementById('projectName').value.trim(),
-            test_item: document.getElementById('testItem').value.trim(),
-            background: document.getElementById('docDesc').value.trim(),
-            technical_params: document.getElementById('docParams').value.trim(),
-            additional_context: document.getElementById('additionalContext').value.trim(),
+            generation_brief: generationBrief,
             supplement_doc_name: supplementDocName,
             supplement_doc_text: supplementDocText,
-            references: document.getElementById('references').value.trim(),
-            generation_requirements: document.getElementById('generationRequirements').value.trim(),
+            generation_requirements: defaultGenerationRequirements,
             generation_mode: document.getElementById('generationMode').value,
             dynamic_fields: dynamicInputs.values
         }
@@ -897,6 +1198,14 @@ function startGenerate() {
         btn.disabled = false;
         btn.textContent = '按模板生成文档';
     });
+}
+
+function deriveTitleFromBrief(brief, template) {
+    const firstLine = String(brief || '').split(/\r?\n/).map(line => line.trim()).find(Boolean);
+    if (firstLine) {
+        return firstLine.replace(/^请生成/, '').replace(/[。；;，,].*$/, '').slice(0, 60) || firstLine.slice(0, 60);
+    }
+    return template && template.name ? template.name : '未命名生成文档';
 }
 
 function pollGenProgress() {
@@ -1168,9 +1477,11 @@ function downloadGenerated() {
 }
 
 function loadReviewRuleSets() {
-    fetch('/rules/api/profiles')
-        .then(r => r.json())
-        .then(data => {
+    Promise.all([
+        fetch('/rules/api/profiles').then(r => r.json()),
+        fetch('/api/models?usage=review').then(r => r.json()).catch(() => ({models: reviewModels})),
+    ])
+        .then(([data, modelData]) => {
             const groups = data.groups || [];
             reviewRuleSets = [{source: 'all', name: '全部规则'}].concat(
                 groups.map(g => ({
@@ -1178,11 +1489,14 @@ function loadReviewRuleSets() {
                     name: `${g.display_name || g.source}（${g.enabled || 0}/${g.total || 0}启用）`
                 }))
             );
+            reviewModels = modelData.models && modelData.models.length ? modelData.models : reviewModels;
             renderGeneratedReviewRuleSet();
+            renderGeneratedReviewModel();
         })
         .catch(() => {
             reviewRuleSets = [{source: 'all', name: '全部规则'}];
             renderGeneratedReviewRuleSet();
+            renderGeneratedReviewModel();
         });
 }
 
@@ -1201,6 +1515,19 @@ function getGeneratedReviewRuleSet() {
     return select && select.value ? select.value : 'all';
 }
 
+function renderGeneratedReviewModel() {
+    const select = document.getElementById('generatedReviewModelSelect');
+    if (!select) return;
+    select.innerHTML = reviewModels.map(model =>
+        `<option value="${escapeHtml(model.id)}" ${model.is_default ? 'selected' : ''}>${escapeHtml(model.name)}</option>`
+    ).join('');
+}
+
+function getGeneratedReviewModelId() {
+    const select = document.getElementById('generatedReviewModelSelect');
+    return select && select.value ? select.value : 'system_default';
+}
+
 function reviewGenerated(taskId = currentGenTaskId) {
     if (!taskId) return;
     const btn = taskId === currentGenTaskId ? document.getElementById('reviewGeneratedBtn') : null;
@@ -1211,7 +1538,10 @@ function reviewGenerated(taskId = currentGenTaskId) {
     fetch('/generate/review/' + taskId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rule_set: getGeneratedReviewRuleSet() })
+        body: JSON.stringify({
+            rule_set: getGeneratedReviewRuleSet(),
+            model_id: getGeneratedReviewModelId()
+        })
     })
     .then(r => r.json())
     .then(data => {
@@ -1246,5 +1576,6 @@ function escapeHtml(value) {
 
 loadTemplates();
 loadReviewRuleSets();
+loadGenerationOptions();
 </script>
 {% endblock %}

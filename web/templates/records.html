@@ -70,11 +70,23 @@
                     </div>
                     <div class="records-meta">
                         <span>{{ item.source }}</span>
+                        <span>模型：{{ item.model_name or '系统默认' }}</span>
+                        {% if item.specialty_name %}
+                        <span>专业：{{ item.specialty_name }}</span>
+                        {% endif %}
+                        {% if item.document_kind_name %}
+                        <span>技术文档：{{ item.document_kind_name }}</span>
+                        {% endif %}
                         <span>创建：{{ item.created_at_display or '-' }}</span>
                         {% if item.completed_at_display %}
                         <span>完成：{{ item.completed_at_display }}</span>
                         {% endif %}
                     </div>
+                    {% if item.reference_case_names %}
+                    <div class="records-meta">
+                        <span>参考案例：{{ item.reference_case_names|join('、') }}</span>
+                    </div>
+                    {% endif %}
                     {% if item.is_running or item.stale %}
                     <div class="records-progress">
                         <span style="width:{{ item.progress }}%"></span>

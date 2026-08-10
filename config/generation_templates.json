@@ -9,7 +9,11 @@
         "source_docx_path": "uploads\\templates\\template_41a7cb5f\\source.docx",
         "source_filename": "XXX试验大纲模版.docx",
         "source_path": "uploads\\templates\\template_41a7cb5f\\source.docx",
-        "template_asset_id": "template_41a7cb5f"
+        "template_asset_id": "template_41a7cb5f",
+        "specialty_id": "actuation",
+        "specialty_name": "作动专业",
+        "document_kind_name": "试验大纲",
+        "updated_at": "2026-07-22T17:56:00"
       },
       "source_type": "uploaded_docx",
       "input_fields": [],

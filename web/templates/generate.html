@@ -273,8 +273,8 @@
 }
 .agent-prompt-input {
     width: 100%;
-    min-height: 180px;
-    padding: 14px 14px 8px;
+    min-height: 92px;
+    padding: 12px 14px 8px;
     border: none;
     resize: vertical;
     background: transparent;
@@ -283,13 +283,9 @@
     line-height: 1.65;
     outline: none;
 }
-.agent-input-toolbar {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    align-items: center;
-    padding: 8px 10px 10px;
-    border-top: 1px solid #e5eef8;
+.generate-dialog-panel .agent-prompt-input {
+    min-height: 96px;
+    max-height: 160px;
 }
 .agent-upload-btn {
     display: inline-grid;
@@ -318,92 +314,151 @@
 }
 .generate-workbench {
     display: grid;
-    gap: 14px;
+    gap: 10px;
 }
 .asset-toolbar {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
 }
 .asset-toolbar .form-group,
-.generate-input-panel .form-group,
-.generate-side-panel .form-group {
+.generate-left-panel .form-group,
+.generate-result-panel .form-group,
+.generate-dialog-panel .form-group {
     margin-bottom: 0;
 }
 .generate-main-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
-    gap: 14px;
+    grid-template-columns: minmax(340px, 0.82fr) minmax(0, 1.18fr);
+    gap: 12px;
     align-items: stretch;
+    min-height: 0;
 }
-.generate-input-panel,
-.generate-side-panel {
+.generate-left-panel,
+.generate-result-panel {
     display: grid;
     gap: 12px;
 }
-.generate-input-panel > section,
-.generate-side-panel > section {
+.generate-left-panel > section,
+.generate-result-panel > section {
     display: flex;
     flex-direction: column;
     min-height: 0;
 }
-.generate-input-panel > section > .config-section,
-.generate-side-panel > section > .config-section {
+.generate-left-panel > section > .config-section,
+.generate-result-panel > section > .config-section {
     flex: 1;
 }
-.generate-input-panel > section > .config-section {
+.generate-left-panel > section > .config-section,
+.generate-result-panel > section > .config-section {
     display: flex;
     flex-direction: column;
 }
-.generate-input-panel .agent-input-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-.generate-input-panel .agent-prompt-input {
-    flex: 1;
-}
-.generate-side-panel > section > .config-section {
-    display: flex;
-    flex-direction: column;
-}
-.generate-side-panel .template-preview {
-    flex: 1;
-}
-.generate-side-panel .template-preview {
-    max-height: 440px;
+.generate-left-panel .template-preview {
+    max-height: 180px;
     overflow: auto;
 }
-.generate-submit-bar {
+.generate-left-panel .config-section,
+.generate-result-panel .config-section {
+    min-height: 0;
+}
+.generate-left-panel .reference-case-list {
+    max-height: 96px;
+    overflow: auto;
+}
+.generate-left-panel .dynamic-input-section.active {
+    max-height: 118px;
+    overflow: auto;
+}
+.result-shell {
     display: flex;
-    justify-content: center;
-    padding: 14px 0 4px;
-}
-.generate-submit-bar .btn-block {
-    width: min(100%, 520px);
-    padding: 14px 24px;
-    font-size: 16px;
-    font-weight: 700;
-}
-.generate-assist-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-direction: column;
     gap: 12px;
+    min-height: 0;
+    height: 300px;
+    overflow: auto;
+}
+.result-card {
+    padding: 12px;
+    border: 1px solid #d9e7f5;
+    border-radius: 8px;
+    background: #fbfdff;
+}
+.result-card .empty-state {
+    padding: 22px 10px;
+}
+.result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.result-actions .btn {
+    padding: 8px 14px;
+}
+.revision-history {
+    display: none;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+.revision-history.active {
+    display: block;
+}
+.revision-history-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+}
+.revision-history-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.revision-history-item:last-child {
+    border-bottom: 0;
+}
+.generate-dialog-panel {
+    display: grid;
+    gap: 6px;
+}
+.dialog-title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+.dialog-mode-badge {
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #edf9ff;
+    color: var(--primary);
+    font-size: 12px;
+}
+.dialog-action-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 10px 8px;
+    border-top: 1px solid #e5eef8;
 }
 .generate-compact-tips {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border: 1px solid #d9e7f5;
     border-radius: 8px;
     background: #f8fbff;
     color: var(--text-secondary);
     font-size: 13px;
-    line-height: 1.7;
+    line-height: 1.5;
 }
 .generate-compact-tips strong {
     color: var(--text);
-}
-.generate-assist-row .generation-record-shortcut {
-    margin-top: 0;
 }
 @media (max-width: 1100px) {
     .asset-toolbar {
@@ -412,12 +467,12 @@
     .generate-main-grid {
         grid-template-columns: 1fr;
     }
-    .generate-input-panel > section,
-    .generate-side-panel > section {
+    .generate-left-panel > section,
+    .generate-result-panel > section {
         display: block;
     }
-    .generate-input-panel > section > .config-section,
-    .generate-side-panel > section > .config-section {
+    .generate-left-panel > section > .config-section,
+    .generate-result-panel > section > .config-section {
         display: block;
     }
 }
@@ -425,11 +480,8 @@
     .asset-toolbar {
         grid-template-columns: 1fr;
     }
-    .generate-assist-row {
+    .dialog-action-row {
         grid-template-columns: 1fr;
-    }
-    .generate-submit-bar .btn-block {
-        width: 100%;
     }
 }
 </style>
@@ -439,81 +491,60 @@
 </div>
 
 <div class="generate-workbench">
-    <!-- Step 1: Professional asset -->
     <section>
-        <p class="section-step">1. 选择专业资产</p>
+        <p class="section-step">1. 生成条件</p>
         <div class="config-section asset-toolbar">
             <div class="form-group">
-                <label>专业方向</label>
+                <label>专业</label>
                 <select class="form-control" id="specialtySelect">
                     <option value="">通用专业</option>
                 </select>
-                <div class="form-hint">从侧边栏专业入口进入时会自动选择对应专业。</div>
             </div>
             <div class="form-group">
-                <label>技术文档类型</label>
+                <label>文档类型</label>
                 <select class="form-control" id="documentKindSelect">
-                    <option value="">请选择技术文档类型</option>
+                    <option value="">请选择文档类型</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>绑定模板</label>
+                <label>模板</label>
                 <select class="form-control" id="templateSelect"></select>
-                <div class="form-hint">模板由“专业 + 技术文档类型”筛选得到；选择模板后只显示该模板绑定的案例。</div>
+            </div>
+            <div class="form-group">
+                <label>生成模式</label>
+                <select class="form-control" id="generationMode">
+                    <option value="smart">智能生成</option>
+                    <option value="template_fill">模板填充</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>生成模型</label>
                 <select class="form-control" id="generateModelSelect">
                     <option value="system_default">系统默认</option>
                 </select>
-                <div class="form-hint" id="generateModelHint">正在读取实际可用模型...</div>
             </div>
         </div>
+        <div class="form-hint" id="generateModelHint" style="margin-top:6px;">正在读取实际可用模型...</div>
     </section>
 
     <div class="generate-main-grid">
-        <div class="generate-input-panel">
-        <!-- Step 2: Input -->
+        <aside class="generate-left-panel">
             <section>
-                <p class="section-step">2. 输入生成素材</p>
+                <p class="section-step">2. 模板与案例</p>
                 <div class="config-section">
                     <div class="form-group">
-                        <label>生成需求</label>
-                        <div class="agent-input-card">
-                            <textarea class="agent-prompt-input" id="generationBrief" placeholder="像和智能体对话一样输入生成需求。例如：&#10;请生成某型电动作动器试验大纲，适用于 XX 项目。&#10;试验对象为……，重点包含性能试验、环境适应性试验和验收判据。&#10;关键参数包括……；引用文件包括……。&#10;写作要求：正式、准确，不编造未提供的数据，缺失内容标注“待补充”。"></textarea>
-                            <div class="agent-input-toolbar">
-                                <button type="button" class="agent-upload-btn" id="supplementUploadButton" title="上传补充材料 Word 文档">+</button>
-                                <div class="agent-upload-status" id="supplementUploadStatus">可上传 .docx 作为补充材料</div>
-                            </div>
-                            <input type="file" id="supplementFileInput" accept=".docx" style="display:none">
+                        <div class="field-action-row">
+                            <label>优秀案例</label>
+                            <button type="button" class="btn btn-outline" onclick="openSelectedTemplateInLibrary()">管理资产</button>
                         </div>
-                        <div class="form-hint">文档标题、对象、背景、参数、引用文件和写作要求都可直接写在这里。</div>
-                    </div>
-                    <div class="form-group">
-                        <label>生成模式</label>
-                        <select class="form-control" id="generationMode">
-                            <option value="smart">智能生成：逐章节调用大模型并回填模板</option>
-                            <option value="template_fill">模板填充：仅删除说明并替换占位符</option>
-                        </select>
+                        <div class="reference-case-list" id="referenceCaseList">
+                            <div class="reference-case-empty">选择专业、文档类型和模板后查看该模板的案例组</div>
+                        </div>
+                        <div class="form-hint">生成时会读取所选案例的章节结构、术语、写法和格式特点。</div>
                     </div>
                     <div class="dynamic-input-section" id="dynamicInputSection">
                         <div class="dynamic-input-title">模板专属输入</div>
                         <div class="dynamic-input-grid" id="dynamicInputFields"></div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <aside class="generate-side-panel">
-            <section>
-                <p class="section-step">3. 模板与结果</p>
-                <div class="config-section">
-                    <div class="form-group">
-                        <label>该模板关联优秀案例</label>
-                        <div class="reference-case-list" id="referenceCaseList">
-                            <div class="reference-case-empty">选择专业、技术文档类型和模板后查看该模板的案例组</div>
-                        </div>
-                        <div class="form-hint">生成时会读取所选案例的章节结构、术语、写法和格式特点。</div>
                     </div>
                     <div class="form-group">
                         <label>模板章节结构</label>
@@ -523,77 +554,99 @@
                     </div>
                 </div>
             </section>
-
-            <div class="progress-section" id="genProgressSection" style="display:none;">
-                <p class="section-title">生成进度</p>
-                <div class="progress-info">
-                    <span id="genProgressStatus">正在生成...</span>
-                    <span id="genProgressPercent">0%</span>
-                </div>
-                <div class="progress-bar-wrapper">
-                    <div class="progress-bar-fill" id="genProgressBar" style="width:0%"></div>
-                </div>
-            </div>
-
-            <div id="genResultSection" style="display:none;">
-                <div class="report-section">
-                    <p class="section-title">生成结果</p>
-                    <div style="text-align:center;padding:16px;" id="genResultIcon">
-                        <div class="result-status-mark" id="genResultEmoji">OK</div>
-                        <p style="font-size:15px;font-weight:600;" id="genResultTitle">文档生成完成</p>
-                        <p style="font-size:14px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
-                    </div>
-
-                    <div id="genReviewSection" style="display:none;margin-top:12px;">
-                        <p class="section-title">审查预留</p>
-                        <div class="report-stats">
-                            <div class="report-stat">
-                                <div class="value" style="color:var(--primary);" id="genReviewTotal">0</div>
-                                <div class="label">总问题</div>
-                            </div>
-                            <div class="report-stat">
-                                <div class="value" style="color:var(--danger);" id="genReviewErrors">0</div>
-                                <div class="label">错误</div>
-                            </div>
-                            <div class="report-stat">
-                                <div class="value" style="color:var(--warning);" id="genReviewWarnings">0</div>
-                                <div class="label">警告</div>
-                            </div>
-                        </div>
-                        <div id="genPhaseResults" style="margin-top:10px;"></div>
-                    </div>
-
-                    <div style="text-align:center;margin-top:12px;">
-                        <div class="review-rule-set-row">
-                            <label for="generatedReviewModelSelect">审查模型</label>
-                            <select class="form-control" id="generatedReviewModelSelect">
-                                <option value="system_default">系统默认</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载生成文档</button>
-                        <button class="btn btn-outline" id="reviewGeneratedBtn" style="margin-left:8px;" onclick="reviewGenerated()">一键审查</button>
-                        <button class="btn btn-outline" id="retryGenBtn" style="display:none;margin-left:8px;" onclick="retryGenerate()">重新生成</button>
-                    </div>
-                </div>
-            </div>
         </aside>
+
+        <main class="generate-result-panel">
+            <section>
+                <p class="section-step">3. 生成结果 / 文档预览</p>
+                <div class="config-section result-shell">
+                    <div class="result-card" id="genEmptyState">
+                        <div class="empty-state">选择模板并在下方智能对话框输入生成素材后，结果会显示在这里。</div>
+                    </div>
+
+                    <div class="progress-section" id="genProgressSection" style="display:none;">
+                        <p class="section-title">生成进度</p>
+                        <div class="progress-info">
+                            <span id="genProgressStatus">正在生成...</span>
+                            <span id="genProgressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill" id="genProgressBar" style="width:0%"></div>
+                        </div>
+                    </div>
+
+                    <div id="genResultSection" style="display:none;">
+                        <div class="result-card">
+                            <p class="section-title">生成结果</p>
+                            <div style="text-align:center;padding:16px;" id="genResultIcon">
+                                <div class="result-status-mark" id="genResultEmoji">OK</div>
+                                <p style="font-size:15px;font-weight:600;" id="genResultTitle">文档生成完成</p>
+                                <p style="font-size:14px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
+                            </div>
+
+                            <div id="genReviewSection" style="display:none;margin-top:12px;">
+                                <p class="section-title">审查预留</p>
+                                <div class="report-stats">
+                                    <div class="report-stat">
+                                        <div class="value" style="color:var(--primary);" id="genReviewTotal">0</div>
+                                        <div class="label">总问题</div>
+                                    </div>
+                                    <div class="report-stat">
+                                        <div class="value" style="color:var(--danger);" id="genReviewErrors">0</div>
+                                        <div class="label">错误</div>
+                                    </div>
+                                    <div class="report-stat">
+                                        <div class="value" style="color:var(--warning);" id="genReviewWarnings">0</div>
+                                        <div class="label">警告</div>
+                                    </div>
+                                </div>
+                                <div id="genPhaseResults" style="margin-top:10px;"></div>
+                            </div>
+
+                            <div style="margin-top:12px;">
+                                <div class="review-rule-set-row">
+                                    <label for="generatedReviewModelSelect">审查模型</label>
+                                    <select class="form-control" id="generatedReviewModelSelect">
+                                        <option value="system_default">系统默认</option>
+                                    </select>
+                                </div>
+                                <div class="result-actions">
+                                    <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载文档</button>
+                                    <button class="btn btn-outline" id="reviewGeneratedBtn" onclick="reviewGenerated()">一键审查</button>
+                                    <button class="btn btn-outline" id="retryGenBtn" style="display:none;" onclick="retryGenerate()">重新生成</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="revision-history" id="revisionHistorySection">
+                        <p class="section-title">版本记录</p>
+                        <div class="revision-history-list" id="revisionHistoryList"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <div class="generate-submit-bar">
-        <button class="btn btn-success btn-block" id="generateBtn" onclick="startGenerate()">
-            按模板生成文档
-        </button>
-    </div>
-    <div class="generate-assist-row">
+    <section class="generate-dialog-panel">
+        <div class="dialog-title-row">
+            <p class="section-step" id="dialogTitle">4. 智能对话</p>
+            <span class="dialog-mode-badge" id="dialogModeBadge">生成素材</span>
+        </div>
+        <div class="agent-input-card">
+            <textarea class="agent-prompt-input" id="generationBrief" placeholder="请输入生成需求、产品信息、参数、引用文件等；生成完成后可继续在这里提出修改意见。"></textarea>
+            <div class="dialog-action-row">
+                <button type="button" class="agent-upload-btn" id="supplementUploadButton" title="上传补充材料 Word 文档">+</button>
+                <div class="agent-upload-status" id="supplementUploadStatus">可上传 .docx 作为补充材料</div>
+                <a class="btn btn-outline" href="/records/?type=generate">我的任务</a>
+                <button class="btn btn-success" id="generateBtn" onclick="submitSmartDialog()">按模板生成文档</button>
+            </div>
+            <input type="file" id="supplementFileInput" accept=".docx" style="display:none">
+        </div>
         <div class="generate-compact-tips">
-            <strong>生成说明：</strong>系统会保留 DOCX 模板样式、页眉页脚和页面设置；智能生成会按章节组织模板、案例和用户素材；缺失依据的数据请填写为“待补充”。
+            <strong>生成说明：</strong>生成前在此输入素材；生成完成后继续在此输入修改意见。系统会保留 DOCX 模板样式、页眉页脚、标题层级和页面设置，只对正文内容进行生成、补充或修订。
         </div>
-        <div class="generation-record-shortcut">
-            <span>任务记录</span>
-            <p>查看生成状态、下载文档、重新生成或送入审查</p>
-            <a class="btn btn-outline" href="/records/?type=generate">查看记录</a>
-        </div>
-    </div>
+    </section>
 </div>
 
 <div class="modal-overlay" id="genProgressModal">
@@ -641,14 +694,17 @@ let defaultGenerationRequirements = '';
 let supplementDocText = '';
 let supplementDocName = '';
 let supplementDocUploading = false;
-let reviewRuleSets = [{source: 'all', name: '全部规则'}];
 let reviewModels = [{id: 'system_default', name: '系统默认', is_default: true}];
 let generationSpecialties = [];
 let generationModels = [];
+let smartDialogMode = 'generate';
+let revisionHistory = [];
 const genProgressModal = document.getElementById('genProgressModal');
 const genProgressDock = document.getElementById('genProgressDock');
 const genProgressDetail = document.getElementById('genProgressDetail');
 const generationBriefInput = document.getElementById('generationBrief');
+const dialogModeBadge = document.getElementById('dialogModeBadge');
+const dialogTitle = document.getElementById('dialogTitle');
 const specialtySelect = document.getElementById('specialtySelect');
 const documentKindSelect = document.getElementById('documentKindSelect');
 const referenceCaseList = document.getElementById('referenceCaseList');
@@ -725,6 +781,7 @@ function loadTemplates() {
 }
 
 document.getElementById('templateSelect').addEventListener('change', e => {
+    resetSmartDialogForNewGeneration();
     selectedTemplate = generationTemplates.find(t => t.id === e.target.value) || null;
     if (!selectedTemplate) {
         document.getElementById('templatePreview').innerHTML = '<div class="empty-state">请选择一个可生成的文档模板</div>';
@@ -739,11 +796,13 @@ document.getElementById('templateSelect').addEventListener('change', e => {
 });
 
 specialtySelect.addEventListener('change', () => {
+    resetSmartDialogForNewGeneration();
     renderDocumentKindOptions();
     renderTemplateOptions();
 });
 
 documentKindSelect.addEventListener('change', () => {
+    resetSmartDialogForNewGeneration();
     renderTemplateOptions();
 });
 
@@ -1138,6 +1197,44 @@ function openSelectedTemplateInLibrary() {
     window.location.href = '/template-library/' + suffix;
 }
 
+function submitSmartDialog() {
+    if (smartDialogMode === 'revise') {
+        reviseGeneratedDocument();
+        return;
+    }
+    startGenerate();
+}
+
+function setSmartDialogMode(mode) {
+    smartDialogMode = mode === 'revise' ? 'revise' : 'generate';
+    const btn = document.getElementById('generateBtn');
+    if (smartDialogMode === 'revise') {
+        if (dialogTitle) dialogTitle.textContent = '4. 智能对话';
+        if (dialogModeBadge) dialogModeBadge.textContent = '对话修订';
+        generationBriefInput.placeholder = '请输入修改意见，例如：补充第 3 章依据文件说明，保持模板格式不变。';
+        if (btn) btn.textContent = '发送修改';
+        return;
+    }
+    if (dialogTitle) dialogTitle.textContent = '4. 智能对话';
+    if (dialogModeBadge) dialogModeBadge.textContent = '生成素材';
+    generationBriefInput.placeholder = '请输入生成需求、产品信息、参数、引用文件等；生成完成后可继续在这里提出修改意见。';
+    if (btn) btn.textContent = '按模板生成文档';
+}
+
+function resetSmartDialogForNewGeneration() {
+    setSmartDialogMode('generate');
+    revisionHistory = [];
+    currentGenTaskId = null;
+    if (generationBriefInput) generationBriefInput.value = '';
+    const empty = document.getElementById('genEmptyState');
+    const result = document.getElementById('genResultSection');
+    const progress = document.getElementById('genProgressSection');
+    if (empty) empty.style.display = '';
+    if (result) result.style.display = 'none';
+    if (progress) progress.style.display = 'none';
+    renderRevisionHistory([]);
+}
+
 function startGenerate() {
     const generationBrief = generationBriefInput.value.trim();
     if (!selectedTemplate) { alert('请选择文档模板'); return; }
@@ -1152,6 +1249,8 @@ function startGenerate() {
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
     btn.textContent = '生成中...';
+    const empty = document.getElementById('genEmptyState');
+    if (empty) empty.style.display = 'none';
 
     const params = {
         template_id: selectedTemplate.id,
@@ -1345,7 +1444,8 @@ function closeGenProgressModal() {
 }
 
 function isGenTaskActive() {
-    return !!currentGenTaskId && document.getElementById('generateBtn').textContent === '生成中...';
+    const btn = document.getElementById('generateBtn');
+    return !!currentGenTaskId && btn && btn.disabled && btn.textContent === '生成中...';
 }
 
 function updateGenProgressDockVisibility() {
@@ -1426,21 +1526,32 @@ function cancelGeneration(taskId = currentGenTaskId) {
 function handleGenFinalState(data) {
     document.getElementById('genProgressSection').style.display = 'none';
     document.getElementById('generateBtn').disabled = false;
-    document.getElementById('generateBtn').textContent = '按模板生成文档';
     closeGenProgressModal();
     updateGenProgressDockVisibility();
     if (data.status === 'completed') {
+        setSmartDialogMode('revise');
+        generationBriefInput.value = '';
+        supplementDocText = '';
+        supplementDocName = '';
+        supplementInput.value = '';
+        supplementStatus.textContent = '可继续上传 .docx 作为本轮修改补充材料';
+        supplementStatus.style.color = 'var(--text-secondary)';
+        const empty = document.getElementById('genEmptyState');
+        if (empty) empty.style.display = 'none';
         document.getElementById('genResultSection').style.display = 'block';
         document.getElementById('genResultEmoji').textContent = 'OK';
         document.getElementById('genResultTitle').textContent = '文档生成完成';
         document.getElementById('genResultName').textContent = data.result_path
             ? data.result_path.split(/[/\\]/).pop() : 'generated_document.docx';
         document.getElementById('retryGenBtn').style.display = 'none';
+        renderRevisionHistoryFromParams(data.params);
         showGenReview(data);
 
     } else if (data.status === 'canceled') {
+        setSmartDialogMode('generate');
         alert('生成已停止');
     } else {
+        setSmartDialogMode('generate');
         alert('生成失败: ' + (data.error || '未知错误'));
     }
 }
@@ -1519,13 +1630,91 @@ function renderQualityResult(qualityResult, reviewResult) {
 }
 
 function retryGenerate() {
+    setSmartDialogMode('generate');
     document.getElementById('genResultSection').style.display = 'none';
     document.getElementById('genReviewSection').style.display = 'none';
+    const empty = document.getElementById('genEmptyState');
+    if (empty) empty.style.display = '';
     startGenerate();
 }
 
 function downloadGenerated() {
     if (currentGenTaskId) window.location.href = '/generate/download/' + currentGenTaskId;
+}
+
+function reviseGeneratedDocument() {
+    const message = generationBriefInput.value.trim();
+    if (!currentGenTaskId) { alert('请先完成一次文档生成'); return; }
+    if (!message) { alert('请输入修改意见'); return; }
+    if (supplementDocUploading) { alert('补充材料仍在解析，请稍后再提交修改'); return; }
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.textContent = '修改中...';
+    const payload = {
+        message,
+        model_id: generateModelSelect.value || 'system_default',
+        supplement_doc_name: supplementDocName,
+        supplement_doc_text: supplementDocText
+    };
+    fetch('/generate/revise/' + currentGenTaskId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+            btn.disabled = false;
+            setSmartDialogMode('revise');
+            return;
+        }
+        generationBriefInput.value = '';
+        supplementDocText = '';
+        supplementDocName = '';
+        supplementInput.value = '';
+        supplementStatus.textContent = '可继续上传 .docx 作为本轮修改补充材料';
+        supplementStatus.style.color = 'var(--text-secondary)';
+        document.getElementById('genResultTitle').textContent = `文档已修改为 v${data.version || ''}`;
+        document.getElementById('genResultName').textContent = data.filename || 'generated_document.docx';
+        revisionHistory = data.revision_history || revisionHistory;
+        renderRevisionHistory(revisionHistory);
+        btn.disabled = false;
+        setSmartDialogMode('revise');
+    })
+    .catch(err => {
+        alert('修改失败：' + err.message);
+        btn.disabled = false;
+        setSmartDialogMode('revise');
+    });
+}
+
+function renderRevisionHistoryFromParams(paramsText) {
+    let history = [];
+    try {
+        const params = JSON.parse(paramsText || '{}');
+        history = Array.isArray(params.revision_history) ? params.revision_history : [];
+    } catch (e) {}
+    revisionHistory = history;
+    renderRevisionHistory(history);
+}
+
+function renderRevisionHistory(history) {
+    const section = document.getElementById('revisionHistorySection');
+    const target = document.getElementById('revisionHistoryList');
+    if (!section || !target) return;
+    if (!history || !history.length) {
+        section.classList.remove('active');
+        target.innerHTML = '';
+        return;
+    }
+    section.classList.add('active');
+    target.innerHTML = history.slice().reverse().map(item => `
+        <div class="revision-history-item">
+            <span>v${escapeHtml(item.version || '')} · ${escapeHtml(item.summary || item.message || '已修改文档内容')}</span>
+            <span>${escapeHtml(item.created_at || '')}</span>
+        </div>
+    `).join('');
 }
 
 function loadReviewModelsForGeneratedDoc() {

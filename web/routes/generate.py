@@ -3,6 +3,7 @@ Generate routes for the web application.
 """
 import os
 import json
+import shutil
 import threading
 import time
 import uuid
@@ -284,6 +285,89 @@ def review_generated(task_id):
     return jsonify({'ok': True, 'review_task_id': review_task_id})
 
 
+@bp.route('/revise/<int:task_id>', methods=['POST'])
+def revise_generated(task_id):
+    """Revise the latest generated DOCX while preserving template formatting."""
+    task = current_app.db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成记录不存在'}), 404
+    if task.get('status') != 'completed':
+        return jsonify({'error': '只有已完成的生成文档可以继续对话修改'}), 400
+    result_path = task.get('result_path')
+    if not result_path or not os.path.exists(result_path):
+        return jsonify({'error': '生成文档文件不存在，无法修改'}), 404
+    if not result_path.lower().endswith('.docx'):
+        return jsonify({'error': '当前仅支持 DOCX 文档对话修改'}), 400
+
+    payload = request.get_json(silent=True) or {}
+    instruction = str(payload.get('message') or '').strip()
+    supplement_text = str(payload.get('supplement_doc_text') or '').strip()
+    if not instruction:
+        return jsonify({'error': '请输入修改意见'}), 400
+
+    try:
+        params_data = json.loads(task.get('params') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        params_data = {}
+
+    from config.settings import settings
+    from llm.client import LLMClientFactory
+    from web.option_registry import resolve_model_option
+
+    model_option = resolve_model_option(payload.get('model_id') or task.get('model_id'), 'generate')
+    provider = model_option.get('provider') or settings.llm_provider
+    client_kwargs = {'model': model_option.get('model') or None}
+    if model_option.get('base_url'):
+        client_kwargs['base_url'] = model_option.get('base_url')
+    if model_option.get('api_key'):
+        client_kwargs['api_key'] = model_option.get('api_key')
+    try:
+        llm_client = LLMClientFactory.create_client(provider, **client_kwargs)
+        revised = _revise_generated_docx(
+            source_path=result_path,
+            instruction=instruction,
+            supplement_text=supplement_text,
+            params=params_data,
+            llm_client=llm_client,
+            output_dir=os.path.dirname(result_path),
+        )
+    except Exception as exc:
+        current_app.logger.exception("生成文档对话修订失败")
+        return jsonify({'error': f'文档修改失败：{exc}'}), 500
+
+    history = params_data.get('revision_history')
+    if not isinstance(history, list):
+        history = []
+    history.append({
+        'version': revised['version'],
+        'message': instruction,
+        'summary': revised.get('summary') or '已根据修改意见更新文档内容',
+        'result_path': revised['path'],
+        'created_at': beijing_now_str(),
+    })
+    params_data['revision_history'] = history
+    params_data['latest_revision_version'] = revised['version']
+    cursor = current_app.db.conn.cursor()
+    cursor.execute(
+        'UPDATE generate_tasks SET params = ? WHERE id = ?',
+        (json.dumps(params_data, ensure_ascii=False), task_id),
+    )
+    current_app.db.conn.commit()
+    current_app.db.update_generate_task(
+        task_id,
+        result_path=revised['path'],
+        progress_message=f"已完成第 {revised['version']} 版对话修改",
+        completed_at=beijing_now_str(),
+    )
+    return jsonify({
+        'ok': True,
+        'version': revised['version'],
+        'summary': revised.get('summary') or '',
+        'filename': os.path.basename(revised['path']),
+        'revision_history': history,
+    })
+
+
 @bp.route('/delete/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
     task = current_app.db.get_generate_task(task_id)
@@ -429,6 +513,277 @@ def _create_generation_task(data: dict):
     thread.start()
 
     return jsonify({'task_id': new_task_id, 'rerun_from': data.get('rerun_from')})
+
+
+def _revise_generated_docx(
+    *,
+    source_path: str,
+    instruction: str,
+    supplement_text: str = '',
+    params: dict,
+    llm_client,
+    output_dir: str,
+) -> dict:
+    from docx import Document
+
+    source = Path(source_path)
+    version = _next_revision_version(params)
+    output_path = Path(output_dir) / f"{source.stem}_v{version}{source.suffix}"
+    shutil.copyfile(source, output_path)
+    doc = Document(str(output_path))
+    context = _extract_docx_revision_context(doc)
+    prompt = _build_revision_prompt(
+        instruction=instruction,
+        supplement_text=supplement_text,
+        params=params,
+        context=context,
+    )
+    response = llm_client.generate(prompt, system_prompt=(
+        "你是航空技术文档修订助手。必须保持 Word 模板格式、布局、标题层级、表格结构不变，"
+        "只给出需要替换或追加的正文内容。只输出 JSON 对象，不要输出 Markdown。"
+    ))
+    operation = _parse_revision_operation(getattr(response, 'content', '') or '')
+    if not operation:
+        raise RuntimeError("模型未返回可执行的修订指令")
+    applied = _apply_docx_revision_operation(doc, operation)
+    if not applied:
+        raise RuntimeError("未能在文档中定位到可修改位置，请在修改意见中指定章节或原文片段")
+    doc.save(str(output_path))
+    return {
+        'path': str(output_path),
+        'version': version,
+        'summary': operation.get('summary') or '',
+    }
+
+
+def _next_revision_version(params: dict) -> int:
+    history = params.get('revision_history')
+    if not isinstance(history, list) or not history:
+        return 2
+    versions = [int(item.get('version') or 1) for item in history if isinstance(item, dict)]
+    return max(versions or [1]) + 1
+
+
+def _extract_docx_revision_context(doc, max_chars: int = 26000) -> dict:
+    paragraphs = []
+    headings = []
+    current_heading = ''
+    for index, paragraph in enumerate(doc.paragraphs):
+        text = paragraph.text.strip()
+        if not text:
+            continue
+        style_name = str(getattr(paragraph.style, 'name', '') or '')
+        is_heading = style_name.lower().startswith('heading') or style_name.startswith('标题')
+        if is_heading:
+            current_heading = text
+            headings.append(text)
+        paragraphs.append({
+            'index': index,
+            'heading': current_heading,
+            'text': text,
+            'is_heading': is_heading,
+        })
+    lines = []
+    total_chars = 0
+    for item in paragraphs:
+        line = f"[{item['index']}] {item['heading'] + ' / ' if item['heading'] and not item['is_heading'] else ''}{item['text']}"
+        if total_chars + len(line) > max_chars:
+            break
+        lines.append(line)
+        total_chars += len(line)
+    return {
+        'headings': headings[:120],
+        'paragraphs': paragraphs,
+        'excerpt': '\n'.join(lines),
+    }
+
+
+def _build_revision_prompt(*, instruction: str, supplement_text: str = '', params: dict, context: dict) -> str:
+    payload = {
+        'task': '根据用户修改意见，定位当前 DOCX 中需要修改的章节或段落，并给出受控修订指令。',
+        'document_meta': {
+            'title': params.get('title') or '',
+            'template_name': params.get('template_name') or '',
+            'document_kind_name': params.get('document_kind_name') or '',
+            'specialty_name': params.get('specialty_name') or '',
+        },
+        'user_instruction': instruction,
+        'supplement_material': _truncate_for_llm_parse(supplement_text, max_chars=12000) if supplement_text else '',
+        'available_headings': context.get('headings') or [],
+        'document_excerpt': context.get('excerpt') or '',
+        'output_schema': {
+            'operation': 'replace 或 append',
+            'target_heading': '优先填写要修改的章节标题；不确定则留空',
+            'old_text_hint': 'replace 时填写原文中的一小段连续文本；append 时可留空',
+            'new_text': '需要写入 Word 的正文，不能包含章节标题，不能使用 Markdown 表格',
+            'summary': '一句话说明本次修改',
+        },
+        'rules': [
+            '只依据当前文档内容和用户修改意见修订，不编造用户未要求的新数据。',
+            '不要改变标题层级、模板格式、表格结构、页眉页脚或页面布局。',
+            '如用户要求补充内容，operation 使用 append，并选择最相关 target_heading。',
+            '如用户要求改写已有内容，operation 使用 replace，并提供 old_text_hint。',
+            'new_text 只写正式正文，不要写 Markdown，不要写解释。',
+        ],
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def _parse_revision_operation(content: str) -> dict:
+    import re
+
+    raw = str(content or '').strip()
+    if raw.startswith('```'):
+        raw = re.sub(r'^```(?:json)?\s*', '', raw)
+        raw = re.sub(r'\s*```$', '', raw)
+    match = re.search(r'\{.*\}', raw, flags=re.S)
+    if match:
+        raw = match.group(0)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    operation = str(data.get('operation') or '').strip().lower()
+    if operation not in {'replace', 'append'}:
+        operation = 'append'
+    new_text = str(data.get('new_text') or '').strip()
+    if not new_text:
+        return {}
+    return {
+        'operation': operation,
+        'target_heading': str(data.get('target_heading') or '').strip(),
+        'old_text_hint': str(data.get('old_text_hint') or '').strip(),
+        'new_text': _sanitize_revision_text(new_text),
+        'summary': str(data.get('summary') or '').strip(),
+    }
+
+
+def _sanitize_revision_text(text: str) -> str:
+    lines = []
+    for raw_line in str(text or '').splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.count('|') >= 2:
+            continue
+        lines.append(line)
+    return '\n'.join(lines).strip()
+
+
+def _apply_docx_revision_operation(doc, operation: dict) -> bool:
+    paragraphs = list(doc.paragraphs)
+    target_heading = operation.get('target_heading') or ''
+    old_hint = operation.get('old_text_hint') or ''
+    new_lines = [line for line in str(operation.get('new_text') or '').splitlines() if line.strip()]
+    if not new_lines:
+        return False
+
+    start_index, end_index = _find_revision_chapter_range(paragraphs, target_heading)
+    search_range = range(start_index, end_index)
+    if operation.get('operation') == 'replace' and old_hint:
+        target = _find_paragraph_by_hint(paragraphs, old_hint, search_range)
+        if target is not None:
+            _replace_paragraph_text_preserving_style(paragraphs[target], new_lines[0])
+            insert_after = paragraphs[target]
+            for line in new_lines[1:]:
+                insert_after = _insert_paragraph_after(insert_after, line)
+            return True
+
+    insert_index = _find_append_anchor(paragraphs, start_index, end_index)
+    if insert_index is None:
+        return False
+    insert_after = paragraphs[insert_index]
+    for line in new_lines:
+        insert_after = _insert_paragraph_after(insert_after, line)
+    return True
+
+
+def _find_revision_chapter_range(paragraphs, target_heading: str) -> tuple[int, int]:
+    if not paragraphs:
+        return 0, 0
+    if not target_heading:
+        return 0, len(paragraphs)
+    heading_index = 0
+    normalized_target = _normalize_revision_text(target_heading)
+    for index, paragraph in enumerate(paragraphs):
+        if normalized_target and normalized_target in _normalize_revision_text(paragraph.text):
+            heading_index = index
+            break
+    end_index = len(paragraphs)
+    base_level = _heading_level(paragraphs[heading_index])
+    if base_level:
+        for index in range(heading_index + 1, len(paragraphs)):
+            level = _heading_level(paragraphs[index])
+            if level and level <= base_level:
+                end_index = index
+                break
+    return heading_index, end_index
+
+
+def _heading_level(paragraph) -> int:
+    import re
+
+    style_name = str(getattr(paragraph.style, 'name', '') or '')
+    match = re.search(r'(\d+)$', style_name)
+    if style_name.lower().startswith('heading') and match:
+        return int(match.group(1))
+    if style_name.startswith('标题') and match:
+        return int(match.group(1))
+    return 0
+
+
+def _find_paragraph_by_hint(paragraphs, hint: str, search_range) -> int | None:
+    normalized_hint = _normalize_revision_text(hint)
+    if not normalized_hint:
+        return None
+    for index in search_range:
+        if normalized_hint in _normalize_revision_text(paragraphs[index].text):
+            return index
+    for index, paragraph in enumerate(paragraphs):
+        if normalized_hint in _normalize_revision_text(paragraph.text):
+            return index
+    return None
+
+
+def _find_append_anchor(paragraphs, start_index: int, end_index: int) -> int | None:
+    for index in range(end_index - 1, start_index, -1):
+        if paragraphs[index].text.strip():
+            return index
+    return start_index if paragraphs else None
+
+
+def _normalize_revision_text(text: str) -> str:
+    import re
+
+    return re.sub(r'\s+', '', str(text or '')).lower()
+
+
+def _replace_paragraph_text_preserving_style(paragraph, text: str):
+    if paragraph.runs:
+        paragraph.runs[0].text = text
+        for run in paragraph.runs[1:]:
+            run.text = ''
+    else:
+        paragraph.add_run(text)
+
+
+def _insert_paragraph_after(paragraph, text: str):
+    from docx.text.paragraph import Paragraph
+    from docx.oxml import OxmlElement
+
+    new_element = OxmlElement('w:p')
+    paragraph._p.addnext(new_element)
+    new_paragraph = Paragraph(new_element, paragraph._parent)
+    try:
+        style_name = str(getattr(paragraph.style, 'name', '') or '')
+        if not (style_name.lower().startswith('heading') or style_name.startswith('标题')):
+            new_paragraph.style = paragraph.style
+    except Exception:
+        pass
+    new_paragraph.add_run(text)
+    return new_paragraph
 
 
 def run_generate_task(task_id, data, upload_folder, db):

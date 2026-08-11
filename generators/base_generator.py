@@ -193,6 +193,9 @@ class TemplateDocxGenerator(BaseGenerator):
                         control_callback()
                     current_chapter_key = self._match_chapter_key(text, chapters)
                     delete_context = ""
+                    if self._is_template_document_title(text):
+                        self._replace_paragraph_text(block, title)
+                        continue
                     self._replace_paragraph_runs(block, replacements)
                     continue
                 block_type = self.classifier.classify_paragraph(block, delete_context)
@@ -421,8 +424,32 @@ class TemplateDocxGenerator(BaseGenerator):
 
     def _clean_generated_content(self, content: str) -> str:
         lines = [line.strip() for line in str(content or "").splitlines()]
-        cleaned = [line for line in lines if line and not self.classifier.is_example_marker(line)]
+        cleaned = []
+        previous = ""
+        for line in lines:
+            if not line or self.classifier.is_example_marker(line):
+                continue
+            if self._looks_like_markdown_table_line(line):
+                continue
+            if line == previous:
+                continue
+            cleaned.append(line)
+            previous = line
         return "\n".join(cleaned).strip()
+
+    def _looks_like_markdown_table_line(self, line: str) -> bool:
+        text = str(line or "").strip()
+        if text.count("|") < 2:
+            return False
+        compact = text.replace("|", "").replace(":", "").replace("-", "").strip()
+        return not compact or text.startswith("|") or "文件编号" in text
+
+    def _is_template_document_title(self, text: str) -> bool:
+        normalized = str(text or "").replace(" ", "")
+        return (
+            "文档标题" in normalized
+            and any(token in normalized for token in ("模板", "模版", "试验大纲", "技术文档"))
+        )
 
     def _build_replacements(self, title: str, inputs: Dict[str, Any]) -> Dict[str, str]:
         product_name = str(inputs.get("product_name", "")).strip()

@@ -124,7 +124,7 @@
                         {% endif %}
                         {% if item.can_download %}
                             <a class="btn btn-outline" href="/generate/download/{{ item.id }}">下载</a>
-                            <button type="button" class="btn btn-outline" onclick="reviewGeneratedRecord({{ item.id }})">送审</button>
+                            <button type="button" class="btn btn-outline" onclick="reviewGeneratedRecord({{ item.id }})">一键审查</button>
                         {% endif %}
                         {% if not item.is_running %}
                             <button type="button" class="btn btn-outline" onclick="rerunGenerationRecord({{ item.id }})">重新生成</button>
@@ -199,7 +199,7 @@ function reviewGeneratedRecord(taskId) {
     fetch('/generate/review/' + taskId, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({rule_set: 'all'})
+        body: JSON.stringify({})
     })
         .then(r => r.json())
         .then(data => {

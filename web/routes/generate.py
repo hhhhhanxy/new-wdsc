@@ -242,7 +242,14 @@ def review_generated(task_id):
 
     filename = os.path.basename(result_path)
     payload = request.get_json(silent=True) or {}
-    rule_set = str(payload.get('rule_set') or 'all')
+    try:
+        params_data = json.loads(task.get('params') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        params_data = {}
+    specialty_id = str(task.get('specialty_id') or params_data.get('specialty_id') or '').strip()
+    specialty_name = str(task.get('specialty_name') or params_data.get('specialty_name') or '').strip()
+    document_kind_name = str(task.get('document_kind_name') or params_data.get('document_kind_name') or '').strip()
+    rule_set = f"specialty:{specialty_id}" if specialty_id else "all"
     from web.option_registry import resolve_model_option
     review_model = resolve_model_option(payload.get('model_id'), 'review')
     review_task_id = current_app.db.create_review_task(
@@ -252,12 +259,12 @@ def review_generated(task_id):
         rule_set=rule_set,
         model_id=review_model.get('id'),
         model_name=review_model.get('name'),
+        specialty_id=specialty_id,
+        specialty_name=specialty_name,
+        document_kind_name=document_kind_name,
+        source_generate_task_id=task_id,
     )
 
-    try:
-        params_data = json.loads(task.get('params') or '{}')
-    except (TypeError, json.JSONDecodeError):
-        params_data = {}
     params_data['linked_review_task_id'] = review_task_id
     params_data['auto_review'] = True
     cursor = current_app.db.conn.cursor()
@@ -315,15 +322,6 @@ def _create_generation_task(data: dict):
     supplement_text = str(inputs.get('supplement_doc_text') or '').strip()
     if not generation_brief and not supplement_text:
         return jsonify({'error': '请输入生成需求，或上传补充材料'}), 400
-    data['title'] = str(data.get('title') or _derive_title_from_brief(generation_brief, template.name)).strip()
-    dynamic_values = inputs.get('dynamic_fields') or {}
-    missing_dynamic = [
-        field.label
-        for field in template.input_fields
-        if field.required and not str(dynamic_values.get(field.key, '')).strip()
-    ]
-    if missing_dynamic:
-        return jsonify({'error': f"请填写模板必填项：{'、'.join(missing_dynamic)}"}), 400
     inputs['dynamic_field_definitions'] = [
         {
             'key': field.key,
@@ -333,10 +331,35 @@ def _create_generation_task(data: dict):
         }
         for field in template.input_fields
     ]
-    data['inputs'] = inputs
+    parsed_brief = _parse_generation_brief(generation_brief, _template_brief_labels(template.input_fields))
+    _merge_generation_brief_inputs(inputs, parsed_brief, template.input_fields)
     template_dict = manager.serialize_template(template)
     from web.option_registry import build_reference_case_context, get_specialty, resolve_model_option
     model_option = resolve_model_option(data.get('model_id'), 'generate')
+    llm_parsed_brief = _try_llm_parse_generation_brief(
+        generation_brief=generation_brief,
+        supplement_text=supplement_text,
+        template=template,
+        inputs=inputs,
+        model_option=model_option,
+    )
+    if llm_parsed_brief:
+        _merge_generation_brief_inputs(inputs, llm_parsed_brief, template.input_fields)
+        parsed_brief = {**parsed_brief, **{key: value for key, value in llm_parsed_brief.items() if value}}
+    data['title'] = str(
+        parsed_brief.get('title')
+        or _derive_title_from_brief(generation_brief, template.name)
+        or data.get('title')
+    ).strip()
+    dynamic_values = inputs.get('dynamic_fields') or {}
+    missing_dynamic = [
+        field.label
+        for field in template.input_fields
+        if field.required and not str(dynamic_values.get(field.key, '')).strip()
+    ]
+    if missing_dynamic:
+        return jsonify({'error': f"请填写模板必填项：{'、'.join(missing_dynamic)}"}), 400
+    data['inputs'] = inputs
     specialty = get_specialty(data.get('specialty_id'))
     specialty_id = specialty.get('id') if specialty else ''
     specialty_name = specialty.get('name') if specialty else ''
@@ -565,15 +588,455 @@ def _resolve_template_reference_cases(template: dict, case_ids: list[str]) -> li
 
 
 def _derive_title_from_brief(brief: str, fallback: str) -> str:
+    parsed = _parse_generation_brief(brief)
+    if parsed.get('title'):
+        return parsed['title'][:80]
+    if parsed.get('_has_explicit_labels'):
+        return fallback or '未命名生成文档'
     for line in str(brief or '').splitlines():
         title = line.strip()
         if title:
+            if _split_brief_label_line(title, _default_brief_labels())[0]:
+                continue
             title = title.removeprefix('请生成').strip()
             for sep in ('。', '；', ';', '，', ','):
                 if sep in title:
                     title = title.split(sep, 1)[0].strip()
             return title[:60] or fallback
     return fallback or '未命名生成文档'
+
+
+def _brief_label_map() -> dict[str, str]:
+    return {
+        '文档标题': 'title',
+        '标题': 'title',
+        '产品名称': 'product_name',
+        '项目名称': 'project_name',
+        '试验项目': 'test_item',
+        '受试对象': 'test_item',
+        '试验范围': 'test_scope',
+        '使用场景': 'use_scene',
+        '背景说明': 'background',
+        '关键参数': 'technical_params',
+        '产品信息': 'technical_params',
+        '产品参数': 'technical_params',
+        '技术参数': 'technical_params',
+        '补充信息': 'additional_context',
+        '补充说明': 'additional_context',
+        '引用文件': 'references',
+        '依据文件': 'references',
+        '生成要求': 'generation_requirements',
+        '写作要求': 'generation_requirements',
+    }
+
+
+def _default_brief_labels() -> set[str]:
+    return set(_brief_label_map())
+
+
+def _parse_generation_brief(brief: str, extra_labels=None) -> dict:
+    """Parse label-style prompt text from the smart generation input."""
+    label_map = _brief_label_map()
+    labels = set(label_map)
+    for item in extra_labels or []:
+        label = str(item or '').strip()
+        if label:
+            labels.add(label)
+            label_map.setdefault(label, f'field::{label}')
+    parsed: dict[str, list[str]] = {}
+    field_values: dict[str, list[str]] = {}
+    current_key = ''
+    current_label = ''
+    loose_lines: list[str] = []
+    for raw_line in str(brief or '').splitlines():
+        line = raw_line.strip().strip('；;')
+        if not line:
+            continue
+        label, value = _split_brief_label_line(line, labels)
+        if not label and line in labels:
+            label = line
+            value = ''
+        if label:
+            current_key = label_map[label]
+            current_label = label
+            parsed.setdefault(current_key, [])
+            field_values.setdefault(label, [])
+            if value:
+                parsed[current_key].append(value)
+                field_values[label].append(value)
+            continue
+        if current_key:
+            loose_key = _classify_loose_brief_line(line)
+            if current_key in {'title', 'product_name', 'project_name', 'test_item'} and loose_key and loose_key != current_key:
+                parsed.setdefault(loose_key, []).append(line)
+                current_key = loose_key if loose_key in {'technical_params', 'references', 'additional_context'} else ''
+                current_label = ''
+                continue
+            parsed.setdefault(current_key, []).append(line)
+            if current_label:
+                field_values.setdefault(current_label, []).append(line)
+        else:
+            loose_lines.append(line)
+
+    _merge_loose_brief_lines(parsed, loose_lines)
+
+    result = {key: '\n'.join(value).strip() for key, value in parsed.items() if any(value)}
+    result['_field_values'] = {
+        key: '\n'.join(value).strip()
+        for key, value in field_values.items()
+        if any(value)
+    }
+    result['_has_explicit_labels'] = bool(result['_field_values'])
+    if not result.get('references'):
+        references = _infer_references_from_brief(brief)
+        if references:
+            result['references'] = references
+    return result
+
+
+def _template_brief_labels(input_fields) -> list[str]:
+    labels = []
+    for field in input_fields or []:
+        labels.extend([
+            getattr(field, 'label', '') or '',
+            getattr(field, 'key', '') or '',
+            getattr(field, 'placeholder', '') or '',
+        ])
+        labels.extend(getattr(field, 'placeholder_tokens', []) or [])
+    return [str(item).strip() for item in labels if str(item or '').strip()]
+
+
+def _split_brief_label_line(line: str, labels: set[str]) -> tuple[str, str]:
+    normalized_labels = {_normalize_brief_label(label): label for label in labels}
+    for separator in ('：', ':'):
+        if separator not in line:
+            continue
+        maybe_label, maybe_value = line.split(separator, 1)
+        label = normalized_labels.get(_normalize_brief_label(maybe_label))
+        if label:
+            return label, maybe_value.strip().strip('；;')
+    return '', ''
+
+
+def _merge_loose_brief_lines(parsed: dict[str, list[str]], lines: list[str]) -> None:
+    for line in lines:
+        key = _classify_loose_brief_line(line)
+        if key:
+            parsed.setdefault(key, []).append(line)
+
+
+def _classify_loose_brief_line(line: str) -> str:
+    text = str(line or '').strip()
+    if not text:
+        return ''
+    if any(token in text for token in ('项目编号', '项目名称', '工程项目')) or text.endswith('项目'):
+        return 'project_name'
+    if any(token in text for token in ('本大纲适用于', '适用于', '试验范围', '共')) and any(token in text for token in ('试验', '审查', '生成')):
+        return 'test_scope'
+    if any(token in text for token in ('安装于', '使用场景', '飞行中', '工作环境', '应用于', '部署于')):
+        return 'use_scene'
+    if any(token in text for token in ('为替代', '为满足', '鉴定试验', '设计定型', '背景', '目的')):
+        return 'background'
+    if _looks_like_reference_line(text):
+        return 'references'
+    if _looks_like_parameter_line(text):
+        return 'technical_params'
+    return 'additional_context'
+
+
+def _looks_like_parameter_line(text: str) -> bool:
+    units = ('V', 'W', 'Hz', 'g', 'kg', 'mm', '℃', '%', 'kbps', '台')
+    return ('：' in text or ':' in text) and any(unit in text for unit in units)
+
+
+def _looks_like_reference_line(text: str) -> bool:
+    import re
+
+    return bool(re.search(r'(?<![A-Za-z0-9])(?:CCAR-\d+|DO-\d+|RTCA\s+DO-\d+|GJB\s*\d+|Q/[A-Za-z0-9-]+|企业标准)', text, flags=re.I))
+
+
+def _merge_generation_brief_inputs(inputs: dict, parsed: dict, input_fields=None):
+    if not parsed:
+        return
+    direct_fields = (
+        'product_name',
+        'project_name',
+        'test_item',
+        'technical_params',
+        'references',
+        'generation_requirements',
+    )
+    for key in direct_fields:
+        if parsed.get(key) and not str(inputs.get(key) or '').strip():
+            inputs[key] = parsed[key]
+    context_parts = []
+    for label, key in (
+        ('试验范围', 'test_scope'),
+        ('使用场景', 'use_scene'),
+        ('背景说明', 'background'),
+    ):
+        value = parsed.get(key)
+        if value:
+            context_parts.append(f'{label}：{value}')
+    if context_parts and not str(inputs.get('additional_context') or '').strip():
+        inputs['additional_context'] = '\n'.join(context_parts)
+    if parsed.get('background') and not str(inputs.get('background') or '').strip():
+        inputs['background'] = parsed['background']
+    material_context = str(parsed.get('parsed_material_context') or '').strip()
+    if material_context and material_context not in str(inputs.get('parsed_material_context') or ''):
+        existing_context = str(inputs.get('parsed_material_context') or '').strip()
+        inputs['parsed_material_context'] = (
+            f"{existing_context}\n{material_context}".strip()
+            if existing_context
+            else material_context
+        )
+    _merge_dynamic_fields_from_brief(inputs, parsed.get('_field_values') or {}, input_fields or [])
+
+
+def _try_llm_parse_generation_brief(
+    *,
+    generation_brief: str,
+    supplement_text: str,
+    template,
+    inputs: dict,
+    model_option: dict,
+) -> dict:
+    if str(inputs.get('generation_mode') or 'smart') != 'smart':
+        return {}
+    if str(inputs.get('enable_llm_parse', 'true')).lower() in {'0', 'false', 'no', 'off'}:
+        return {}
+    material = "\n\n".join(part for part in (generation_brief, supplement_text) if str(part or '').strip())
+    if not material.strip():
+        return {}
+    try:
+        from config.settings import settings
+        from llm.client import LLMClientFactory
+
+        provider = model_option.get('provider') or settings.llm_provider
+        client_kwargs = {'model': model_option.get('model') or None}
+        if model_option.get('base_url'):
+            client_kwargs['base_url'] = model_option.get('base_url')
+        if model_option.get('api_key'):
+            client_kwargs['api_key'] = model_option.get('api_key')
+        llm_client = LLMClientFactory.create_client(provider, **client_kwargs)
+        prompt = _build_llm_material_parse_prompt(material, template)
+        response = llm_client.generate(prompt, system_prompt=(
+            "你是技术文档素材结构化助手。只依据用户原文抽取信息，禁止编造。"
+            "必须输出一个 JSON 对象，不要输出 Markdown。"
+        ))
+        parsed = _parse_llm_material_json(getattr(response, 'content', '') or '', template.input_fields)
+        if parsed:
+            current_app.logger.info("生成素材大模型解析完成，字段数=%s", len(parsed))
+        return parsed
+    except Exception as exc:
+        current_app.logger.warning("生成素材大模型解析失败，使用本地解析结果: %s", exc)
+        return {}
+
+
+def _build_llm_material_parse_prompt(material: str, template) -> str:
+    common_fields = [
+        {"key": "title", "label": "文档标题"},
+        {"key": "product_name", "label": "产品名称"},
+        {"key": "project_name", "label": "项目名称"},
+        {"key": "test_item", "label": "试验项目/受试对象"},
+        {"key": "test_scope", "label": "试验范围"},
+        {"key": "use_scene", "label": "使用场景"},
+        {"key": "background", "label": "背景说明"},
+        {"key": "technical_params", "label": "关键参数/产品信息"},
+        {"key": "additional_context", "label": "补充信息"},
+        {"key": "references", "label": "引用文件/依据文件"},
+        {"key": "generation_requirements", "label": "生成要求"},
+    ]
+    dynamic_fields = [
+        {
+            "key": str(getattr(field, "key", "") or ""),
+            "label": str(getattr(field, "label", "") or ""),
+            "placeholder_tokens": list(getattr(field, "placeholder_tokens", []) or []),
+        }
+        for field in getattr(template, "input_fields", []) or []
+        if str(getattr(field, "key", "") or "").strip()
+    ]
+    chapters = [
+        f"{getattr(chapter, 'number', '')} {getattr(chapter, 'title', '')}".strip()
+        for chapter in _flatten_template_chapters_for_prompt(getattr(template, "chapters", []) or [])
+    ]
+    payload = {
+        "template": {
+            "name": getattr(template, "name", ""),
+            "doc_type": str(getattr(getattr(template, "doc_type", None), "value", "") or ""),
+            "common_fields": common_fields,
+            "dynamic_fields": dynamic_fields,
+            "chapter_headings": chapters[:80],
+        },
+        "output_schema": {
+            "common_fields": {
+                "title": "string",
+                "product_name": "string",
+                "project_name": "string",
+                "test_item": "string",
+                "test_scope": "string",
+                "use_scene": "string",
+                "background": "string",
+                "technical_params": "string",
+                "additional_context": "string",
+                "references": "string",
+                "generation_requirements": "string"
+            },
+            "dynamic_fields": {"field_key": "string"},
+            "material_sections": [
+                {"label": "string", "content": "string"}
+            ],
+        },
+        "rules": [
+            "只抽取用户原文中明确出现或可直接归类的信息。",
+            "不要补充用户没有提供的型号、编号、参数、结论或标准条款。",
+            "优先匹配 template.dynamic_fields；common_fields 只是候选字段，只有确实适合当前文档时才填写。",
+            "如果用户素材不适合任何 common_fields 或 dynamic_fields，放入 material_sections，不要强行归类。",
+            "无法判断的字段留空字符串或空对象。",
+            "references 保留每个引用文件一行；technical_params 保留每个参数一行。",
+            "dynamic_fields 只能使用 template.dynamic_fields 中出现的 key。",
+        ],
+        "user_material": _truncate_for_llm_parse(material),
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def _flatten_template_chapters_for_prompt(chapters) -> list:
+    flat = []
+    for chapter in chapters:
+        flat.append(chapter)
+        flat.extend(_flatten_template_chapters_for_prompt(getattr(chapter, "sub_chapters", []) or []))
+    return flat
+
+
+def _truncate_for_llm_parse(text: str, max_chars: int = 24000) -> str:
+    value = str(text or "").strip()
+    if len(value) <= max_chars:
+        return value
+    head = value[: int(max_chars * 0.7)]
+    tail = value[-int(max_chars * 0.3):]
+    return f"{head}\n\n……中间内容因长度被省略，以下为末尾内容……\n\n{tail}"
+
+
+def _parse_llm_material_json(content: str, input_fields) -> dict:
+    import re
+
+    raw = str(content or "").strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+    match = re.search(r"\{.*\}", raw, flags=re.S)
+    if match:
+        raw = match.group(0)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    allowed = {
+        "title",
+        "product_name",
+        "project_name",
+        "test_item",
+        "test_scope",
+        "use_scene",
+        "background",
+        "technical_params",
+        "additional_context",
+        "references",
+        "generation_requirements",
+    }
+    common_data = data.get("common_fields") if isinstance(data.get("common_fields"), dict) else data
+    parsed = {
+        key: str(common_data.get(key) or "").strip()
+        for key in allowed
+        if str(common_data.get(key) or "").strip()
+    }
+    allowed_dynamic = {str(getattr(field, "key", "") or "") for field in input_fields or []}
+    dynamic = data.get("dynamic_fields") if isinstance(data.get("dynamic_fields"), dict) else {}
+    field_values = {}
+    for key, value in dynamic.items():
+        key = str(key or "").strip()
+        value = str(value or "").strip()
+        if key and key in allowed_dynamic and value:
+            field_values[key] = value
+    if field_values:
+        parsed["_field_values"] = field_values
+    material_context = _format_llm_material_sections(data.get("material_sections"))
+    if material_context:
+        parsed["parsed_material_context"] = material_context
+    return parsed
+
+
+def _format_llm_material_sections(sections) -> str:
+    if not isinstance(sections, list):
+        return ""
+    lines = []
+    for item in sections[:20]:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or "").strip()[:80]
+        content = str(item.get("content") or "").strip()
+        if label and content:
+            lines.append(f"{label}：{content}")
+    return "\n".join(lines)
+
+
+def _merge_dynamic_fields_from_brief(inputs: dict, field_values: dict, input_fields) -> None:
+    if not field_values or not input_fields:
+        return
+    dynamic_values = inputs.setdefault('dynamic_fields', {})
+    normalized_values = {
+        _normalize_brief_label(label): value
+        for label, value in field_values.items()
+        if value
+    }
+    for field in input_fields:
+        key = str(getattr(field, 'key', '') or '').strip()
+        if not key or str(dynamic_values.get(key, '') or '').strip():
+            continue
+        aliases = {
+            str(getattr(field, 'label', '') or ''),
+            key,
+            str(getattr(field, 'placeholder', '') or ''),
+        }
+        aliases.update(str(token or '') for token in (getattr(field, 'placeholder_tokens', []) or []))
+        for alias in aliases:
+            value = normalized_values.get(_normalize_brief_label(alias))
+            if value:
+                dynamic_values[key] = value
+                break
+
+
+def _normalize_brief_label(label: str) -> str:
+    import re
+
+    return re.sub(r'[\s：:（）()《》“”"\'_-]+', '', str(label or '')).lower()
+
+
+def _infer_references_from_brief(brief: str) -> str:
+    import re
+
+    candidates = []
+    text = str(brief or '')
+    pattern = r'(?<![A-Za-z0-9])(?:CCAR-\d+[A-Z0-9.-]*|DO-\d+[A-Z0-9.-]*|RTCA\s+DO-\d+[A-Z0-9.-]*|GJB\s*\d+(?:\.\d+)?[A-Z]?(?:-\d{4})?|Q/[A-Za-z0-9-]+)'
+    for code in re.findall(pattern, text, flags=re.I):
+        normalized = re.sub(r'\s+', ' ', code).strip()
+        if normalized.upper().startswith('DO-'):
+            normalized = f'RTCA {normalized}'
+        if normalized not in candidates:
+            candidates.append(normalized)
+    names = {
+        'CCAR-25': '运输类飞机适航标准',
+        'RTCA DO-160G': '机载设备环境条件和试验程序',
+    }
+    rows = []
+    for code in candidates:
+        lookup_key = code.upper()
+        name = next((value for prefix, value in names.items() if lookup_key.startswith(prefix)), '待补充')
+        rows.append(f'{code}|{name}|待补充')
+    return '\n'.join(rows)
 
 
 def _has_source_docx(template: dict) -> bool:

@@ -65,6 +65,10 @@ class Database:
         self._ensure_column(cursor, 'review_tasks', 'total_sections', "INTEGER DEFAULT 0")
         self._ensure_column(cursor, 'review_tasks', 'model_id', "TEXT")
         self._ensure_column(cursor, 'review_tasks', 'model_name', "TEXT")
+        self._ensure_column(cursor, 'review_tasks', 'specialty_id', "TEXT")
+        self._ensure_column(cursor, 'review_tasks', 'specialty_name', "TEXT")
+        self._ensure_column(cursor, 'review_tasks', 'document_kind_name', "TEXT")
+        self._ensure_column(cursor, 'review_tasks', 'source_generate_task_id', "INTEGER")
 
         # Generate tasks table
         cursor.execute('''
@@ -123,13 +127,25 @@ class Database:
         rule_set: str = 'all',
         model_id: str = None,
         model_name: str = None,
+        specialty_id: str = None,
+        specialty_name: str = None,
+        document_kind_name: str = None,
+        source_generate_task_id: int = None,
     ) -> int:
         """Create a new review task and return its ID"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO review_tasks (filename, filepath, mode, rule_set, model_id, model_name, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
-        ''', (filename, filepath, mode, rule_set, model_id, model_name, beijing_now_str()))
+            INSERT INTO review_tasks (
+                filename, filepath, mode, rule_set, model_id, model_name,
+                specialty_id, specialty_name, document_kind_name, source_generate_task_id,
+                status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        ''', (
+            filename, filepath, mode, rule_set, model_id, model_name,
+            specialty_id, specialty_name, document_kind_name, source_generate_task_id,
+            beijing_now_str(),
+        ))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -306,7 +322,8 @@ class Database:
         """Get recent review tasks"""
         cursor = self.conn.cursor()
         cursor.execute('''
-            SELECT id, filename, model_id, model_name, status, progress, progress_stage, progress_message,
+            SELECT id, filename, model_id, model_name, specialty_id, specialty_name,
+                   document_kind_name, source_generate_task_id, status, progress, progress_stage, progress_message,
                    current_section, total_sections, rule_set, result, error, created_at, completed_at
             FROM review_tasks
             ORDER BY created_at DESC

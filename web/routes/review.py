@@ -83,6 +83,18 @@ def _rule_set_label(rule_set: str, groups: list = None, enabled_count: int = Non
         if enabled_count is not None:
             return f"全部规则（启用 {enabled_count} 条）"
         return "全部规则"
+    if rule_set.startswith("specialty:"):
+        specialty_id = rule_set.split(":", 1)[1].strip()
+        try:
+            from web.option_registry import get_specialty
+            specialty = get_specialty(specialty_id)
+        except Exception:
+            specialty = None
+        name = specialty.get("name") if specialty else specialty_id
+        label = f"通用规则 + {name}规则"
+        if enabled_count is not None:
+            return f"{label}（启用 {enabled_count} 条）"
+        return label
 
     groups = groups or []
     group = next((g for g in groups if g.get("source") == rule_set), None)
@@ -202,12 +214,16 @@ def index():
     groups, _, _ = _group_rules_by_source(rules)
     rule_sets = [{"source": g["source"], "name": g["display_name"], "count": g["total"]} for g in groups]
     focus_task_id = request.args.get("task_id", type=int)
+    initial_major_id = request.args.get("major", "")
+    from web.option_registry import get_specialties
 
     return render_template(
         'review.html',
         active_page='review',
         rule_sets=rule_sets,
         focus_task_id=focus_task_id,
+        review_specialty_options=get_specialties("review"),
+        initial_major_id=initial_major_id,
     )
 
 
@@ -224,7 +240,10 @@ def upload():
 
     mode = 'by_rule'
     rule_set = request.form.get('rule_set', 'all')
-    from web.option_registry import resolve_model_option
+    specialty_id = str(request.form.get('specialty_id') or '').strip()
+    from web.option_registry import get_specialty, resolve_model_option
+    specialty = get_specialty(specialty_id)
+    specialty_name = specialty.get('name') if specialty else ''
     model_option = resolve_model_option(request.form.get('model_id'), 'review')
     safe_name = os.path.basename(file.filename)
     unique_name = f"{uuid.uuid4().hex[:8]}_{safe_name}"
@@ -238,6 +257,9 @@ def upload():
         rule_set=rule_set,
         model_id=model_option.get('id'),
         model_name=model_option.get('name'),
+        specialty_id=specialty_id,
+        specialty_name=specialty_name,
+        document_kind_name=str(request.form.get('document_kind_name') or '').strip(),
     )
 
     thread = threading.Thread(

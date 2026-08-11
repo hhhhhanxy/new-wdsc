@@ -26,6 +26,28 @@ class ReviewTaskCanceled(Exception):
     """Raised when a review task is canceled by the user."""
 
 
+GENERAL_RULE_SOURCES = {"common", "format", "grammar", "default", "general", "通用规则"}
+
+
+def _filter_rules_for_rule_set(rules, rule_set: str):
+    rule_set = str(rule_set or "all")
+    if rule_set == "all":
+        return rules
+    if rule_set.startswith("specialty:"):
+        specialty_id = rule_set.split(":", 1)[1].strip()
+        specialty_sources = {
+            specialty_id,
+            f"{specialty_id}_rules",
+            f"{specialty_id}_review_rules",
+            f"review_{specialty_id}",
+        }
+        return [
+            rule for rule in rules
+            if rule.source in GENERAL_RULE_SOURCES or rule.source in specialty_sources
+        ]
+    return [rule for rule in rules if rule.source == rule_set]
+
+
 def wait_if_paused(db, task_id: int):
     """Block the worker while the task is paused by the user."""
     while True:
@@ -86,8 +108,7 @@ def run_review_task(task_id: int, filepath: str, rule_set: str, db):
         all_rules = RuleLoader.load_all_rules(profile="default")
 
         # 按规则集筛选
-        if rule_set and rule_set != 'all':
-            all_rules = [r for r in all_rules if r.source == rule_set]
+        all_rules = _filter_rules_for_rule_set(all_rules, rule_set)
         enabled_rules = [r for r in all_rules if r.enabled]
         rule_snapshot = {
             r.rule_id: {

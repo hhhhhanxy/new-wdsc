@@ -565,17 +565,13 @@
 
                     <div style="text-align:center;margin-top:12px;">
                         <div class="review-rule-set-row">
-                            <label for="generatedReviewRuleSet">送审规则集</label>
-                            <select class="form-control" id="generatedReviewRuleSet">
-                                <option value="all">全部规则</option>
-                            </select>
                             <label for="generatedReviewModelSelect">审查模型</label>
                             <select class="form-control" id="generatedReviewModelSelect">
                                 <option value="system_default">系统默认</option>
                             </select>
                         </div>
                         <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载生成文档</button>
-                        <button class="btn btn-outline" id="reviewGeneratedBtn" style="margin-left:8px;" onclick="reviewGenerated()">送入审查</button>
+                        <button class="btn btn-outline" id="reviewGeneratedBtn" style="margin-left:8px;" onclick="reviewGenerated()">一键审查</button>
                         <button class="btn btn-outline" id="retryGenBtn" style="display:none;margin-left:8px;" onclick="retryGenerate()">重新生成</button>
                     </div>
                 </div>
@@ -1201,11 +1197,67 @@ function startGenerate() {
 }
 
 function deriveTitleFromBrief(brief, template) {
-    const firstLine = String(brief || '').split(/\r?\n/).map(line => line.trim()).find(Boolean);
+    const parsed = parseBriefLabels(brief);
+    if (parsed['文档标题'] || parsed['标题']) {
+        return (parsed['文档标题'] || parsed['标题']).slice(0, 80);
+    }
+    if (Object.keys(parsed).length) {
+        return template && template.name ? template.name : '未命名生成文档';
+    }
+    const firstLine = String(brief || '').split(/\r?\n/)
+        .map(line => line.trim())
+        .find(line => line && !isKnownBriefLabelLine(line));
     if (firstLine) {
         return firstLine.replace(/^请生成/, '').replace(/[。；;，,].*$/, '').slice(0, 60) || firstLine.slice(0, 60);
     }
     return template && template.name ? template.name : '未命名生成文档';
+}
+
+function parseBriefLabels(brief) {
+    const knownLabels = new Set([
+        '文档标题', '标题', '产品名称', '项目名称', '试验项目', '受试对象',
+        '试验范围', '使用场景', '背景说明', '关键参数', '引用文件', '依据文件',
+        '生成要求', '写作要求'
+    ]);
+    const parsed = {};
+    let currentLabel = '';
+    String(brief || '').split(/\r?\n/).forEach(rawLine => {
+        const line = rawLine.trim();
+        if (!line) return;
+        let label = '';
+        let value = '';
+        const match = line.match(/^([^：:]{2,12})[：:](.*)$/);
+        if (match && knownLabels.has(match[1].trim())) {
+            label = match[1].trim();
+            value = match[2].trim();
+        } else if (knownLabels.has(line)) {
+            label = line;
+        }
+        if (label) {
+            currentLabel = label;
+            parsed[currentLabel] = parsed[currentLabel] || [];
+            if (value) parsed[currentLabel].push(value);
+            return;
+        }
+        if (currentLabel) {
+            parsed[currentLabel].push(line);
+        }
+    });
+    Object.keys(parsed).forEach(key => {
+        parsed[key] = parsed[key].join('\n').trim();
+    });
+    return parsed;
+}
+
+function isKnownBriefLabelLine(line) {
+    const knownLabels = new Set([
+        '文档标题', '标题', '产品名称', '项目名称', '试验项目', '受试对象',
+        '试验范围', '使用场景', '背景说明', '关键参数', '产品信息', '产品参数',
+        '技术参数', '补充信息', '补充说明', '引用文件', '依据文件', '生成要求', '写作要求'
+    ]);
+    const text = String(line || '').trim().replace(/[；;]$/, '');
+    const match = text.match(/^([^：:]{2,12})[：:]/);
+    return (match && knownLabels.has(match[1].trim())) || knownLabels.has(text);
 }
 
 function pollGenProgress() {
@@ -1476,43 +1528,14 @@ function downloadGenerated() {
     if (currentGenTaskId) window.location.href = '/generate/download/' + currentGenTaskId;
 }
 
-function loadReviewRuleSets() {
-    Promise.all([
-        fetch('/rules/api/profiles').then(r => r.json()),
-        fetch('/api/models?usage=review').then(r => r.json()).catch(() => ({models: reviewModels})),
-    ])
-        .then(([data, modelData]) => {
-            const groups = data.groups || [];
-            reviewRuleSets = [{source: 'all', name: '全部规则'}].concat(
-                groups.map(g => ({
-                    source: g.source,
-                    name: `${g.display_name || g.source}（${g.enabled || 0}/${g.total || 0}启用）`
-                }))
-            );
+function loadReviewModelsForGeneratedDoc() {
+    fetch('/api/models?usage=review')
+        .then(r => r.json())
+        .then(modelData => {
             reviewModels = modelData.models && modelData.models.length ? modelData.models : reviewModels;
-            renderGeneratedReviewRuleSet();
             renderGeneratedReviewModel();
         })
-        .catch(() => {
-            reviewRuleSets = [{source: 'all', name: '全部规则'}];
-            renderGeneratedReviewRuleSet();
-            renderGeneratedReviewModel();
-        });
-}
-
-function renderGeneratedReviewRuleSet() {
-    const select = document.getElementById('generatedReviewRuleSet');
-    if (!select) return;
-    const current = select.value || 'all';
-    select.innerHTML = reviewRuleSets.map(item =>
-        `<option value="${escapeHtml(item.source)}">${escapeHtml(item.name)}</option>`
-    ).join('');
-    select.value = reviewRuleSets.some(item => item.source === current) ? current : 'all';
-}
-
-function getGeneratedReviewRuleSet() {
-    const select = document.getElementById('generatedReviewRuleSet');
-    return select && select.value ? select.value : 'all';
+        .catch(() => renderGeneratedReviewModel());
 }
 
 function renderGeneratedReviewModel() {
@@ -1539,7 +1562,6 @@ function reviewGenerated(taskId = currentGenTaskId) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            rule_set: getGeneratedReviewRuleSet(),
             model_id: getGeneratedReviewModelId()
         })
     })
@@ -1549,7 +1571,7 @@ function reviewGenerated(taskId = currentGenTaskId) {
             alert('送审失败：' + data.error);
             if (btn) {
                 btn.disabled = false;
-                btn.textContent = '送入审查';
+                btn.textContent = '一键审查';
             }
             return;
         }
@@ -1559,7 +1581,7 @@ function reviewGenerated(taskId = currentGenTaskId) {
         alert('送审失败：' + err.message);
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '送入审查';
+            btn.textContent = '一键审查';
         }
     });
 }
@@ -1575,7 +1597,7 @@ function escapeHtml(value) {
 }
 
 loadTemplates();
-loadReviewRuleSets();
+loadReviewModelsForGeneratedDoc();
 loadGenerationOptions();
 </script>
 {% endblock %}

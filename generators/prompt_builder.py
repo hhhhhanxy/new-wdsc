@@ -61,6 +61,7 @@ class ChapterPromptBuilder:
             "2. 不要输出章节标题，不要输出“说明”“举例”“示例”等提示性标签。",
             "3. 保持正式工程技术文档语气，段落清晰，避免口语化。",
             "4. 对模板中的占位内容按用户素材替换；缺失信息写“待补充”。",
+            "5. 不要使用 Markdown 表格；如需表格数据，仅用简洁文字说明，由模板表格承载。",
         ] if part is not None)
 
     def _chapter_name(self, chapter: Any) -> str:
@@ -91,6 +92,7 @@ class ChapterPromptBuilder:
             ("关键参数/素材", "technical_params"),
             ("引用文件", "references"),
             ("补充信息/其他素材", "additional_context"),
+            ("结构化素材池", "parsed_material_context"),
             ("上传补充材料解析内容", "supplement_doc_text"),
             ("上传补充材料解析内容", "reference_doc_text"),
         ]

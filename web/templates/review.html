@@ -74,6 +74,18 @@
         <p class="section-step" style="margin-top:20px;">2. 审查配置</p>
         <div class="config-section">
             <div class="config-row">
+                <div class="config-label">专业方向</div>
+                <div>
+                    <select class="form-control" id="reviewSpecialtySelect" style="width:auto;min-width:220px;padding:7px 12px;font-size:15px;">
+                        <option value="">通用审查</option>
+                        {% for specialty in review_specialty_options %}
+                        <option value="{{ specialty.id }}" {% if specialty.id == initial_major_id %}selected{% endif %}>{{ specialty.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-hint">选择专业后默认使用“通用规则 + 当前专业规则”。</div>
+                </div>
+            </div>
+            <div class="config-row">
                 <div class="config-label">规则集</div>
                 <div>
                     <select class="form-control" id="ruleSetSelect" style="width:auto;padding:7px 12px;font-size:15px;">
@@ -259,6 +271,7 @@ let resultIssues = [];
 let resultIssuePage = 1;
 let isPaused = false;
 const initialTaskId = {{ focus_task_id or 'null' }};
+const initialMajorId = "{{ initial_major_id or '' }}";
 const reviewRulePageSize = 10;
 const resultIssuePageSize = 10;
 
@@ -267,6 +280,7 @@ const fileInput = document.getElementById('fileInput');
 const uploadText = document.getElementById('uploadText');
 const startBtn = document.getElementById('startBtn');
 const ruleSetSelect = document.getElementById('ruleSetSelect');
+const reviewSpecialtySelect = document.getElementById('reviewSpecialtySelect');
 const reviewModelSelect = document.getElementById('reviewModelSelect');
 const progressModal = document.getElementById('progressModal');
 const progressDock = document.getElementById('progressDock');
@@ -346,6 +360,7 @@ ruleSetSelect.addEventListener('change', () => {
     reviewRulePage = 1;
     renderSelectedRuleSet();
 });
+reviewSpecialtySelect.addEventListener('change', syncRuleSetWithSpecialty);
 
 function escapeHtml(value) {
     return String(value || '')
@@ -361,6 +376,10 @@ function loadReviewRules() {
         .then(r => r.json())
         .then(data => {
             reviewRuleGroups = data.groups || [];
+            if (initialMajorId || reviewSpecialtySelect.value) {
+                syncRuleSetWithSpecialty();
+                return;
+            }
             renderSelectedRuleSet();
         })
         .catch(() => {
@@ -388,6 +407,19 @@ function getSelectedRules() {
     if (source === 'all') {
         return reviewRuleGroups.flatMap(g => g.rules || []);
     }
+    if (source.startsWith('specialty:')) {
+        const specialtyId = source.split(':')[1] || '';
+        const specialtySources = new Set([
+            specialtyId,
+            `${specialtyId}_rules`,
+            `${specialtyId}_review_rules`,
+            `review_${specialtyId}`,
+        ]);
+        const generalSources = new Set(['common', 'format', 'grammar', 'default', 'general', '通用规则']);
+        return reviewRuleGroups
+            .filter(g => generalSources.has(g.source) || specialtySources.has(g.source))
+            .flatMap(g => g.rules || []);
+    }
     const group = reviewRuleGroups.find(g => g.source === source);
     return group ? (group.rules || []) : [];
 }
@@ -395,8 +427,26 @@ function getSelectedRules() {
 function getSelectedRuleSetName() {
     const source = ruleSetSelect.value;
     if (source === 'all') return '全部规则';
+    if (source.startsWith('specialty:')) {
+        const name = reviewSpecialtySelect.options[reviewSpecialtySelect.selectedIndex]?.text || source.split(':')[1] || '';
+        return '通用规则 + ' + name + '规则';
+    }
     const group = reviewRuleGroups.find(g => g.source === source);
     return group ? group.display_name : '规则明细';
+}
+
+function syncRuleSetWithSpecialty() {
+    const specialtyId = reviewSpecialtySelect.value;
+    const specialtyValue = specialtyId ? 'specialty:' + specialtyId : 'all';
+    let option = Array.from(ruleSetSelect.options).find(item => item.value === specialtyValue);
+    if (!option && specialtyId) {
+        const specialtyName = reviewSpecialtySelect.options[reviewSpecialtySelect.selectedIndex]?.text || specialtyId;
+        option = new Option('通用规则 + ' + specialtyName + '规则', specialtyValue);
+        ruleSetSelect.add(option, 1);
+    }
+    ruleSetSelect.value = specialtyValue;
+    reviewRulePage = 1;
+    renderSelectedRuleSet();
 }
 
 function renderSelectedRuleSet() {
@@ -500,6 +550,7 @@ function startReview() {
     formData.append('file', selectedFile);
     formData.append('rule_set', ruleSetSelect.value);
     formData.append('model_id', reviewModelSelect.value || 'system_default');
+    formData.append('specialty_id', reviewSpecialtySelect.value || '');
 
     fetch('/review/upload', { method: 'POST', body: formData })
         .then(r => r.json())

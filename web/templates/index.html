@@ -164,6 +164,44 @@
     font-size: 16px;
     font-weight: 700;
 }
+.resource-matrix {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+.resource-group-card {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+.resource-group-card h3 {
+    margin: 0 0 10px;
+    font-size: 16px;
+}
+.resource-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.resource-table th,
+.resource-table td {
+    padding: 8px 6px;
+    border-bottom: 1px solid #e7eef7;
+    text-align: right;
+}
+.resource-table th:first-child,
+.resource-table td:first-child {
+    text-align: left;
+}
+.resource-table th {
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+.resource-table td strong {
+    color: var(--text);
+}
 @media (max-width: 1280px) {
     .company-overview-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -172,6 +210,9 @@
 @media (max-width: 760px) {
     .company-overview-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .resource-matrix {
+        grid-template-columns: 1fr;
     }
     .specialty-bar-row {
         min-width: 54px;
@@ -295,6 +336,35 @@
         </div>
         <span>专业</span>
     </div>
+</div>
+
+<div class="home-section-title">各专业资源建设情况</div>
+<div class="resource-matrix">
+    {% for group in specialty_resource_groups %}
+    <div class="resource-group-card">
+        <h3>{{ group.name }}</h3>
+        <table class="resource-table">
+            <thead>
+                <tr>
+                    <th>专业</th>
+                    <th>模板</th>
+                    <th>规则</th>
+                    <th>案例</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in group.resources %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td><strong>{{ item.template_count }}</strong></td>
+                    <td><strong>{{ item.rule_count }}</strong></td>
+                    <td><strong>{{ item.case_count }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
 </div>
 
 <div class="home-section-title">常用入口</div>

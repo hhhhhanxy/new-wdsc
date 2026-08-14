@@ -8,7 +8,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from flask import Blueprint, render_template, request, jsonify, send_file, current_app
+from flask import Blueprint, render_template, request, jsonify, send_file, current_app, redirect, url_for
 from werkzeug.utils import secure_filename
 from web.time_utils import beijing_now_str
 
@@ -24,6 +24,20 @@ class GenerationTaskCanceled(Exception):
 
 @bp.route('/')
 def index():
+    initial_major_id = request.args.get("major", "")
+    if not initial_major_id:
+        from web.option_registry import get_specialty_groups
+        first_specialty = next(
+            (
+                specialty
+                for group in get_specialty_groups("generate")
+                for specialty in (group.get("specialties") or [])
+                if specialty.get("id")
+            ),
+            None,
+        )
+        if first_specialty:
+            return redirect(url_for("generate.index", major=first_specialty.get("id")))
     return render_template('generate.html', active_page='generate')
 
 

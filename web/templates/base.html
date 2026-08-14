@@ -61,7 +61,6 @@
                     <button type="button" class="sidebar-tree-toggle" onclick="toggleSidebarGroup('generate')" aria-label="展开或收起文档生成专业目录"></button>
                 </div>
                 <div class="sidebar-subnav">
-                    <a href="/generate/" class="sidebar-subnav-link" onclick="closeSidebarMobile()">全部生成</a>
                     {% if generate_specialty_groups %}
                     {% for group in generate_specialty_groups %}
                     <div class="sidebar-level2-group" data-sidebar-subgroup="generate-{{ group.id }}">

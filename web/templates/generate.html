@@ -265,6 +265,55 @@
     color: var(--text-secondary);
     font-size: 12px;
 }
+.asset-summary-card {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #d9e7f5;
+    border-radius: 8px;
+    background: #fbfdff;
+}
+.asset-summary-title {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.asset-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.asset-summary-meta span {
+    padding: 3px 8px;
+    border: 1px solid #e1edf8;
+    border-radius: 999px;
+    background: #fff;
+}
+.asset-detail-toggle {
+    margin-top: 2px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.asset-detail-toggle summary {
+    cursor: pointer;
+    color: var(--primary);
+}
+.asset-detail-toggle[open] summary {
+    margin-bottom: 8px;
+}
+.asset-detail-body {
+    max-height: 190px;
+    overflow: auto;
+    padding: 8px;
+    border: 1px solid #e2edf8;
+    border-radius: 7px;
+    background: #fff;
+}
 .agent-input-card {
     border: 1px solid #cfe0f4;
     border-radius: 8px;
@@ -355,16 +404,16 @@
     flex-direction: column;
 }
 .generate-left-panel .template-preview {
-    max-height: 145px;
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
 }
 .generate-left-panel .config-section,
 .generate-result-panel .config-section {
     min-height: 0;
 }
 .generate-left-panel .reference-case-list {
-    max-height: 76px;
-    overflow: auto;
+    max-height: none;
+    overflow: visible;
 }
 .generate-left-panel .dynamic-input-section.active {
     max-height: 96px;
@@ -375,14 +424,45 @@
     flex-direction: column;
     gap: 12px;
     min-height: 0;
-    height: 250px;
-    overflow: auto;
+    min-height: 250px;
+    overflow: visible;
 }
 .result-card {
     padding: 12px;
     border: 1px solid #d9e7f5;
     border-radius: 8px;
     background: #fbfdff;
+}
+.result-ready-card {
+    display: grid;
+    gap: 10px;
+}
+.result-ready-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+}
+.result-ready-title {
+    min-width: 0;
+}
+.result-ready-title p {
+    margin: 0;
+}
+.result-ready-title strong {
+    display: block;
+    overflow: hidden;
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.result-ready-tip {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
 }
 .result-card .empty-state {
     padding: 22px 10px;
@@ -395,6 +475,16 @@
 }
 .result-actions .btn {
     padding: 8px 14px;
+}
+.result-review-settings {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.result-review-settings summary {
+    cursor: pointer;
+}
+.result-review-settings .review-rule-set-row {
+    justify-content: flex-start;
 }
 .revision-history {
     display: none;
@@ -657,13 +747,15 @@
                     </div>
 
                     <div id="genResultSection" style="display:none;">
-                        <div class="result-card">
-                            <p class="section-title">生成结果</p>
-                            <div style="text-align:center;padding:16px;" id="genResultIcon">
+                        <div class="result-card result-ready-card">
+                            <div class="result-ready-head" id="genResultIcon">
                                 <div class="result-status-mark" id="genResultEmoji">OK</div>
-                                <p style="font-size:15px;font-weight:600;" id="genResultTitle">文档生成完成</p>
-                                <p style="font-size:14px;color:var(--text-secondary);margin-top:4px;" id="genResultName"></p>
+                                <div class="result-ready-title">
+                                    <p style="font-size:15px;font-weight:600;" id="genResultTitle">文档生成完成</p>
+                                    <strong id="genResultName"></strong>
+                                </div>
                             </div>
+                            <div class="result-ready-tip" id="genResultTip">可直接预览、下载，也可一键进入同专业文档审查。</div>
 
                             <div id="genReviewSection" style="display:none;margin-top:12px;">
                                 <p class="section-title">审查预留</p>
@@ -684,19 +776,23 @@
                                 <div id="genPhaseResults" style="margin-top:10px;"></div>
                             </div>
 
-                            <div style="margin-top:12px;">
-                                <div class="review-rule-set-row">
+                            <div>
+                                <div class="result-actions">
+                                    <button class="btn btn-outline" id="previewGenBtn" onclick="previewGenerated()">预览文档</button>
+                                    <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载文档</button>
+                                    <button class="btn btn-outline" id="reviewGeneratedBtn" onclick="reviewGenerated()">一键审查</button>
+                                    <a class="btn btn-outline" id="myDocsGenBtn" href="/records/?type=generate">我的文档</a>
+                                    <button class="btn btn-outline" id="retryGenBtn" style="display:none;" onclick="retryGenerate()">重新生成</button>
+                                </div>
+                                <details class="result-review-settings">
+                                    <summary>审查设置</summary>
+                                    <div class="review-rule-set-row">
                                     <label for="generatedReviewModelSelect">审查模型</label>
                                     <select class="form-control" id="generatedReviewModelSelect">
                                         <option value="system_default">系统默认</option>
                                     </select>
-                                </div>
-                                <div class="result-actions">
-                                    <button class="btn btn-outline" id="previewGenBtn" onclick="previewGenerated()">预览</button>
-                                    <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载文档</button>
-                                    <button class="btn btn-outline" id="reviewGeneratedBtn" onclick="reviewGenerated()">一键审查</button>
-                                    <button class="btn btn-outline" id="retryGenBtn" style="display:none;" onclick="retryGenerate()">重新生成</button>
-                                </div>
+                                    </div>
+                                </details>
                             </div>
                         </div>
                     </div>
@@ -790,6 +886,7 @@ let generationTemplates = [];
 let selectedTemplate = null;
 let expandedChapterKeys = new Set();
 let chapterSearchQuery = '';
+let templateStructureOpen = false;
 let defaultGenerationRequirements = '';
 let supplementDocText = '';
 let supplementDocName = '';
@@ -1024,19 +1121,53 @@ function renderReferenceCases() {
         ? (selectedTemplate.metadata.reference_cases || [])
         : [];
     if (!cases.length) {
-        referenceCaseList.innerHTML = '<div class="reference-case-empty">该模板暂无关联优秀案例；仍可生成，只是不加入案例写法参考。可到文档模板库及案例中打开该模板后上传。</div>';
+        referenceCaseList.innerHTML = `
+            <div class="asset-summary-card">
+                <div class="asset-summary-title">暂无关联优秀案例</div>
+                <div class="asset-summary-meta">
+                    <span>仍可生成</span>
+                    <span>不加入案例写法参考</span>
+                </div>
+                <button type="button" class="btn btn-outline" onclick="openSelectedTemplateInLibrary()">上传案例</button>
+            </div>
+        `;
         return;
     }
     const autoChecked = cases.length <= 3;
-    referenceCaseList.innerHTML = cases.map(item => `
-        <label class="reference-case-item">
-            <input type="checkbox" class="reference-case-check" value="${escapeHtml(item.id)}" ${autoChecked ? 'checked' : ''}>
-            <span>
-                <strong>${escapeHtml(item.name)}</strong>
-                <span>${escapeHtml(item.doc_type || '参考文档')} · ${escapeHtml(item.scenario || '用于生成参考')}</span>
-            </span>
-        </label>
-    `).join('') + `<div class="reference-case-note">${autoChecked ? '已默认选择全部关联案例，可按需取消。' : '案例较多，请勾选本次最需要参考的案例。'}</div>`;
+    referenceCaseList.innerHTML = `
+        <div class="asset-summary-card">
+            <div class="asset-summary-title">优秀案例</div>
+            <div class="asset-summary-meta">
+                <span>关联 ${cases.length} 个</span>
+                <span id="referenceCaseSelectedCount">已选 ${autoChecked ? cases.length : 0} 个</span>
+            </div>
+            <details class="asset-detail-toggle">
+                <summary>选择案例</summary>
+                <div class="asset-detail-body">
+                    ${cases.map(item => `
+                        <label class="reference-case-item">
+                            <input type="checkbox" class="reference-case-check" value="${escapeHtml(item.id)}" ${autoChecked ? 'checked' : ''}>
+                            <span>
+                                <strong>${escapeHtml(item.name)}</strong>
+                                <span>${escapeHtml(item.doc_type || '参考文档')} · ${escapeHtml(item.scenario || '用于生成参考')}</span>
+                            </span>
+                        </label>
+                    `).join('')}
+                    <div class="reference-case-note">${autoChecked ? '已默认选择全部关联案例，可按需取消。' : '案例较多，请勾选本次最需要参考的案例。'}</div>
+                </div>
+            </details>
+        </div>
+    `;
+    document.querySelectorAll('.reference-case-check').forEach(item => {
+        item.addEventListener('change', updateReferenceCaseSelectedCount);
+    });
+    updateReferenceCaseSelectedCount();
+}
+
+function updateReferenceCaseSelectedCount() {
+    const target = document.getElementById('referenceCaseSelectedCount');
+    if (!target) return;
+    target.textContent = `已选 ${getSelectedReferenceCaseIds().length} 个`;
 }
 
 function getSelectedReferenceCaseIds() {
@@ -1163,26 +1294,41 @@ function renderTemplatePreview(template) {
     const chapters = template.chapters || [];
     const stats = getChapterStats(chapters);
     preview.innerHTML = `
-        <div class="template-summary">
-            <div class="template-summary-title">${escapeHtml(template.name || '未命名模板')}</div>
-            <div class="template-summary-meta">
+        <div class="asset-summary-card">
+            <div class="asset-summary-title">${escapeHtml(template.name || '未命名模板')}</div>
+            <div class="asset-summary-meta">
                 <span>共 ${stats.total} 个章节</span>
                 <span>${stats.rootCount} 个一级章节</span>
                 <span>最深 ${stats.maxDepth} 级</span>
             </div>
-        </div>
-        <div class="template-tree-tools">
-            <input type="text" class="form-control" id="chapterSearch" placeholder="搜索章节，例如 接口、验证、可靠性" value="${escapeHtml(chapterSearchQuery)}">
             <div class="template-tree-actions">
-                <button type="button" class="btn btn-outline" onclick="toggleAllChapters()">${areAllChaptersExpanded(chapters) ? '收起全部' : '展开全部'}</button>
                 <button type="button" class="btn btn-outline" onclick="openSelectedTemplateInLibrary()">编辑模板</button>
             </div>
-        </div>
-        <div class="template-tree" id="templateTree">
-            ${renderChapterTree(chapters)}
+            <details class="asset-detail-toggle" id="templateStructureDetail" ${templateStructureOpen ? 'open' : ''}>
+                <summary>查看章节结构</summary>
+                <div class="asset-detail-body">
+                    <div class="template-tree-tools">
+                        <input type="text" class="form-control" id="chapterSearch" placeholder="搜索章节，例如 接口、验证、可靠性" value="${escapeHtml(chapterSearchQuery)}">
+                        <div class="template-tree-actions">
+                            <button type="button" class="btn btn-outline" onclick="toggleAllChapters()">${areAllChaptersExpanded(chapters) ? '收起全部' : '展开全部'}</button>
+                        </div>
+                    </div>
+                    <div class="template-tree" id="templateTree">
+                        ${renderChapterTree(chapters)}
+                    </div>
+                </div>
+            </details>
         </div>
     `;
-    document.getElementById('chapterSearch').addEventListener('input', e => {
+    const detail = document.getElementById('templateStructureDetail');
+    if (detail) {
+        detail.addEventListener('toggle', () => {
+            templateStructureOpen = detail.open;
+        });
+    }
+    const chapterSearch = document.getElementById('chapterSearch');
+    if (!chapterSearch) return;
+    chapterSearch.addEventListener('input', e => {
         chapterSearchQuery = e.target.value.trim();
         document.getElementById('templateTree').innerHTML = renderChapterTree(chapters);
     });
@@ -1231,6 +1377,7 @@ function filterChapters(chapters, query) {
 }
 
 function toggleChapter(key) {
+    templateStructureOpen = true;
     if (expandedChapterKeys.has(key)) {
         expandedChapterKeys.delete(key);
     } else {
@@ -1240,6 +1387,7 @@ function toggleChapter(key) {
 }
 
 function toggleAllChapters() {
+    templateStructureOpen = true;
     const chapters = selectedTemplate ? selectedTemplate.chapters || [] : [];
     if (areAllChaptersExpanded(chapters)) {
         expandedChapterKeys = new Set();
@@ -1253,6 +1401,7 @@ function toggleAllChapters() {
 function resetTemplateTreeState(template) {
     chapterSearchQuery = '';
     expandedChapterKeys = new Set();
+    templateStructureOpen = false;
     if (!template) return;
     (template.chapters || []).forEach((_, index) => expandedChapterKeys.add(String(index)));
 }
@@ -1666,6 +1815,8 @@ function handleGenFinalState(data) {
         document.getElementById('genResultTitle').textContent = '文档生成完成';
         document.getElementById('genResultName').textContent = data.result_path
             ? data.result_path.split(/[/\\]/).pop() : 'generated_document.docx';
+        const resultTip = document.getElementById('genResultTip');
+        if (resultTip) resultTip.textContent = '可直接预览、下载，也可一键进入同专业文档审查；记录已同步到我的文档。';
         document.getElementById('retryGenBtn').style.display = 'none';
         renderRevisionHistoryFromParams(data.params);
         showGenReview(data);
@@ -1697,11 +1848,7 @@ function showGenReview(data) {
 
     if (!reviewResult) return;
     if (reviewResult.reserved) {
-        document.getElementById('genReviewSection').style.display = 'block';
-        document.getElementById('genReviewSection').innerHTML = `
-            <p class="section-title">审查预留</p>
-            <div class="empty-state">${escapeHtml(reviewResult.message || '生成完成后可一键送入文档审查。')}</div>
-        `;
+        document.getElementById('genReviewSection').style.display = 'none';
         return;
     }
 
@@ -1758,10 +1905,11 @@ function renderQualityResult(qualityResult, reviewResult) {
         ? reviewResult.message
         : '生成完成后可一键送入文档审查。';
     return `
-        <p class="section-title">基础检查</p>
-        <div style="font-size:14px;margin-top:8px;">${checkHtml}</div>
-        <p class="section-title" style="margin-top:14px;">审查预留</p>
-        <div class="empty-state">${escapeHtml(reviewMessage)}</div>
+        <details class="result-review-settings" open>
+            <summary>基础检查</summary>
+            <div style="font-size:14px;margin-top:8px;">${checkHtml}</div>
+            <div class="result-ready-tip" style="margin-top:8px;">${escapeHtml(reviewMessage)}</div>
+        </details>
     `;
 }
 
@@ -1892,6 +2040,8 @@ function applySelectedRevisionSuggestions() {
         supplementStatus.style.color = 'var(--text-secondary)';
         document.getElementById('genResultTitle').textContent = `文档已修改为 v${data.version || ''}`;
         document.getElementById('genResultName').textContent = data.filename || 'generated_document.docx';
+        const resultTip = document.getElementById('genResultTip');
+        if (resultTip) resultTip.textContent = '修改已写入当前文档，可继续预览、下载或送审。';
         revisionHistory = data.revision_history || revisionHistory;
         renderRevisionHistory(revisionHistory);
         clearRevisionSuggestions();

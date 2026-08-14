@@ -18,6 +18,7 @@ def index():
         stats=overview['stats'],
         specialty_issue_groups=overview['specialty_issue_groups'],
         max_specialty_issues=overview['max_specialty_issues'],
+        specialty_resource_groups=overview['specialty_resource_groups'],
     )
 
 
@@ -31,6 +32,7 @@ def _build_company_overview(db) -> dict:
     """Build company-level resource and usage statistics for the home page."""
     from templates.template_manager import TemplateManager
     from rules.loaders.rule_loader import RuleLoader
+    from web.routes.rules import _rule_set_meta
     from web.option_registry import get_specialty_groups
 
     templates = TemplateManager().list_template_dicts()
@@ -39,6 +41,21 @@ def _build_company_overview(db) -> dict:
         for template in templates
     )
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
+    template_counts = {}
+    case_counts = {}
+    for template in templates:
+        metadata = template.get("metadata") or {}
+        specialty_id = str(metadata.get("specialty_id") or "").strip()
+        if not specialty_id:
+            continue
+        template_counts[specialty_id] = template_counts.get(specialty_id, 0) + 1
+        case_counts[specialty_id] = case_counts.get(specialty_id, 0) + len(metadata.get("reference_cases") or [])
+    rule_counts = {}
+    for rule in rules:
+        source_meta = _rule_set_meta(getattr(rule, "source", "") or "")
+        specialty_id = str(source_meta.get("specialty_id") or "").strip()
+        if specialty_id:
+            rule_counts[specialty_id] = rule_counts.get(specialty_id, 0) + 1
 
     review_total = db.count_review_tasks()
     generate_total = db.count_generate_tasks()
@@ -90,6 +107,25 @@ def _build_company_overview(db) -> dict:
         for item in group.get("stats") or []
     ]
     max_specialty_issues = max([int(item.get("count") or 0) for item in all_stats] or [0])
+    specialty_resource_groups = []
+    for group in specialty_groups:
+        resources = []
+        for specialty in group.get("specialties") or []:
+            key = str(specialty.get("id") or "").strip()
+            if not key:
+                continue
+            resources.append({
+                "name": str(specialty.get("name") or key),
+                "template_count": template_counts.get(key, 0),
+                "rule_count": rule_counts.get(key, 0),
+                "case_count": case_counts.get(key, 0),
+            })
+        if resources:
+            specialty_resource_groups.append({
+                "id": str(group.get("id") or ""),
+                "name": str(group.get("name") or "未分组"),
+                "resources": resources,
+            })
 
     return {
         "stats": {
@@ -102,6 +138,7 @@ def _build_company_overview(db) -> dict:
         },
         "specialty_issue_groups": specialty_issue_groups,
         "max_specialty_issues": max_specialty_issues,
+        "specialty_resource_groups": specialty_resource_groups,
     }
 
 

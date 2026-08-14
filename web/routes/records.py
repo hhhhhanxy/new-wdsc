@@ -36,6 +36,7 @@ def _review_items(db):
             "name": task.get("filename") or "未命名审查文档",
             "source": task.get("rule_set_label") or "全部规则",
             "model_name": task.get("model_name") or "系统默认",
+            "specialty_id": task.get("specialty_id") or "",
             "specialty_name": task.get("specialty_name") or "",
             "document_kind_name": task.get("document_kind_name") or "",
             "source_generate_task_id": task.get("source_generate_task_id"),
@@ -75,6 +76,7 @@ def _generate_items(db):
             "name": filename,
             "source": task.get("template_name") or task.get("doc_type") or "生成模板",
             "model_name": task.get("model_name") or "系统默认",
+            "specialty_id": task.get("specialty_id") or "",
             "specialty_name": task.get("specialty_name") or "",
             "document_kind_name": task.get("document_kind_name") or "",
             "reference_case_names": _reference_case_names(task.get("reference_cases")),
@@ -135,8 +137,13 @@ def index():
     db = current_app.db
     type_filter = request.args.get("type", "all")
     status_filter = request.args.get("status", "all")
+    specialty_filter = (request.args.get("specialty") or "all").strip()
+    document_kind_filter = (request.args.get("document_kind") or "all").strip()
     keyword = (request.args.get("q") or "").strip()
     page = max(1, request.args.get("page", 1, type=int))
+
+    from web.option_registry import get_specialty_groups
+    specialty_groups = get_specialty_groups()
 
     review_items = _review_items(db)
     generate_items = _generate_items(db)
@@ -162,6 +169,22 @@ def index():
         ]
 
     items = [item for item in items if _match_status(item, status_filter)]
+    if specialty_filter != "all":
+        specialty_group_ids = {}
+        for group in specialty_groups:
+            specialty_group_ids[group.get("id")] = {
+                item.get("id")
+                for item in group.get("specialties", [])
+                if item.get("id")
+            }
+        items = [
+            item for item in items
+            if (item.get("specialty_id") or "") == specialty_filter
+            or (item.get("specialty_name") or "") == specialty_filter
+            or (item.get("specialty_id") or "") in specialty_group_ids.get(specialty_filter, set())
+        ]
+    if document_kind_filter != "all":
+        items = [item for item in items if (item.get("document_kind_name") or "") == document_kind_filter]
     items.sort(key=lambda item: item.get("created_at") or "", reverse=True)
 
     total = len(items)
@@ -176,6 +199,11 @@ def index():
         "generate": db.count_generate_tasks(),
         "running": sum(1 for item in stats_items if item["status"] in RUNNING_STATUSES and not item.get("stale")),
     }
+    document_kind_options = sorted({
+        item.get("document_kind_name")
+        for item in stats_items
+        if item.get("document_kind_name")
+    })
     pagination = {
         "page": page,
         "total_pages": total_pages,
@@ -190,6 +218,14 @@ def index():
         active_page="records",
         records=page_items,
         stats=stats,
+        specialty_groups=specialty_groups,
+        document_kind_options=document_kind_options,
         pagination=pagination,
-        filters={"type": type_filter, "status": status_filter, "q": keyword},
+        filters={
+            "type": type_filter,
+            "status": status_filter,
+            "specialty": specialty_filter,
+            "document_kind": document_kind_filter,
+            "q": keyword,
+        },
     )

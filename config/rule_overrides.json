@@ -267,5 +267,86 @@
       "工作模式",
       "接口约束"
     ]
+  },
+  "rule_product_rules_copy_rule_p_004": {
+    "source": "product_rules_copy",
+    "name": "接口要求",
+    "description": "检查文档接口要求是否存在、完整",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "llm",
+    "enabled": false,
+    "code": "P-004",
+    "logic": "若文档中包含机械接口、电气接口的描述，则通过；否则，不通过。",
+    "standard_ref": "",
+    "aliases": [
+      "P-004",
+      "接口要求"
+    ],
+    "params": {},
+    "scope": "body",
+    "target_headings": [
+      "接口要求"
+    ],
+    "required_elements": [
+      "机械接口",
+      "电气接口",
+      "电源接口",
+      "信号接口"
+    ]
+  },
+  "rule_product_rules_copy_rule_p_005": {
+    "source": "product_rules_copy",
+    "name": "电气性能",
+    "description": "审查电气性能章节中是否包括零位电压、极性等，保证文档的完整性。",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "llm",
+    "enabled": true,
+    "code": "P-005",
+    "logic": "文档中是否存在电气性能这一章节且该章节是否包含零位电压、极性等因素，若有，通过；否则不通过",
+    "standard_ref": "",
+    "aliases": [
+      "P-005",
+      "电气性能"
+    ],
+    "params": {},
+    "scope": "body",
+    "target_headings": [
+      "电气性能"
+    ],
+    "required_elements": [
+      "零位电压",
+      "极性"
+    ]
+  },
+  "rule_product_rules_copy_rule_p_006": {
+    "source": "product_rules_copy",
+    "name": "阶段标识",
+    "description": "检查阶段标识是否正确",
+    "category": "custom",
+    "severity": "error",
+    "review_type": "rule",
+    "enabled": false,
+    "code": "P-006",
+    "logic": "审查时如果阶段标识对应的编号为 XXX-AB，则通过；否则，不通过。",
+    "standard_ref": "",
+    "aliases": [
+      "P-006",
+      "阶段标识"
+    ],
+    "params": {
+      "check_type": "table_field_regex",
+      "field_labels": [
+        "阶段标识",
+        "审查阶段标识"
+      ],
+      "match_mode": "ends_with",
+      "match_value": "-AB",
+      "pattern": "^.+-AB$"
+    },
+    "scope": "cover",
+    "target_headings": [],
+    "required_elements": []
   }
 }

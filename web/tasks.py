@@ -33,6 +33,10 @@ def _filter_rules_for_rule_set(rules, rule_set: str):
     rule_set = str(rule_set or "all")
     if rule_set == "all":
         return rules
+    selected_sources = [item.strip() for item in rule_set.split(",") if item.strip()]
+    if len(selected_sources) > 1:
+        selected = set(selected_sources)
+        return [rule for rule in rules if rule.source in selected]
     if rule_set.startswith("specialty:"):
         specialty_id = rule_set.split(":", 1)[1].strip()
         specialty_sources = {

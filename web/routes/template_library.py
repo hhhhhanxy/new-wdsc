@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, jsonify, render_template, request
 
 from templates.docx_template_parser import DocxTemplateParser
 from templates.template_manager import TemplateManager
-from web.option_registry import build_reference_case_context
+from web.option_registry import build_reference_case_context, get_specialty
 
 bp = Blueprint("template_library", __name__)
 
@@ -69,6 +69,7 @@ def api_parse_template():
     file.save(path)
 
     parsed = DocxTemplateParser().parse(str(path))
+    specialty = get_specialty(request.form.get("specialty_id"))
     parsed["id"] = template_id
     parsed["metadata"] = {
         "template_asset_id": template_id,
@@ -76,7 +77,20 @@ def api_parse_template():
         "source_path": os.path.relpath(path, Path(current_app.root_path).parent),
         "source_docx_path": os.path.relpath(path, Path(current_app.root_path).parent),
     }
+    if specialty:
+        parsed["metadata"]["specialty_id"] = specialty.get("id")
+        parsed["metadata"]["specialty_name"] = specialty.get("name")
     return jsonify(parsed)
+
+
+def _validate_template_asset_metadata(metadata: dict) -> str:
+    specialty_id = str((metadata or {}).get("specialty_id") or "").strip()
+    document_kind_name = str((metadata or {}).get("document_kind_name") or "").strip()
+    if not specialty_id or not get_specialty(specialty_id):
+        return "请选择模板所属专业"
+    if not document_kind_name:
+        return "请填写技术文档类型"
+    return ""
 
 
 @bp.route("/api/templates", methods=["POST"])
@@ -91,13 +105,17 @@ def api_create_template():
     field_error = _validate_input_fields(data.get("input_fields") or [])
     if field_error:
         return jsonify({"error": field_error}), 400
+    metadata = data.get("metadata") or {}
+    metadata_error = _validate_template_asset_metadata(metadata)
+    if metadata_error:
+        return jsonify({"error": metadata_error}), 400
 
     manager = TemplateManager()
     template = manager.create_template(
         name=name,
         description=data.get("description", ""),
         chapters=chapters,
-        metadata=data.get("metadata") or {},
+        metadata=metadata,
         source_type=data.get("source_type", "uploaded_docx"),
         template_id=data.get("id") or None,
         input_fields=data.get("input_fields") or [],
@@ -111,6 +129,9 @@ def api_update_template(template_id: str):
     field_error = _validate_input_fields(data.get("input_fields") or [])
     if field_error:
         return jsonify({"error": field_error}), 400
+    metadata_error = _validate_template_asset_metadata(data.get("metadata") or {})
+    if metadata_error:
+        return jsonify({"error": metadata_error}), 400
     manager = TemplateManager()
     template = manager.update_template(template_id, data)
     if not template:
@@ -142,6 +163,9 @@ def api_replace_template_source(template_id: str):
         "source_filename": file.filename,
         "source_path": os.path.relpath(path, Path(current_app.root_path).parent),
         "source_docx_path": os.path.relpath(path, Path(current_app.root_path).parent),
+        "specialty_id": (template.metadata or {}).get("specialty_id"),
+        "specialty_name": (template.metadata or {}).get("specialty_name"),
+        "document_kind_name": (template.metadata or {}).get("document_kind_name"),
     }
     updated = manager.replace_template_source(template_id, parsed, metadata)
     if not updated:

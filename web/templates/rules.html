@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}规则管理 - 文档审查与生成平台{% endblock %}
+{% block title %}规则管理 - 技术文档智能审查与辅助生成平台{% endblock %}
 
 {% block content %}
 <style>
@@ -10,7 +10,6 @@
     background: rgba(111, 125, 242, 0.13);
     border-left-color: #6f7df2;
 }
-.rule-set-item.active { background: #f1f3ff; border-left-color: var(--primary); }
 .tag-item { background: #f1f3ff; color: var(--primary); }
 .tag-item .tag-remove { color: var(--primary); }
 .modal-field select:focus,
@@ -46,46 +45,82 @@
 .import-history-list { display:flex; flex-direction:column; gap:10px; }
 .import-history-item { border:1px solid var(--border); padding:12px; display:flex; justify-content:space-between; gap:16px; }
 .import-history-meta { color:var(--text-secondary); font-size:13px; margin-top:5px; }
+.rule-workspace { display:grid; grid-template-columns:320px minmax(0, 1fr); gap:14px; align-items:start; }
+.rule-nav-list { display:grid; gap:6px; }
+.rule-nav-section { margin-top:12px; color:var(--text-secondary); font-size:12px; font-weight:700; }
+.rule-nav-item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 10px; border:1px solid transparent; border-radius:6px; cursor:pointer; color:var(--text); }
+.rule-nav-item:hover { background:#f8f9ff; }
+.rule-nav-item.active { border-color:#d8dcff; background:#f1f3ff; color:var(--primary); font-weight:700; }
+.rule-tree-group { display:grid; gap:4px; }
+.rule-tree-section-title { display:flex; justify-content:space-between; align-items:center; width:100%; margin:8px 0 3px; padding:4px 8px; border:0; background:transparent; color:#2f5f88; font-size:13px; font-weight:700; text-align:left; cursor:pointer; }
+.rule-tree-section-title:hover { color:var(--primary); }
+.rule-tree-section-arrow { width:7px; height:7px; border-right:1.8px solid currentColor; border-bottom:1.8px solid currentColor; transform:rotate(45deg); transition:transform .18s; }
+.rule-tree-group.collapsed .rule-tree-section-arrow { transform:rotate(-45deg); }
+.rule-tree-group.collapsed .rule-tree-section-body { display:none; }
+.rule-tree-parent { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 10px; border:1px solid transparent; border-radius:6px; cursor:pointer; color:var(--text); }
+.rule-tree-parent:hover { background:#f8f9ff; }
+.rule-tree-parent.active { border-color:#d8dcff; background:#f1f3ff; color:var(--primary); font-weight:700; }
+.rule-tree-children { display:grid; gap:4px; margin:2px 0 8px 14px; padding-left:12px; border-left:1px solid var(--border); }
+.rule-tree-child { display:flex; justify-content:space-between; gap:8px; align-items:center; width:100%; border:1px solid transparent; border-radius:6px; padding:7px 8px; background:transparent; color:var(--text-secondary); cursor:pointer; text-align:left; }
+.rule-tree-child:hover { background:#f8f9ff; color:var(--text); }
+.rule-tree-child.active { border-color:#c4caff; background:#f7fbff; color:var(--primary); font-weight:700; }
+.rule-tree-child strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.rule-tree-child span { flex:0 0 auto; font-size:12px; }
+.icon-muted-btn { width:30px; height:30px; padding:0; border:1px solid var(--border); border-radius:6px; background:#fff; color:#8a94a6; font-size:18px; line-height:1; cursor:pointer; }
+.icon-muted-btn:hover { background:#f6f8fb; color:#5f6b7a; }
+.rule-context-bar { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; padding:10px 12px; border:1px solid #dfe4ff; border-radius:8px; background:#fafbff; margin-bottom:12px; }
+.rule-context-title { font-weight:700; color:var(--text); }
+.rule-context-meta { margin-top:4px; color:var(--text-secondary); font-size:13px; }
+.active-set-select { min-width:190px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text); }
+@media (max-width: 1100px) { .rule-workspace { grid-template-columns:1fr; } }
 </style>
 <div class="page-header">
     <h1>规则管理</h1>
     <p>查看和管理审查规则集，编辑规则属性和参数</p>
 </div>
 
-<div class="two-col">
-    <!-- Left: Rule set list -->
+<div class="rule-workspace">
     <div>
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>规则集</span>
-                <button class="btn btn-primary" style="padding:6px 14px;font-size:14px;" onclick="openCreateSetModal()">+ 新建规则集</button>
+                <span>规则导航</span>
             </div>
-            <ul class="rule-set-list" id="ruleSetList">
-            </ul>
-            <div class="pager" id="ruleSetPager"></div>
+            <div class="rule-nav-list" id="ruleNavList"></div>
             <div class="rule-stats" id="ruleStats"></div>
         </div>
     </div>
 
-    <!-- Right: Rules table -->
     <div>
         <div class="panel">
+            <div class="rule-context-bar">
+                <div>
+                    <div class="rule-context-title" id="ruleContextTitle">请选择规则域</div>
+                    <div class="rule-context-meta" id="ruleContextMeta">可选择一个或多个规则集汇总查看规则。</div>
+                </div>
+                <div class="panel-actions">
+                    <button class="btn btn-primary" id="createSetBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openCreateSetModal()">新建规则集</button>
+                    <select class="active-set-select" id="activeSetSelect" style="display:none;" title="当前管理的规则集" onchange="setActiveRuleSet(this.value)"></select>
+                </div>
+            </div>
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span id="currentSetTitle">请选择规则集</span>
                 <div class="panel-actions">
-                    <button class="btn btn-outline" id="copySetBtn" style="display:none;" onclick="openCopySetModal()">复制规则集</button>
                     <button class="btn btn-outline" id="exportSetBtn" style="display:none;" onclick="exportCurrentSet()">导出规则集</button>
                     <button class="btn btn-outline" id="downloadTemplateBtn" style="display:none;" onclick="downloadImportTemplate()">下载模板</button>
                     <button class="btn btn-outline" id="importHistoryBtn" style="display:none;" onclick="openImportHistory()">导入记录</button>
                     <button class="btn btn-outline" id="importRuleBtn" style="display:none;" onclick="openImportModal()">导入规则</button>
+                    <button class="btn btn-outline" id="deleteSelectedRulesBtn" style="display:none;color:var(--danger);" onclick="deleteSelectedRules()">删除选中</button>
+                    <button class="btn btn-outline" id="deleteSetBtn" style="display:none;color:var(--danger);" onclick="deleteCurrentSet()">删除规则集</button>
                     <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openCreateRuleModal()">+ 添加规则</button>
                 </div>
             </div>
             <table class="rule-table" id="ruleTable" style="display:none;">
                 <thead>
                     <tr>
+                        <th style="width:36px;"><input type="checkbox" id="selectPageRules" title="全选当前页" onchange="toggleSelectPageRules(this.checked)"></th>
                         <th>编号</th>
                         <th>状态</th>
+                        <th>规则集</th>
                         <th>规则名称</th>
                         <th>类型</th>
                         <th>范围</th>
@@ -96,34 +131,7 @@
                 <tbody id="ruleTableBody"></tbody>
             </table>
             <div class="pager" id="rulePager" style="display:none;"></div>
-            <div class="empty-state" id="noRulesHint">选择左侧规则集查看规则列表</div>
-        </div>
-    </div>
-</div>
-
-<!-- Copy Set Modal -->
-<div class="modal-overlay" id="copySetModal">
-    <div class="modal" style="width:440px;">
-        <div class="modal-header">
-            <h3 id="copySetTitle">复制规则集</h3>
-            <button class="modal-close" onclick="closeCopySetModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="modal-field">
-                <label>新规则集标识（英文，如 test_report_rules）</label>
-                <input type="text" id="copySetSource" placeholder="test_report_rules">
-            </div>
-            <div class="modal-field">
-                <label>新规则集显示名称</label>
-                <input type="text" id="copySetName" placeholder="试验报告规则">
-            </div>
-            <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
-                复制会把当前规则集中的规则另存为新的自定义规则集，后续启用、禁用和编辑不会影响原规则集。
-            </p>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeCopySetModal()">取消</button>
-            <button class="btn btn-primary" onclick="copyCurrentSet()">确认复制</button>
+            <div class="empty-state" id="noRulesHint">勾选左侧规则集查看规则列表</div>
         </div>
     </div>
 </div>
@@ -208,12 +216,16 @@
 
 <!-- Create Set Modal -->
 <div class="modal-overlay" id="createSetModal">
-    <div class="modal" style="width:400px;">
+    <div class="modal" style="width:420px;">
         <div class="modal-header">
             <h3>新建规则集</h3>
             <button class="modal-close" onclick="closeCreateSetModal()">&times;</button>
         </div>
         <div class="modal-body">
+            <div class="modal-field">
+                <label>创建位置</label>
+                <div class="readonly" id="newSetLocationLabel">通用规则</div>
+            </div>
             <div class="modal-field">
                 <label>规则集标识（英文，如 my_rules）</label>
                 <input type="text" id="newSetSource" placeholder="my_rules">
@@ -221,6 +233,13 @@
             <div class="modal-field">
                 <label>显示名称</label>
                 <input type="text" id="newSetName" placeholder="我的规则集">
+            </div>
+            <div class="modal-field">
+                <label>适用文档类型（可选，MVP 预留）</label>
+                <input type="text" id="newSetDocumentKind" placeholder="例如 试验大纲、技术说明书">
+            </div>
+            <div class="modal-field">
+                <label><input type="checkbox" id="newSetDefaultEnabled" checked> 默认参与该目录审查</label>
             </div>
         </div>
         <div class="modal-footer">
@@ -324,6 +343,8 @@
 {% block scripts %}
 <script>
 const groups = {{ groups | tojson }};
+const reviewSpecialties = {{ review_specialties | tojson }};
+const reviewSpecialtyGroups = {{ review_specialty_groups | tojson }};
 const totalCount = {{ total }};
 const enabledCount = {{ enabled_count }};
 const disabledCount = {{ disabled_count }};
@@ -331,10 +352,13 @@ const severities = {{ severities | tojson }};
 const reviewTypes = {{ review_types | tojson }};
 
 let currentGroup = null;
+let currentRuleScope = {type: 'common', specialty_id: '', name: '通用规则'};
 let currentRule = null;
+let selectedRuleIds = new Set();
 let ruleSetPage = 1;
 let rulePage = 1;
 let lastImportPreview = null;
+let collapsedRuleMajorGroups = new Set();
 const pageSize = 10;
 
 const severityLabels = {};
@@ -484,67 +508,206 @@ function renderPager(containerId, totalItems, currentPage, onPageChange) {
 }
 
 function changeRuleSetPage(page) {
-    const totalPages = Math.max(1, Math.ceil(groups.length / pageSize));
+    const totalPages = Math.max(1, Math.ceil(getVisibleGroups().length / pageSize));
     ruleSetPage = Math.min(Math.max(1, page), totalPages);
     renderSetList();
 }
 
 function changeRulePage(page) {
-    if (!currentGroup) return;
-    const totalPages = Math.max(1, Math.ceil(currentGroup.rules.length / pageSize));
+    const rules = getCurrentRules();
+    const totalPages = Math.max(1, Math.ceil(rules.length / pageSize));
     rulePage = Math.min(Math.max(1, page), totalPages);
-    renderRuleTable(currentGroup.rules);
+    renderRuleTable(rules);
+}
+
+function getCommonGroups() {
+    return groups.filter(g => (g.domain || 'common') === 'common');
+}
+
+function getSpecialtyGroups(specialtyId) {
+    return groups.filter(g => g.domain === 'specialty' && (g.specialty_id || '') === (specialtyId || ''));
+}
+
+function getVisibleGroups() {
+    return currentRuleScope.type === 'specialty'
+        ? getSpecialtyGroups(currentRuleScope.specialty_id)
+        : getCommonGroups();
+}
+
+function renderRuleNav() {
+    const target = document.getElementById('ruleNavList');
+    const commonGroups = getCommonGroups();
+    const specialtyNodes = reviewSpecialties.map(item => ({
+        ...item,
+        groups: getSpecialtyGroups(item.id),
+    }));
+    const groupedSpecialtyNodes = (reviewSpecialtyGroups.length ? reviewSpecialtyGroups : [{id: 'all', name: '专业', specialties: reviewSpecialties}]).map(group => ({
+        ...group,
+        specialties: (group.specialties || [])
+            .map(item => specialtyNodes.find(node => node.id === item.id))
+            .filter(Boolean),
+    }));
+    const childButton = (group) => `
+        <button type="button" class="rule-tree-child ${currentGroup && currentGroup.source === group.source ? 'active' : ''}" onclick="selectGroup('${escapeHtml(group.source)}')">
+            <strong>${escapeHtml(group.display_name || group.source)}</strong>
+            <span>${group.enabled}/${group.total}</span>
+        </button>
+    `;
+    target.innerHTML = `
+        <div class="rule-nav-section">通用规则</div>
+        <div class="rule-tree-group">
+            <div class="rule-tree-parent ${currentRuleScope.type === 'common' ? 'active' : ''}" onclick="selectRuleScope('common')">
+                <span>通用规则</span><span>${commonGroups.length}</span>
+            </div>
+            <div class="rule-tree-children">
+                ${commonGroups.map(childButton).join('') || '<div class="empty-state">暂无规则集</div>'}
+            </div>
+        </div>
+        <div class="rule-nav-section">专业规则</div>
+        ${groupedSpecialtyNodes.map(group => `
+            <div class="rule-tree-group ${collapsedRuleMajorGroups.has(group.id) ? 'collapsed' : ''}">
+                <button type="button" class="rule-tree-section-title" onclick="toggleRuleMajorGroup('${escapeHtml(group.id || '')}')">
+                    <span>${escapeHtml(group.name || '')}</span>
+                    <span class="rule-tree-section-arrow" aria-hidden="true"></span>
+                </button>
+                <div class="rule-tree-section-body">
+                    ${(group.specialties || []).map(item => `
+                    <div class="rule-tree-parent ${currentRuleScope.type === 'specialty' && currentRuleScope.specialty_id === item.id ? 'active' : ''}" onclick="selectRuleScope('specialty', '${escapeHtml(item.id)}')">
+                        <span>${escapeHtml(item.name)}</span><span>${item.groups.length}</span>
+                    </div>
+                    ${currentRuleScope.type === 'specialty' && currentRuleScope.specialty_id === item.id ? `
+                        <div class="rule-tree-children">
+                            ${item.groups.map(childButton).join('') || '<div class="empty-state">暂无规则集</div>'}
+                        </div>
+                    ` : ''}
+                    `).join('')}
+                </div>
+            </div>
+        `).join('')}
+    `;
+}
+
+function toggleRuleMajorGroup(groupId) {
+    if (collapsedRuleMajorGroups.has(groupId)) {
+        collapsedRuleMajorGroups.delete(groupId);
+    } else {
+        collapsedRuleMajorGroups.add(groupId);
+    }
+    renderRuleNav();
+}
+
+function selectRuleScope(type, specialtyId = '') {
+    const specialty = reviewSpecialties.find(item => item.id === specialtyId);
+    currentRuleScope = {
+        type,
+        specialty_id: type === 'specialty' ? specialtyId : '',
+        name: type === 'specialty' ? (specialty ? specialty.name + '规则' : '专业规则') : '通用规则'
+    };
+    currentGroup = getVisibleGroups()[0] || null;
+    ruleSetPage = 1;
+    rulePage = 1;
+    renderRuleManagement();
 }
 
 function renderSetList() {
-    const list = document.getElementById('ruleSetList');
-    const totalPages = Math.max(1, Math.ceil(groups.length / pageSize));
+    renderRuleNav();
+    const visibleGroups = getVisibleGroups();
+    const totalPages = Math.max(1, Math.ceil(visibleGroups.length / pageSize));
     ruleSetPage = Math.min(ruleSetPage, totalPages);
-    const start = (ruleSetPage - 1) * pageSize;
-    const pageGroups = groups.slice(start, start + pageSize);
-
-    list.innerHTML = pageGroups.map(g => `
-        <li class="rule-set-item" data-source="${g.source}" onclick="selectGroup('${g.source}')">
-            <span class="set-name">${g.display_name}</span>
-            <span style="display:flex;align-items:center;gap:6px;">
-                <span class="set-count">${g.enabled}/${g.total}</span>
-                ${g.custom ? `<span class="tag-remove" onclick="event.stopPropagation();deleteSet('${g.source}')" title="删除规则集">&times;</span>` : ''}
-            </span>
-        </li>
-    `).join('');
-
     document.getElementById('ruleStats').innerHTML =
         `共 ${totalCount} 条规则 &middot; 已启用 ${enabledCount} &middot; 已禁用 ${disabledCount}`;
 
-    renderPager('ruleSetPager', groups.length, ruleSetPage, 'changeRuleSetPage');
+    updateRuleContext();
+}
 
-    if (currentGroup) {
-        const active = document.querySelector(`[data-source="${currentGroup.source}"]`);
-        if (active) active.classList.add('active');
+function renderRuleManagement() {
+    renderSetList();
+    const rules = getCurrentRules();
+    if (!currentGroup) {
+        document.getElementById('currentSetTitle').textContent = '请选择规则集';
+        document.getElementById('noRulesHint').textContent = '选择当前目录下的规则集查看规则列表';
+        document.getElementById('noRulesHint').style.display = '';
+        document.getElementById('ruleTable').style.display = 'none';
+        document.getElementById('rulePager').style.display = 'none';
+        toggleRuleActions(false);
+        syncRuleSelectionUi();
+        return;
     }
+    document.getElementById('currentSetTitle').textContent = currentGroup.display_name;
+    toggleRuleActions(true);
+    if (!rules.length) {
+        document.getElementById('noRulesHint').textContent = '当前选择暂无规则，可在右上角添加或导入规则';
+        document.getElementById('noRulesHint').style.display = '';
+        document.getElementById('ruleTable').style.display = 'none';
+        document.getElementById('rulePager').style.display = 'none';
+        syncRuleSelectionUi();
+        return;
+    }
+    document.getElementById('noRulesHint').style.display = 'none';
+    document.getElementById('ruleTable').style.display = '';
+    document.getElementById('rulePager').style.display = '';
+    renderRuleTable(rules);
+}
+
+function toggleRuleActions(show) {
+    const editable = show && currentGroup;
+    document.getElementById('exportSetBtn').style.display = editable ? '' : 'none';
+    document.getElementById('addRuleBtn').style.display = editable ? '' : 'none';
+    document.getElementById('downloadTemplateBtn').style.display = editable ? '' : 'none';
+    document.getElementById('importHistoryBtn').style.display = editable ? '' : 'none';
+    document.getElementById('importRuleBtn').style.display = editable ? '' : 'none';
+    document.getElementById('deleteSetBtn').style.display = editable && currentGroup.custom ? '' : 'none';
+}
+
+function updateRuleContext() {
+    const groups = getVisibleGroups();
+    const rules = currentGroup ? (currentGroup.rules || []) : [];
+    const enabled = rules.filter(r => r.enabled).length;
+    const canCreateSet = currentRuleScope.type === 'common'
+        || (currentRuleScope.type === 'specialty' && currentRuleScope.specialty_id);
+    document.getElementById('ruleContextTitle').textContent = currentRuleScope.name;
+    document.getElementById('ruleContextMeta').textContent =
+        `当前目录 ${groups.length} 个规则集，正在管理 ${currentGroup ? '“' + currentGroup.display_name + '”' : '0 个'}，共 ${rules.length} 条规则，${enabled} 条启用。`;
+    document.getElementById('createSetBtn').style.display = canCreateSet ? '' : 'none';
+    renderActiveSetSelect(groups);
+}
+
+function renderActiveSetSelect(groups) {
+    const select = document.getElementById('activeSetSelect');
+    if (!select) return;
+    if (!groups.length) {
+        select.style.display = 'none';
+        select.innerHTML = '';
+        return;
+    }
+    if (!currentGroup || !groups.some(g => g.source === currentGroup.source)) {
+        currentGroup = groups[0];
+    }
+    select.style.display = '';
+    select.innerHTML = groups.map(g =>
+        `<option value="${escapeHtml(g.source)}">${escapeHtml(g.display_name)}</option>`
+    ).join('');
+    select.value = currentGroup.source;
+}
+
+function setActiveRuleSet(source) {
+    selectGroup(source);
 }
 
 function selectGroup(source) {
     currentGroup = groups.find(g => g.source === source);
     if (!currentGroup) return;
+    const domain = currentGroup.domain || 'common';
+    currentRuleScope = {
+        type: domain,
+        specialty_id: domain === 'specialty' ? (currentGroup.specialty_id || '') : '',
+        name: domain === 'specialty'
+            ? ((reviewSpecialties.find(item => item.id === currentGroup.specialty_id) || {}).name || '专业') + '规则'
+            : '通用规则'
+    };
+    selectedRuleIds = new Set();
     rulePage = 1;
-
-    document.querySelectorAll('.rule-set-item').forEach(el => el.classList.remove('active'));
-    const active = document.querySelector(`[data-source="${source}"]`);
-    if (active) active.classList.add('active');
-
-    document.getElementById('currentSetTitle').textContent = currentGroup.display_name;
-    document.getElementById('noRulesHint').style.display = 'none';
-    document.getElementById('ruleTable').style.display = '';
-    document.getElementById('copySetBtn').style.display = '';
-    document.getElementById('exportSetBtn').style.display = '';
-    document.getElementById('addRuleBtn').style.display = '';
-    document.getElementById('downloadTemplateBtn').style.display = '';
-    document.getElementById('importHistoryBtn').style.display = '';
-    document.getElementById('importRuleBtn').style.display = '';
-    document.getElementById('rulePager').style.display = '';
-
-    renderRuleTable(currentGroup.rules);
+    renderRuleManagement();
 }
 
 function renderRuleTable(rules) {
@@ -556,8 +719,10 @@ function renderRuleTable(rules) {
 
     tbody.innerHTML = pageRules.map(r => `
         <tr>
+            <td><input type="checkbox" class="rule-row-check" value="${escapeHtml(r.rule_id)}" ${selectedRuleIds.has(r.rule_id) ? 'checked' : ''} onchange="toggleRuleSelection('${escapeHtml(r.rule_id)}', this.checked)"></td>
             <td>${r.code || ''}</td>
             <td><span class="status-dot ${r.enabled ? 'on' : 'off'}" title="${r.enabled ? '已启用' : '已禁用'}"></span></td>
+            <td>${escapeHtml(r.source_display_name || r.source || '')}</td>
             <td>
                 <div class="rule-name-cell" title="${r.name}">${r.name}</div>
             </td>
@@ -568,13 +733,55 @@ function renderRuleTable(rules) {
                 <div class="rule-actions">
                     <button class="btn btn-outline" onclick="openEdit('${r.rule_id}')">编辑</button>
                     <button class="btn btn-outline" onclick="toggleEnabled('${r.rule_id}', ${!r.enabled})">${r.enabled ? '禁用' : '启用'}</button>
-                    <button class="btn btn-outline" style="color:var(--danger);" onclick="deleteRule('${r.rule_id}')">删除</button>
+                    <button class="icon-muted-btn" title="删除规则" aria-label="删除规则" onclick="deleteRule('${r.rule_id}')">&times;</button>
                 </div>
             </td>
         </tr>
     `).join('');
 
     renderPager('rulePager', rules.length, rulePage, 'changeRulePage');
+    syncRuleSelectionUi();
+}
+
+function getCurrentRules() {
+    return currentGroup ? (currentGroup.rules || []).map(rule => ({...rule, source_display_name: currentGroup.display_name})) : [];
+}
+
+function getCurrentPageRuleIds() {
+    const rules = getCurrentRules();
+    const start = (rulePage - 1) * pageSize;
+    return rules.slice(start, start + pageSize).map(rule => rule.rule_id);
+}
+
+function toggleRuleSelection(ruleId, checked) {
+    if (checked) selectedRuleIds.add(ruleId);
+    else selectedRuleIds.delete(ruleId);
+    syncRuleSelectionUi();
+}
+
+function toggleSelectPageRules(checked) {
+    getCurrentPageRuleIds().forEach(ruleId => {
+        if (checked) selectedRuleIds.add(ruleId);
+        else selectedRuleIds.delete(ruleId);
+    });
+    renderRuleTable(getCurrentRules());
+}
+
+function syncRuleSelectionUi() {
+    const currentRuleIds = new Set(getCurrentRules().map(rule => rule.rule_id));
+    selectedRuleIds = new Set([...selectedRuleIds].filter(ruleId => currentRuleIds.has(ruleId)));
+    const pageIds = getCurrentPageRuleIds();
+    const checkedCount = pageIds.filter(ruleId => selectedRuleIds.has(ruleId)).length;
+    const selectPage = document.getElementById('selectPageRules');
+    if (selectPage) {
+        selectPage.checked = pageIds.length > 0 && checkedCount === pageIds.length;
+        selectPage.indeterminate = checkedCount > 0 && checkedCount < pageIds.length;
+    }
+    const deleteBtn = document.getElementById('deleteSelectedRulesBtn');
+    if (deleteBtn) {
+        deleteBtn.style.display = selectedRuleIds.size ? '' : 'none';
+        deleteBtn.textContent = selectedRuleIds.size ? `删除选中(${selectedRuleIds.size})` : '删除选中';
+    }
 }
 
 function toggleEnabled(ruleId, newState) {
@@ -595,10 +802,8 @@ function toggleEnabled(ruleId, newState) {
             }
         }
         const source = currentGroup.source;
-        renderRuleTable(currentGroup.rules);
-        renderSetList();
-        const active = document.querySelector(`[data-source="${source}"]`);
-        if (active) active.classList.add('active');
+        currentGroup = groups.find(g => g.source === source) || currentGroup;
+        renderRuleManagement();
     });
 }
 
@@ -608,7 +813,27 @@ function deleteRule(ruleId) {
     .then(r => r.json())
     .then(data => {
         if (data.error) { alert(data.error); return; }
-        reloadProfiles(() => selectGroup(currentGroup.source));
+        const source = currentGroup ? currentGroup.source : '';
+        reloadProfiles(() => restoreCurrentGroup(source));
+    });
+}
+
+function deleteSelectedRules() {
+    const ids = [...selectedRuleIds];
+    if (!ids.length) return;
+    if (!confirm(`确定删除选中的 ${ids.length} 条规则？`)) return;
+    const source = currentGroup ? currentGroup.source : '';
+    Promise.all(ids.map(ruleId =>
+        fetch('/rules/api/rules/' + encodeURIComponent(ruleId), {method: 'DELETE'})
+            .then(r => r.json().then(data => ({ok: r.ok && !data.error, data})))
+            .catch(err => ({ok: false, data: {error: err.message}}))
+    )).then(results => {
+        const failed = results.filter(item => !item.ok);
+        selectedRuleIds = new Set();
+        if (failed.length) {
+            alert(`已尝试删除 ${ids.length} 条，其中 ${failed.length} 条失败。`);
+        }
+        reloadProfiles(() => restoreCurrentGroup(source));
     });
 }
 
@@ -914,15 +1139,9 @@ function saveRule() {
     .then(r => r.json())
     .then(data => {
         if (data.error) { alert(data.error); return; }
-        fetch('/rules/api/profiles')
-            .then(r => r.json())
-            .then(profileData => {
-                groups.length = 0;
-                groups.push(...profileData.groups);
-                closeModal();
-                renderSetList();
-                if (currentGroup) selectGroup(currentGroup.source);
-            });
+        const source = currentGroup ? currentGroup.source : '';
+        closeModal();
+        reloadProfiles(() => restoreCurrentGroup(source));
     });
 }
 
@@ -932,10 +1151,6 @@ document.getElementById('editModal').addEventListener('click', function(e) {
 
 document.getElementById('createSetModal').addEventListener('click', function(e) {
     if (e.target === this) closeCreateSetModal();
-});
-
-document.getElementById('copySetModal').addEventListener('click', function(e) {
-    if (e.target === this) closeCopySetModal();
 });
 
 document.getElementById('createRuleModal').addEventListener('click', function(e) {
@@ -1174,8 +1389,8 @@ function rollbackImportBatch(batchId) {
                 return;
             }
             alert(`已撤销：删除 ${data.removed_count} 条，恢复 ${data.restored_count} 条`);
-            const source = currentGroup.source;
-            reloadProfiles(() => selectGroup(source));
+            const source = currentGroup ? currentGroup.source : '';
+            reloadProfiles(() => restoreCurrentGroup(source));
             loadImportHistory();
         });
 }
@@ -1187,9 +1402,9 @@ function confirmRuleImport() {
     submitRuleImport(true).then(data => {
         if (!data) return;
         alert(`导入完成：新增 ${data.created_count} 条，更新 ${data.updated_count} 条，跳过 ${data.skip_count} 条`);
-        const source = currentGroup.source;
+        const source = currentGroup ? currentGroup.source : '';
         closeImportModal();
-        reloadProfiles(() => selectGroup(source));
+        reloadProfiles(() => restoreCurrentGroup(source));
     }).finally(() => {
         button.textContent = '确认导入';
     });
@@ -1199,6 +1414,9 @@ function confirmRuleImport() {
 function openCreateSetModal() {
     document.getElementById('newSetSource').value = '';
     document.getElementById('newSetName').value = '';
+    document.getElementById('newSetLocationLabel').textContent = currentRuleScope.name;
+    document.getElementById('newSetDocumentKind').value = '';
+    document.getElementById('newSetDefaultEnabled').checked = true;
     document.getElementById('createSetModal').classList.add('open');
 }
 
@@ -1209,62 +1427,36 @@ function closeCreateSetModal() {
 function createSet() {
     const source = document.getElementById('newSetSource').value.trim();
     const name = document.getElementById('newSetName').value.trim();
+    const domain = currentRuleScope.type === 'specialty' ? 'specialty' : 'common';
+    const specialtyId = domain === 'specialty' ? (currentRuleScope.specialty_id || '') : '';
+    const documentKind = document.getElementById('newSetDocumentKind').value.trim();
+    const defaultEnabled = document.getElementById('newSetDefaultEnabled').checked;
     if (!source || !name) { alert('请填写完整'); return; }
+    if (domain === 'specialty' && !specialtyId) { alert('请先在左侧选择具体专业'); return; }
 
     fetch('/rules/api/sets', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({source: source, display_name: name}),
+        body: JSON.stringify({
+            source: source,
+            display_name: name,
+            domain: domain,
+            specialty_id: specialtyId,
+            document_kind: documentKind,
+            default_enabled: defaultEnabled,
+        }),
     })
     .then(r => r.json())
     .then(data => {
         if (data.error) { alert(data.error); return; }
-        reloadProfiles();
+        reloadProfiles(() => {
+            if (domain === 'specialty') selectRuleScope('specialty', specialtyId);
+            else selectRuleScope('common');
+            currentGroup = groups.find(g => g.source === data.source) || currentGroup;
+            renderRuleManagement();
+        });
         closeCreateSetModal();
     });
-}
-
-function slugifySetSource(value) {
-    let text = String(value || '').trim().toLowerCase()
-        .replace(/[^a-z0-9_]+/g, '_')
-        .replace(/^_+|_+$/g, '');
-    if (!text || !/^[a-z]/.test(text)) text = 'rules_' + text;
-    return text.slice(0, 41);
-}
-
-function openCopySetModal() {
-    if (!currentGroup) return;
-    document.getElementById('copySetTitle').textContent = '复制规则集 - ' + currentGroup.display_name;
-    document.getElementById('copySetSource').value = slugifySetSource(currentGroup.source + '_copy');
-    document.getElementById('copySetName').value = currentGroup.display_name + ' 副本';
-    document.getElementById('copySetModal').classList.add('open');
-}
-
-function closeCopySetModal() {
-    document.getElementById('copySetModal').classList.remove('open');
-}
-
-function copyCurrentSet() {
-    if (!currentGroup) return;
-    const targetSource = document.getElementById('copySetSource').value.trim();
-    const displayName = document.getElementById('copySetName').value.trim();
-    if (!targetSource || !displayName) {
-        alert('请填写新规则集标识和显示名称');
-        return;
-    }
-    fetch(`/rules/api/sets/${encodeURIComponent(currentGroup.source)}/copy`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({target_source: targetSource, display_name: displayName}),
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.error) { alert(data.error); return; }
-        closeCopySetModal();
-        alert(`已复制 ${data.copied_count || 0} 条规则到“${data.display_name}”`);
-        reloadProfiles(() => selectGroup(data.source));
-    })
-    .catch(err => alert('复制失败：' + err.message));
 }
 
 function exportCurrentSet() {
@@ -1273,26 +1465,21 @@ function exportCurrentSet() {
 }
 
 function deleteSet(source) {
-    if (!confirm('确定删除规则集？')) return;
+    const group = groups.find(g => g.source === source);
+    const name = group ? group.display_name : source;
+    if (!confirm(`确定删除规则集“${name}”？该规则集下的自定义规则也会被删除。`)) return;
     fetch('/rules/api/sets/' + source, {method: 'DELETE'})
     .then(r => r.json())
     .then(data => {
         if (data.error) { alert(data.error); return; }
-        if (currentGroup && currentGroup.source === source) {
-            currentGroup = null;
-            document.getElementById('currentSetTitle').textContent = '请选择规则集';
-            document.getElementById('ruleTable').style.display = 'none';
-            document.getElementById('noRulesHint').style.display = '';
-            document.getElementById('copySetBtn').style.display = 'none';
-            document.getElementById('exportSetBtn').style.display = 'none';
-            document.getElementById('addRuleBtn').style.display = 'none';
-            document.getElementById('downloadTemplateBtn').style.display = 'none';
-            document.getElementById('importHistoryBtn').style.display = 'none';
-            document.getElementById('importRuleBtn').style.display = 'none';
-            document.getElementById('rulePager').style.display = 'none';
-        }
-        reloadProfiles();
+        const nextSource = currentGroup && currentGroup.source === source ? '' : currentGroup.source;
+        reloadProfiles(() => restoreCurrentGroup(nextSource));
     });
+}
+
+function deleteCurrentSet() {
+    if (!currentGroup || !currentGroup.custom) return;
+    deleteSet(currentGroup.source);
 }
 
 // ---- Create Rule ----
@@ -1362,7 +1549,8 @@ function createRule() {
     .then(data => {
         if (data.error) { alert(data.error); return; }
         closeCreateRuleModal();
-        reloadProfiles(() => selectGroup(currentGroup.source));
+        const source = currentGroup ? currentGroup.source : '';
+        reloadProfiles(() => restoreCurrentGroup(source));
     });
 }
 
@@ -1373,12 +1561,16 @@ function reloadProfiles(callback) {
         .then(data => {
             groups.length = 0;
             groups.push(...data.groups);
-            // update counts
-            renderSetList();
             if (callback) callback();
+            else renderRuleManagement();
         });
 }
 
-renderSetList();
+function restoreCurrentGroup(source) {
+    currentGroup = getVisibleGroups().find(g => g.source === source) || getVisibleGroups()[0] || null;
+    renderRuleManagement();
+}
+
+selectRuleScope('common');
 </script>
 {% endblock %}

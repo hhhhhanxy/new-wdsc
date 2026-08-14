@@ -82,6 +82,45 @@ def get_specialties(usage: str | None = None) -> list[dict[str, Any]]:
     ]
 
 
+def get_specialty_groups(usage: str | None = None) -> list[dict[str, Any]]:
+    specialties = get_specialties(usage)
+    config = _load_professional_cases()
+    configured_groups = [
+        item for item in config.get("specialty_groups", [])
+        if isinstance(item, dict)
+    ]
+    if not configured_groups:
+        configured_groups = [
+            {"id": "core", "name": "一核"},
+            {"id": "wings", "name": "多翼"},
+        ]
+    grouped = []
+    used_ids = set()
+    for group in configured_groups:
+        group_id = str(group.get("id") or "").strip()
+        children = [
+            item for item in specialties
+            if str(item.get("group_id") or "").strip() == group_id
+        ]
+        used_ids.update(str(item.get("id") or "") for item in children)
+        grouped.append({
+            "id": group_id,
+            "name": group.get("name") or group_id,
+            "specialties": children,
+        })
+    ungrouped = [
+        item for item in specialties
+        if str(item.get("id") or "") not in used_ids
+    ]
+    if ungrouped:
+        grouped.append({
+            "id": "ungrouped",
+            "name": "未分组",
+            "specialties": ungrouped,
+        })
+    return grouped
+
+
 def get_specialty(specialty_id: str | None) -> dict[str, Any] | None:
     if not specialty_id:
         return None

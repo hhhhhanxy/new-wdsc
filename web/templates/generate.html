@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}文档生成 - 文档审查与生成平台{% endblock %}
+{% block title %}文档生成 - 技术文档智能审查与辅助生成平台{% endblock %}
 
 {% block content %}
 <style>
@@ -355,7 +355,7 @@
     flex-direction: column;
 }
 .generate-left-panel .template-preview {
-    max-height: 180px;
+    max-height: 145px;
     overflow: auto;
 }
 .generate-left-panel .config-section,
@@ -363,11 +363,11 @@
     min-height: 0;
 }
 .generate-left-panel .reference-case-list {
-    max-height: 96px;
+    max-height: 76px;
     overflow: auto;
 }
 .generate-left-panel .dynamic-input-section.active {
-    max-height: 118px;
+    max-height: 96px;
     overflow: auto;
 }
 .result-shell {
@@ -375,7 +375,7 @@
     flex-direction: column;
     gap: 12px;
     min-height: 0;
-    height: 300px;
+    height: 250px;
     overflow: auto;
 }
 .result-card {
@@ -423,9 +423,90 @@
 .revision-history-item:last-child {
     border-bottom: 0;
 }
+.revision-suggestions {
+    display: none;
+    padding: 12px;
+    border: 1px solid #d9e7f5;
+    border-radius: 8px;
+    background: #fbfdff;
+}
+.revision-suggestions.active {
+    display: block;
+}
+.revision-suggestion-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+}
+.revision-suggestion-summary {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+.revision-suggestion-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+.revision-suggestion-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: #fff;
+}
+.revision-suggestion-title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+}
+.revision-suggestion-meta,
+.revision-suggestion-text {
+    margin-top: 5px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.55;
+}
+.revision-suggestion-text {
+    max-height: 70px;
+    overflow: auto;
+    padding: 7px;
+    border-radius: 6px;
+    background: #f7fbff;
+}
 .generate-dialog-panel {
     display: grid;
     gap: 6px;
+}
+.generation-requirement-panel {
+    border: 1px solid #d9e7f5;
+    border-radius: 8px;
+    background: #fbfdff;
+}
+.generation-requirement-panel summary {
+    padding: 8px 10px;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+.generation-requirement-panel textarea {
+    min-height: 62px;
+    border: 0;
+    border-top: 1px solid #e5eef8;
+    border-radius: 0 0 8px 8px;
+    resize: vertical;
+}
+.generation-requirement-panel.hidden {
+    display: none;
 }
 .dialog-title-row {
     display: flex;
@@ -497,7 +578,7 @@
             <div class="form-group">
                 <label>专业</label>
                 <select class="form-control" id="specialtySelect">
-                    <option value="">通用专业</option>
+                    <option value="">请选择专业</option>
                 </select>
             </div>
             <div class="form-group">
@@ -524,7 +605,7 @@
                 </select>
             </div>
         </div>
-        <div class="form-hint" id="generateModelHint" style="margin-top:6px;">正在读取实际可用模型...</div>
+        <div class="form-hint" id="generateModelHint" style="margin-top:6px;">选择用于生成和后续对话修改的模型。</div>
     </section>
 
     <div class="generate-main-grid">
@@ -611,6 +692,7 @@
                                     </select>
                                 </div>
                                 <div class="result-actions">
+                                    <button class="btn btn-outline" id="previewGenBtn" onclick="previewGenerated()">预览</button>
                                     <button class="btn btn-success" id="downloadGenBtn" onclick="downloadGenerated()">下载文档</button>
                                     <button class="btn btn-outline" id="reviewGeneratedBtn" onclick="reviewGenerated()">一键审查</button>
                                     <button class="btn btn-outline" id="retryGenBtn" style="display:none;" onclick="retryGenerate()">重新生成</button>
@@ -622,6 +704,20 @@
                     <div class="revision-history" id="revisionHistorySection">
                         <p class="section-title">版本记录</p>
                         <div class="revision-history-list" id="revisionHistoryList"></div>
+                    </div>
+
+                    <div class="revision-suggestions" id="revisionSuggestionSection">
+                        <div class="revision-suggestion-head">
+                            <div>
+                                <p class="section-title">修订建议</p>
+                                <div class="revision-suggestion-summary" id="revisionSuggestionSummary"></div>
+                            </div>
+                            <div class="result-actions">
+                                <button class="btn btn-outline" type="button" onclick="clearRevisionSuggestions()">取消</button>
+                                <button class="btn btn-success" type="button" id="applyRevisionBtn" onclick="applySelectedRevisionSuggestions()">应用选中建议</button>
+                            </div>
+                        </div>
+                        <div class="revision-suggestion-list" id="revisionSuggestionList"></div>
                     </div>
                 </div>
             </section>
@@ -638,11 +734,15 @@
             <div class="dialog-action-row">
                 <button type="button" class="agent-upload-btn" id="supplementUploadButton" title="上传补充材料 Word 文档">+</button>
                 <div class="agent-upload-status" id="supplementUploadStatus">可上传 .docx 作为补充材料</div>
-                <a class="btn btn-outline" href="/records/?type=generate">我的任务</a>
-                <button class="btn btn-success" id="generateBtn" onclick="submitSmartDialog()">按模板生成文档</button>
+                <a class="btn btn-outline" href="/records/?type=generate">我的文档</a>
+                <button class="btn btn-success" id="generateBtn" onclick="submitSmartDialog()">发送</button>
             </div>
             <input type="file" id="supplementFileInput" accept=".docx" style="display:none">
         </div>
+        <details class="generation-requirement-panel" id="generationRequirementPanel">
+            <summary>生成要求（可选）</summary>
+            <textarea class="form-control" id="generationRequirementInput" placeholder="例如：语言正式、条理清晰；缺失信息写“待补充”；不要编造未提供的数据、编号、结论或标准条款。"></textarea>
+        </details>
         <div class="generate-compact-tips">
             <strong>生成说明：</strong>生成前在此输入素材；生成完成后继续在此输入修改意见。系统会保留 DOCX 模板样式、页眉页脚、标题层级和页面设置，只对正文内容进行生成、补充或修订。
         </div>
@@ -696,13 +796,17 @@ let supplementDocName = '';
 let supplementDocUploading = false;
 let reviewModels = [{id: 'system_default', name: '系统默认', is_default: true}];
 let generationSpecialties = [];
+let generationSpecialtyGroups = [];
 let generationModels = [];
 let smartDialogMode = 'generate';
 let revisionHistory = [];
+let pendingRevisionSuggestions = null;
 const genProgressModal = document.getElementById('genProgressModal');
 const genProgressDock = document.getElementById('genProgressDock');
 const genProgressDetail = document.getElementById('genProgressDetail');
 const generationBriefInput = document.getElementById('generationBrief');
+const generationRequirementPanel = document.getElementById('generationRequirementPanel');
+const generationRequirementInput = document.getElementById('generationRequirementInput');
 const dialogModeBadge = document.getElementById('dialogModeBadge');
 const dialogTitle = document.getElementById('dialogTitle');
 const specialtySelect = document.getElementById('specialtySelect');
@@ -808,10 +912,11 @@ documentKindSelect.addEventListener('change', () => {
 
 function loadGenerationOptions() {
     Promise.all([
-        fetch('/api/specialties?usage=generate').then(r => r.json()).catch(() => ({specialties: []})),
+        fetch('/api/specialties?usage=generate').then(r => r.json()).catch(() => ({specialties: [], groups: []})),
         fetch('/api/models?usage=generate').then(r => r.json()).catch(() => ({models: []})),
     ]).then(([specialtyData, modelData]) => {
         generationSpecialties = specialtyData.specialties || [];
+        generationSpecialtyGroups = specialtyData.groups || [];
         generationModels = modelData.models || [];
         renderSpecialties();
         renderGenerationModels();
@@ -819,9 +924,14 @@ function loadGenerationOptions() {
 }
 
 function renderSpecialties() {
-    specialtySelect.innerHTML = '<option value="">通用专业</option>' + generationSpecialties.map(item =>
-        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`
-    ).join('');
+    const groupedOptions = generationSpecialtyGroups.length
+        ? generationSpecialtyGroups.map(group => `
+            <optgroup label="${escapeHtml(group.name || '')}">
+                ${(group.specialties || []).map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}
+            </optgroup>
+        `).join('')
+        : generationSpecialties.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
+    specialtySelect.innerHTML = '<option value="">请选择专业</option>' + groupedOptions;
     if (initialMajorId && generationSpecialties.some(item => item.id === initialMajorId)) {
         specialtySelect.value = initialMajorId;
     }
@@ -846,12 +956,10 @@ generateModelSelect.addEventListener('change', updateGenerateModelHint);
 function updateGenerateModelHint() {
     const selected = generationModels.find(model => model.id === generateModelSelect.value);
     if (!selected) {
-        generateModelHint.textContent = '未读取到模型配置时，将使用系统默认模型。';
+        generateModelHint.textContent = '未选择时使用系统默认模型。';
         return;
     }
-    const provider = selected.provider || '默认服务';
-    const model = selected.model || selected.name || '未命名模型';
-    generateModelHint.textContent = `当前实际使用：${provider} / ${model}`;
+    generateModelHint.textContent = '已选择生成模型，可在生成前按需切换。';
 }
 
 function getSelectedSpecialty() {
@@ -871,7 +979,7 @@ function getTemplatesForSpecialty() {
     return generationTemplates.filter(template => {
         if (!template.can_generate) return false;
         const metadata = getTemplateMetadata(template);
-        if (!specialtyId) return true;
+        if (!specialtyId) return false;
         return metadata.specialty_id === specialtyId;
     });
 }
@@ -905,7 +1013,7 @@ function renderTemplateOptions() {
         applyDefaultGenerationRequirements(selectedTemplate);
         renderDynamicInputs(selectedTemplate);
     } else {
-        document.getElementById('templatePreview').innerHTML = '<div class="empty-state">暂无匹配模板，请先到专业资产库上传并绑定模板。</div>';
+        document.getElementById('templatePreview').innerHTML = '<div class="empty-state">暂无匹配模板，请先到文档模板库及案例上传并绑定模板。</div>';
         renderDynamicInputs(null);
     }
     renderReferenceCases();
@@ -916,7 +1024,7 @@ function renderReferenceCases() {
         ? (selectedTemplate.metadata.reference_cases || [])
         : [];
     if (!cases.length) {
-        referenceCaseList.innerHTML = '<div class="reference-case-empty">该模板暂无关联优秀案例；仍可生成，只是不加入案例写法参考。可到专业资产库中打开该模板后上传。</div>';
+        referenceCaseList.innerHTML = '<div class="reference-case-empty">该模板暂无关联优秀案例；仍可生成，只是不加入案例写法参考。可到文档模板库及案例中打开该模板后上传。</div>';
         return;
     }
     const autoChecked = cases.length <= 3;
@@ -1212,20 +1320,24 @@ function setSmartDialogMode(mode) {
         if (dialogTitle) dialogTitle.textContent = '4. 智能对话';
         if (dialogModeBadge) dialogModeBadge.textContent = '对话修订';
         generationBriefInput.placeholder = '请输入修改意见，例如：补充第 3 章依据文件说明，保持模板格式不变。';
-        if (btn) btn.textContent = '发送修改';
+        if (generationRequirementPanel) generationRequirementPanel.classList.add('hidden');
+        if (btn) btn.textContent = '发送';
         return;
     }
     if (dialogTitle) dialogTitle.textContent = '4. 智能对话';
     if (dialogModeBadge) dialogModeBadge.textContent = '生成素材';
     generationBriefInput.placeholder = '请输入生成需求、产品信息、参数、引用文件等；生成完成后可继续在这里提出修改意见。';
-    if (btn) btn.textContent = '按模板生成文档';
+    if (generationRequirementPanel) generationRequirementPanel.classList.remove('hidden');
+    if (btn) btn.textContent = '发送';
 }
 
 function resetSmartDialogForNewGeneration() {
     setSmartDialogMode('generate');
     revisionHistory = [];
+    pendingRevisionSuggestions = null;
     currentGenTaskId = null;
     if (generationBriefInput) generationBriefInput.value = '';
+    if (generationRequirementInput) generationRequirementInput.value = '';
     const empty = document.getElementById('genEmptyState');
     const result = document.getElementById('genResultSection');
     const progress = document.getElementById('genProgressSection');
@@ -1233,10 +1345,12 @@ function resetSmartDialogForNewGeneration() {
     if (result) result.style.display = 'none';
     if (progress) progress.style.display = 'none';
     renderRevisionHistory([]);
+    clearRevisionSuggestions();
 }
 
 function startGenerate() {
     const generationBrief = generationBriefInput.value.trim();
+    if (!specialtySelect.value) { alert('请先选择专业'); return; }
     if (!selectedTemplate) { alert('请选择文档模板'); return; }
     if (supplementDocUploading) { alert('补充材料仍在解析，请稍后再生成'); return; }
     if (!generationBrief && !supplementDocText) { alert('请输入生成需求，或上传补充材料'); return; }
@@ -1249,6 +1363,7 @@ function startGenerate() {
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
     btn.textContent = '生成中...';
+    clearRevisionSuggestions();
     const empty = document.getElementById('genEmptyState');
     if (empty) empty.style.display = 'none';
 
@@ -1263,7 +1378,7 @@ function startGenerate() {
             generation_brief: generationBrief,
             supplement_doc_name: supplementDocName,
             supplement_doc_text: supplementDocText,
-            generation_requirements: defaultGenerationRequirements,
+            generation_requirements: buildGenerationRequirements(),
             generation_mode: document.getElementById('generationMode').value,
             dynamic_fields: dynamicInputs.values
         }
@@ -1276,7 +1391,7 @@ function startGenerate() {
     })
     .then(r => r.json())
     .then(data => {
-        if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '按模板生成文档'; return; }
+        if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = '发送'; return; }
         currentGenTaskId = data.task_id;
         isGenPaused = false;
         document.getElementById('genProgressSection').style.display = 'block';
@@ -1284,15 +1399,22 @@ function startGenerate() {
         updateGenProgress({
             status: 'processing',
             progress: 0,
-            progress_message: '生成任务已创建，等待后端开始处理'
+            progress_message: '生成文档已创建，等待后端开始处理'
         });
         pollGenProgress();
     })
     .catch(err => {
         alert('请求失败: ' + err.message);
         btn.disabled = false;
-        btn.textContent = '按模板生成文档';
+        btn.textContent = '发送';
     });
+}
+
+function buildGenerationRequirements() {
+    const userRequirement = generationRequirementInput ? generationRequirementInput.value.trim() : '';
+    return [defaultGenerationRequirements, userRequirement ? `用户补充生成要求：\n${userRequirement}` : '']
+        .filter(Boolean)
+        .join('\n');
 }
 
 function deriveTitleFromBrief(brief, template) {
@@ -1497,7 +1619,7 @@ function resumeGeneration(taskId) {
 
 function cancelGeneration(taskId = currentGenTaskId) {
     if (!taskId) return;
-    if (!confirm('确定停止当前生成任务？停止后可以重新生成或删除该记录。')) return;
+    if (!confirm('确定停止当前生成文档？停止后可以重新生成或删除该记录。')) return;
     const cancelBtn = document.getElementById('genCancelBtn');
     if (taskId === currentGenTaskId && cancelBtn) cancelBtn.disabled = true;
     fetch('/generate/cancel/' + taskId, { method: 'POST' })
@@ -1513,7 +1635,7 @@ function cancelGeneration(taskId = currentGenTaskId) {
                 handleGenFinalState({
                     status: 'canceled',
                     progress: data.progress || 0,
-                    error: '用户手动停止生成任务'
+                    error: '用户手动停止生成文档'
                 });
             }
         })
@@ -1530,6 +1652,7 @@ function handleGenFinalState(data) {
     updateGenProgressDockVisibility();
     if (data.status === 'completed') {
         setSmartDialogMode('revise');
+        clearRevisionSuggestions();
         generationBriefInput.value = '';
         supplementDocText = '';
         supplementDocName = '';
@@ -1611,13 +1734,26 @@ function showGenReview(data) {
 
 function renderQualityResult(qualityResult, reviewResult) {
     const checks = qualityResult.checks || [];
-    const checkHtml = checks.length ? checks.map(item => `
-        <div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
-            <span>${escapeHtml(item.label || item.code)}</span>
-            <span class="badge badge-${item.passed ? 'success' : 'warning'}">${escapeHtml(item.passed ? '通过' : '待确认')}</span>
-        </div>
-        ${item.passed ? '' : `<div class="generation-record-error" style="white-space:normal;">${escapeHtml(item.message || '')}</div>`}
-    `).join('') : '<div class="empty-state">暂无基础检查结果</div>';
+    const checkHtml = checks.length ? checks.map(item => {
+        const locations = Array.isArray(item.locations) ? item.locations.slice(0, 5) : [];
+        const locationHtml = locations.length ? `
+            <div style="margin-top:6px;display:grid;gap:4px;">
+                ${locations.map(loc => `
+                    <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">
+                        <strong style="color:var(--text);font-weight:600;">${escapeHtml(loc.location || '位置')}</strong>
+                        <span>${escapeHtml(loc.excerpt || '')}</span>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+        return `
+            <div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
+                <span>${escapeHtml(item.label || item.code)}</span>
+                <span class="badge badge-${item.passed ? 'success' : 'warning'}">${escapeHtml(item.passed ? '通过' : '待确认')}</span>
+            </div>
+            ${item.passed ? '' : `<div class="generation-record-error" style="white-space:normal;">${escapeHtml(item.message || '')}${locationHtml}</div>`}
+        `;
+    }).join('') : '<div class="empty-state">暂无基础检查结果</div>';
     const reviewMessage = reviewResult && reviewResult.message
         ? reviewResult.message
         : '生成完成后可一键送入文档审查。';
@@ -1642,6 +1778,11 @@ function downloadGenerated() {
     if (currentGenTaskId) window.location.href = '/generate/download/' + currentGenTaskId;
 }
 
+function previewGenerated() {
+    if (!currentGenTaskId) { alert('请先生成文档'); return; }
+    window.open('/generate/preview/' + currentGenTaskId, '_blank');
+}
+
 function reviseGeneratedDocument() {
     const message = generationBriefInput.value.trim();
     if (!currentGenTaskId) { alert('请先完成一次文档生成'); return; }
@@ -1649,14 +1790,14 @@ function reviseGeneratedDocument() {
     if (supplementDocUploading) { alert('补充材料仍在解析，请稍后再提交修改'); return; }
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
-    btn.textContent = '修改中...';
+    btn.textContent = '生成建议中...';
     const payload = {
         message,
         model_id: generateModelSelect.value || 'system_default',
         supplement_doc_name: supplementDocName,
         supplement_doc_text: supplementDocText
     };
-    fetch('/generate/revise/' + currentGenTaskId, {
+    fetch('/generate/revise/suggest/' + currentGenTaskId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1669,6 +1810,80 @@ function reviseGeneratedDocument() {
             setSmartDialogMode('revise');
             return;
         }
+        pendingRevisionSuggestions = data;
+        renderRevisionSuggestions(data);
+        btn.disabled = false;
+        setSmartDialogMode('revise');
+    })
+    .catch(err => {
+        alert('修订建议生成失败：' + err.message);
+        btn.disabled = false;
+        setSmartDialogMode('revise');
+    });
+}
+
+function renderRevisionSuggestions(data) {
+    const section = document.getElementById('revisionSuggestionSection');
+    const summary = document.getElementById('revisionSuggestionSummary');
+    const list = document.getElementById('revisionSuggestionList');
+    if (!section || !summary || !list) return;
+    const suggestions = Array.isArray(data && data.suggestions) ? data.suggestions : [];
+    if (!suggestions.length) {
+        clearRevisionSuggestions();
+        return;
+    }
+    section.classList.add('active');
+    summary.textContent = data.summary || `共生成 ${suggestions.length} 条修订建议，请勾选后应用。`;
+    list.innerHTML = suggestions.map(item => {
+        const actionLabel = item.action === 'replace' ? '替换' : '补充';
+        const confidence = Math.round(Number(item.confidence || 0) * 100);
+        const confirmText = item.need_confirm ? '需确认' : '可直接应用';
+        return `
+            <label class="revision-suggestion-item">
+                <input type="checkbox" class="revision-suggestion-check" value="${escapeHtml(item.id || '')}" checked>
+                <div>
+                    <div class="revision-suggestion-title">
+                        <span class="badge badge-info">${escapeHtml(actionLabel)}</span>
+                        <span>${escapeHtml(item.target_heading || '未指定章节')}</span>
+                    </div>
+                    <div class="revision-suggestion-meta">
+                        ${escapeHtml(confirmText)} · 置信度 ${confidence || 60}%${item.old_text_hint ? ' · 原文：' + escapeHtml(item.old_text_hint) : ''}
+                    </div>
+                    ${item.reason ? `<div class="revision-suggestion-meta">原因：${escapeHtml(item.reason)}</div>` : ''}
+                    <div class="revision-suggestion-text">${escapeHtml(item.new_text || '')}</div>
+                </div>
+            </label>
+        `;
+    }).join('');
+}
+
+function clearRevisionSuggestions() {
+    pendingRevisionSuggestions = null;
+    const section = document.getElementById('revisionSuggestionSection');
+    const summary = document.getElementById('revisionSuggestionSummary');
+    const list = document.getElementById('revisionSuggestionList');
+    if (section) section.classList.remove('active');
+    if (summary) summary.textContent = '';
+    if (list) list.innerHTML = '';
+}
+
+function applySelectedRevisionSuggestions() {
+    if (!currentGenTaskId) { alert('请先完成一次文档生成'); return; }
+    const checks = Array.from(document.querySelectorAll('.revision-suggestion-check:checked'));
+    if (!checks.length) { alert('请选择需要应用的修订建议'); return; }
+    const btn = document.getElementById('applyRevisionBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '应用中...';
+    }
+    fetch('/generate/revise/apply/' + currentGenTaskId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ suggestion_ids: checks.map(item => item.value) })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
         generationBriefInput.value = '';
         supplementDocText = '';
         supplementDocName = '';
@@ -1679,13 +1894,17 @@ function reviseGeneratedDocument() {
         document.getElementById('genResultName').textContent = data.filename || 'generated_document.docx';
         revisionHistory = data.revision_history || revisionHistory;
         renderRevisionHistory(revisionHistory);
-        btn.disabled = false;
+        clearRevisionSuggestions();
         setSmartDialogMode('revise');
     })
     .catch(err => {
-        alert('修改失败：' + err.message);
-        btn.disabled = false;
-        setSmartDialogMode('revise');
+        alert('应用修改失败：' + err.message);
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '应用选中建议';
+        }
     });
 }
 

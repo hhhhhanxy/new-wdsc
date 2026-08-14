@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}文档审查 - 文档审查与生成平台{% endblock %}
+{% block title %}文档审查 - 技术文档智能审查与辅助生成平台{% endblock %}
 
 {% block content %}
 <style>
@@ -52,6 +52,121 @@
     padding: 5px 6px;
     font-size: 12px;
 }
+.rule-select-wrap {
+    position: relative;
+    width: min(760px, 100%);
+}
+.rule-select-trigger {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    min-height: 36px;
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+}
+.rule-select-trigger:hover .rule-select-all-btn { text-decoration: underline; }
+.rule-select-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    overflow-x: auto;
+    min-height: 24px;
+    scrollbar-width: thin;
+}
+.rule-select-chip {
+    flex: 0 0 auto;
+    max-width: 240px;
+    padding: 3px 8px;
+    border: 1px solid #d9e6fb;
+    border-radius: 999px;
+    background: #f7fbff;
+    color: #245fbd;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.rule-select-placeholder {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+.rule-select-meta {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.rule-select-all-btn {
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.rule-select-dropdown {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    display: none;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 26px rgba(15, 35, 70, 0.12);
+}
+.rule-select-dropdown.open { display: block; }
+.rule-select-search {
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+}
+.rule-select-list {
+    display: grid;
+    gap: 2px;
+    max-height: 260px;
+    overflow: auto;
+}
+.rule-select-item {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.rule-select-item:hover { background: #f7fbff; }
+.rule-select-check { color: var(--primary); font-weight: 700; }
+.rule-select-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+    font-size: 14px;
+}
+.rule-select-sub { color: var(--text-secondary); font-size: 12px; }
+.rule-select-count { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+.rule-select-footer {
+    margin-top: 7px;
+    padding-top: 7px;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+}
 </style>
 <div class="page-header">
     <h1>文档审查</h1>
@@ -77,45 +192,36 @@
                 <div class="config-label">专业方向</div>
                 <div>
                     <select class="form-control" id="reviewSpecialtySelect" style="width:auto;min-width:220px;padding:7px 12px;font-size:15px;">
-                        <option value="">通用审查</option>
-                        {% for specialty in review_specialty_options %}
-                        <option value="{{ specialty.id }}" {% if specialty.id == initial_major_id %}selected{% endif %}>{{ specialty.name }}</option>
+                        <option value="">请选择专业</option>
+                        {% for group in review_specialty_groups %}
+                        <optgroup label="{{ group.name }}">
+                            {% for specialty in group.specialties %}
+                            <option value="{{ specialty.id }}" {% if specialty.id == initial_major_id %}selected{% endif %}>{{ specialty.name }}</option>
+                            {% endfor %}
+                        </optgroup>
                         {% endfor %}
                     </select>
-                    <div class="form-hint">选择专业后默认使用“通用规则 + 当前专业规则”。</div>
+                    <div class="form-hint">必须选择专业；审查时默认使用“通用规则 + 当前专业规则”。</div>
                 </div>
             </div>
             <div class="config-row">
                 <div class="config-label">规则集</div>
                 <div>
-                    <select class="form-control" id="ruleSetSelect" style="width:auto;padding:7px 12px;font-size:15px;">
-                        <option value="all">全部规则</option>
-                        {% for rs in rule_sets %}
-                        <option value="{{ rs.source }}">{{ rs.name }} ({{ rs.count }}条)</option>
-                        {% endfor %}
-                    </select>
+                    <div class="rule-select-wrap" id="ruleSetSelectWrap">
+                        <button type="button" class="rule-select-trigger" id="ruleSetTrigger" onclick="toggleRuleSetDropdown(event)">
+                            <span>
+                                <span class="rule-select-value" id="ruleSetSummary"><span class="rule-select-placeholder">请选择规则集</span></span>
+                                <span class="rule-select-meta" id="ruleSetHint">请至少选择一个规则集。</span>
+                            </span>
+                            <span class="rule-select-all-btn">全部</span>
+                        </button>
+                        <div class="rule-select-dropdown" id="ruleSetDropdown" onclick="event.stopPropagation()">
+                            <input class="rule-select-search" id="ruleSetSearch" placeholder="搜索规则集" oninput="renderReviewRuleSetDropdown()">
+                            <div class="rule-select-list" id="ruleSetChecklist"></div>
+                            <div class="rule-select-footer">规则内容可在“审查规则管理”中维护。</div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="review-rule-panel">
-                <div class="review-rule-header">
-                    <span id="reviewRuleTitle">规则明细</span>
-                    <span id="reviewRuleStats"></span>
-                </div>
-                <table class="rule-table review-rule-table" id="reviewRuleTable">
-                    <thead>
-                        <tr>
-                            <th>状态</th>
-                            <th>规则名称</th>
-                            <th>审查类型</th>
-                            <th>范围</th>
-                            <th>级别</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="reviewRuleTableBody"></tbody>
-                </table>
-                <div class="pager" id="reviewRulePager"></div>
-                <div class="empty-state" id="reviewNoRulesHint" style="display:none;">该规则集暂无规则</div>
             </div>
             <div class="config-row" style="margin-top:14px;">
                 <div class="config-label">审查模型</div>
@@ -266,20 +372,22 @@ let selectedFile = null;
 let currentTaskId = null;
 let pollTimer = null;
 let reviewRuleGroups = [];
-let reviewRulePage = 1;
+let selectedReviewRuleSources = new Set();
 let resultIssues = [];
 let resultIssuePage = 1;
 let isPaused = false;
+let ruleSetDropdownOpen = false;
 const initialTaskId = {{ focus_task_id or 'null' }};
 const initialMajorId = "{{ initial_major_id or '' }}";
-const reviewRulePageSize = 10;
 const resultIssuePageSize = 10;
 
 const uploadZone = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
 const uploadText = document.getElementById('uploadText');
 const startBtn = document.getElementById('startBtn');
-const ruleSetSelect = document.getElementById('ruleSetSelect');
+const ruleSetChecklist = document.getElementById('ruleSetChecklist');
+const ruleSetDropdown = document.getElementById('ruleSetDropdown');
+const ruleSetSearch = document.getElementById('ruleSetSearch');
 const reviewSpecialtySelect = document.getElementById('reviewSpecialtySelect');
 const reviewModelSelect = document.getElementById('reviewModelSelect');
 const progressModal = document.getElementById('progressModal');
@@ -356,11 +464,11 @@ uploadZone.addEventListener('drop', e => {
     if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
 });
 fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
-ruleSetSelect.addEventListener('change', () => {
-    reviewRulePage = 1;
-    renderSelectedRuleSet();
-});
 reviewSpecialtySelect.addEventListener('change', syncRuleSetWithSpecialty);
+document.addEventListener('click', event => {
+    const wrap = document.getElementById('ruleSetSelectWrap');
+    if (wrap && !wrap.contains(event.target)) closeRuleSetDropdown();
+});
 
 function escapeHtml(value) {
     return String(value || '')
@@ -376,14 +484,10 @@ function loadReviewRules() {
         .then(r => r.json())
         .then(data => {
             reviewRuleGroups = data.groups || [];
-            if (initialMajorId || reviewSpecialtySelect.value) {
-                syncRuleSetWithSpecialty();
-                return;
-            }
-            renderSelectedRuleSet();
+            syncRuleSetWithSpecialty();
         })
         .catch(() => {
-            document.getElementById('reviewRuleStats').textContent = '规则加载失败';
+            document.getElementById('ruleSetHint').textContent = '规则加载失败';
         });
 }
 
@@ -403,131 +507,102 @@ function loadReviewModels() {
 }
 
 function getSelectedRules() {
-    const source = ruleSetSelect.value;
-    if (source === 'all') {
-        return reviewRuleGroups.flatMap(g => g.rules || []);
-    }
-    if (source.startsWith('specialty:')) {
-        const specialtyId = source.split(':')[1] || '';
-        const specialtySources = new Set([
-            specialtyId,
-            `${specialtyId}_rules`,
-            `${specialtyId}_review_rules`,
-            `review_${specialtyId}`,
-        ]);
-        const generalSources = new Set(['common', 'format', 'grammar', 'default', 'general', '通用规则']);
-        return reviewRuleGroups
-            .filter(g => generalSources.has(g.source) || specialtySources.has(g.source))
-            .flatMap(g => g.rules || []);
-    }
-    const group = reviewRuleGroups.find(g => g.source === source);
-    return group ? (group.rules || []) : [];
-}
-
-function getSelectedRuleSetName() {
-    const source = ruleSetSelect.value;
-    if (source === 'all') return '全部规则';
-    if (source.startsWith('specialty:')) {
-        const name = reviewSpecialtySelect.options[reviewSpecialtySelect.selectedIndex]?.text || source.split(':')[1] || '';
-        return '通用规则 + ' + name + '规则';
-    }
-    const group = reviewRuleGroups.find(g => g.source === source);
-    return group ? group.display_name : '规则明细';
+    return getSelectedReviewGroups().flatMap(g => (g.rules || []).map(rule => ({
+        ...rule,
+        source_display_name: g.display_name || g.source,
+    })));
 }
 
 function syncRuleSetWithSpecialty() {
-    const specialtyId = reviewSpecialtySelect.value;
-    const specialtyValue = specialtyId ? 'specialty:' + specialtyId : 'all';
-    let option = Array.from(ruleSetSelect.options).find(item => item.value === specialtyValue);
-    if (!option && specialtyId) {
-        const specialtyName = reviewSpecialtySelect.options[reviewSpecialtySelect.selectedIndex]?.text || specialtyId;
-        option = new Option('通用规则 + ' + specialtyName + '规则', specialtyValue);
-        ruleSetSelect.add(option, 1);
-    }
-    ruleSetSelect.value = specialtyValue;
-    reviewRulePage = 1;
-    renderSelectedRuleSet();
+    selectedReviewRuleSources = new Set(getVisibleReviewGroups().filter(g => g.default_enabled !== false).map(g => g.source));
+    if (!selectedReviewRuleSources.size && getVisibleReviewGroups()[0]) selectedReviewRuleSources.add(getVisibleReviewGroups()[0].source);
+    if (ruleSetSearch) ruleSetSearch.value = '';
+    renderReviewRuleSetDropdown();
 }
 
-function renderSelectedRuleSet() {
-    const rules = getSelectedRules();
-    const enabled = rules.filter(r => r.enabled).length;
-    const totalPages = Math.max(1, Math.ceil(rules.length / reviewRulePageSize));
-    reviewRulePage = Math.min(reviewRulePage, totalPages);
-    const start = (reviewRulePage - 1) * reviewRulePageSize;
-    const pageRules = rules.slice(start, start + reviewRulePageSize);
+function isCommonReviewGroup(group) {
+    return (group.domain || 'common') === 'common';
+}
 
-    document.getElementById('reviewRuleTitle').textContent = getSelectedRuleSetName();
-    document.getElementById('reviewRuleStats').textContent = `${enabled}/${rules.length} 已启用`;
+function getVisibleReviewGroups() {
+    const specialtyId = reviewSpecialtySelect.value || '';
+    return reviewRuleGroups.filter(group => {
+        if (isCommonReviewGroup(group)) return true;
+        return specialtyId && group.domain === 'specialty' && (group.specialty_id || '') === specialtyId;
+    });
+}
 
-    const table = document.getElementById('reviewRuleTable');
-    const hint = document.getElementById('reviewNoRulesHint');
-    const tbody = document.getElementById('reviewRuleTableBody');
+function getSelectedReviewGroups() {
+    return getVisibleReviewGroups().filter(group => selectedReviewRuleSources.has(group.source));
+}
 
-    if (!rules.length) {
-        table.style.display = 'none';
-        hint.style.display = '';
-        tbody.innerHTML = '';
-        renderReviewRulePager(0);
+function toggleReviewRuleSet(source, checked, event) {
+    if (event) event.stopPropagation();
+    if (checked) selectedReviewRuleSources.add(source);
+    else selectedReviewRuleSources.delete(source);
+    renderReviewRuleSetDropdown();
+    ruleSetDropdownOpen = true;
+    if (ruleSetDropdown) ruleSetDropdown.classList.add('open');
+}
+
+function renderRuleSetSummary(selected) {
+    const target = document.getElementById('ruleSetSummary');
+    if (!target) return;
+    if (!selected.length) {
+        target.innerHTML = '<span class="rule-select-placeholder">请选择规则集</span>';
         return;
     }
-
-    table.style.display = '';
-    hint.style.display = 'none';
-    tbody.innerHTML = pageRules.map(rule => `
-        <tr>
-            <td><span class="status-dot ${rule.enabled ? 'on' : 'off'}" title="${rule.enabled ? '已启用' : '已禁用'}"></span></td>
-            <td>
-                <div class="rule-name-cell" title="${escapeHtml(rule.name)}">${escapeHtml(rule.name)}</div>
-            </td>
-            <td>${reviewTypeLabels[rule.review_type] || escapeHtml(rule.review_type)}</td>
-            <td>${scopeLabels[rule.scope] || escapeHtml(rule.scope || '全文')}</td>
-            <td><span class="badge ${severityBadges[rule.severity] || 'badge-default'}">${severityLabels[rule.severity] || escapeHtml(rule.severity)}</span></td>
-            <td>
-                <button class="btn btn-outline review-rule-toggle" onclick="toggleReviewRule('${escapeHtml(rule.rule_id)}', ${!rule.enabled})">
-                    ${rule.enabled ? '禁用' : '启用'}
-                </button>
-            </td>
-        </tr>
-    `).join('');
-
-    renderReviewRulePager(rules.length);
+    const visible = selected.map(group =>
+        `<span class="rule-select-chip" title="${escapeHtml(group.display_name || group.source)}">${escapeHtml(group.display_name || group.source)}</span>`
+    );
+    target.innerHTML = visible.join('');
 }
 
-function changeReviewRulePage(page) {
-    const rules = getSelectedRules();
-    const totalPages = Math.max(1, Math.ceil(rules.length / reviewRulePageSize));
-    reviewRulePage = Math.min(Math.max(1, page), totalPages);
-    renderSelectedRuleSet();
-}
-
-function renderReviewRulePager(totalItems) {
-    const pager = document.getElementById('reviewRulePager');
-    const totalPages = Math.ceil(totalItems / reviewRulePageSize);
-    if (!pager || totalPages <= 1) {
-        if (pager) pager.innerHTML = '';
+function renderReviewRuleSetDropdown() {
+    const groups = getVisibleReviewGroups();
+    if (!groups.length) {
+        ruleSetChecklist.innerHTML = '<div class="empty-state">当前专业暂无可用规则集</div>';
+        document.getElementById('ruleSetSummary').innerHTML = '<span class="rule-select-placeholder">无可用规则集</span>';
+        document.getElementById('ruleSetHint').textContent = '请先到审查规则管理中维护规则集。';
         return;
     }
-
-    pager.innerHTML = `
-        <button type="button" class="pager-btn" ${reviewRulePage <= 1 ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage - 1})">上一页</button>
-        <span class="pager-info">${reviewRulePage}/${totalPages}（${(reviewRulePage - 1) * reviewRulePageSize + 1}-${Math.min(totalItems, reviewRulePage * reviewRulePageSize)}/${totalItems}）</span>
-        <button type="button" class="pager-btn" ${reviewRulePage >= totalPages ? 'disabled' : ''} onclick="changeReviewRulePage(${reviewRulePage + 1})">下一页</button>
-    `;
+    const keyword = (ruleSetSearch ? ruleSetSearch.value : '').trim().toLowerCase();
+    const filtered = groups.filter(group => {
+        const text = `${group.display_name || ''} ${group.source || ''} ${group.document_kind || ''}`.toLowerCase();
+        return !keyword || text.includes(keyword);
+    });
+    ruleSetChecklist.innerHTML = filtered.length ? filtered.map(group => {
+        const checked = selectedReviewRuleSources.has(group.source);
+        return `
+        <div class="rule-select-item" onclick="toggleReviewRuleSet('${escapeHtml(group.source)}', ${!checked}, event)">
+            <span class="rule-select-check">${checked ? '✓' : ''}</span>
+            <span>
+                <span class="rule-select-name">${escapeHtml(group.display_name || group.source)}</span>
+                <span class="rule-select-sub">${escapeHtml(group.document_kind || '全部文档类型')}</span>
+            </span>
+            <span class="rule-select-count">${group.enabled}/${group.total}</span>
+        </div>`;
+    }).join('') : '<div class="empty-state">没有匹配的规则集</div>';
+    const selected = getSelectedReviewGroups();
+    const rules = getSelectedRules();
+    const enabled = rules.filter(rule => rule.enabled).length;
+    renderRuleSetSummary(selected);
+    document.getElementById('ruleSetHint').textContent =
+        selected.length ? `启用规则 ${enabled} 条 / 共 ${rules.length} 条` : '请至少勾选一个规则集。';
 }
 
-function toggleReviewRule(ruleId, enabled) {
-    fetch('/rules/api/rules/' + encodeURIComponent(ruleId), {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({enabled: enabled}),
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.error) { alert(data.error); return; }
-        loadReviewRules();
-    })
-    .catch(err => alert('规则状态更新失败: ' + err.message));
+function toggleRuleSetDropdown(event) {
+    if (event) event.stopPropagation();
+    ruleSetDropdownOpen = !ruleSetDropdownOpen;
+    ruleSetDropdown.classList.toggle('open', ruleSetDropdownOpen);
+    if (ruleSetDropdownOpen && ruleSetSearch) {
+        setTimeout(() => ruleSetSearch.focus(), 0);
+    }
+}
+
+function closeRuleSetDropdown() {
+    ruleSetDropdownOpen = false;
+    if (ruleSetDropdown) ruleSetDropdown.classList.remove('open');
 }
 
 function handleFile(file) {
@@ -542,13 +617,24 @@ function handleFile(file) {
 
 function startReview() {
     if (!selectedFile) return;
+    if (!reviewSpecialtySelect.value) {
+        alert('请先选择文档所属专业');
+        return;
+    }
 
     startBtn.disabled = true;
     startBtn.textContent = '上传中...';
 
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('rule_set', ruleSetSelect.value);
+    const selectedSources = Array.from(selectedReviewRuleSources);
+    if (!selectedSources.length) {
+        alert('请至少勾选一个规则集');
+        startBtn.disabled = false;
+        startBtn.textContent = '开始审查';
+        return;
+    }
+    formData.append('rule_set', selectedSources.join(','));
     formData.append('model_id', reviewModelSelect.value || 'system_default');
     formData.append('specialty_id', reviewSpecialtySelect.value || '');
 

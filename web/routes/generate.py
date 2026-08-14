@@ -224,6 +224,32 @@ def download(task_id):
     return '文件不存在', 404
 
 
+@bp.route('/preview/<int:task_id>')
+def preview(task_id):
+    task = current_app.db.get_generate_task(task_id)
+    if not task or task.get('status') != 'completed':
+        return '文件未就绪', 404
+
+    result_path = task.get('result_path')
+    if not result_path or not os.path.exists(result_path):
+        return '文件不存在', 404
+    if not result_path.lower().endswith('.docx'):
+        return '当前仅支持 DOCX 文档预览', 400
+
+    try:
+        preview_data = _build_docx_preview(result_path)
+    except Exception as exc:
+        current_app.logger.exception("生成文档预览失败")
+        return f'预览失败：{exc}', 500
+    return render_template(
+        'generate_preview.html',
+        active_page='generate',
+        task=task,
+        filename=os.path.basename(result_path),
+        preview=preview_data,
+    )
+
+
 @bp.route('/review/<int:task_id>', methods=['POST'])
 def review_generated(task_id):
     """Create a review task for a generated DOCX and jump into the review flow."""
@@ -368,6 +394,123 @@ def revise_generated(task_id):
     })
 
 
+@bp.route('/revise/suggest/<int:task_id>', methods=['POST'])
+def suggest_generated_revisions(task_id):
+    """Create confirmable local revision suggestions for a generated DOCX."""
+    task = current_app.db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成记录不存在'}), 404
+    if task.get('status') != 'completed':
+        return jsonify({'error': '只有已完成的生成文档可以继续对话修改'}), 400
+    result_path = task.get('result_path')
+    if not result_path or not os.path.exists(result_path):
+        return jsonify({'error': '生成文档文件不存在，无法修改'}), 404
+    if not result_path.lower().endswith('.docx'):
+        return jsonify({'error': '当前仅支持 DOCX 文档对话修改'}), 400
+
+    payload = request.get_json(silent=True) or {}
+    instruction = str(payload.get('message') or '').strip()
+    supplement_text = str(payload.get('supplement_doc_text') or '').strip()
+    if not instruction:
+        return jsonify({'error': '请输入修改意见'}), 400
+
+    params_data = _load_generate_task_params(task)
+
+    from config.settings import settings
+    from llm.client import LLMClientFactory
+    from web.option_registry import resolve_model_option
+
+    model_option = resolve_model_option(payload.get('model_id') or task.get('model_id'), 'generate')
+    provider = model_option.get('provider') or settings.llm_provider
+    client_kwargs = {'model': model_option.get('model') or None}
+    if model_option.get('base_url'):
+        client_kwargs['base_url'] = model_option.get('base_url')
+    if model_option.get('api_key'):
+        client_kwargs['api_key'] = model_option.get('api_key')
+    try:
+        llm_client = LLMClientFactory.create_client(provider, **client_kwargs)
+        suggestion_result = _suggest_generated_docx_revisions(
+            source_path=result_path,
+            instruction=instruction,
+            supplement_text=supplement_text,
+            params=params_data,
+            llm_client=llm_client,
+        )
+    except Exception as exc:
+        current_app.logger.exception("生成文档修订建议失败")
+        return jsonify({'error': f'修订建议生成失败：{exc}'}), 500
+
+    params_data['pending_revision_suggestions'] = suggestion_result
+    _save_generate_task_params(task_id, params_data)
+    return jsonify({'ok': True, **suggestion_result})
+
+
+@bp.route('/revise/apply/<int:task_id>', methods=['POST'])
+def apply_generated_revisions(task_id):
+    """Apply selected revision suggestions to the latest generated DOCX."""
+    task = current_app.db.get_generate_task(task_id)
+    if not task:
+        return jsonify({'error': '生成记录不存在'}), 404
+    if task.get('status') != 'completed':
+        return jsonify({'error': '只有已完成的生成文档可以应用修改'}), 400
+    result_path = task.get('result_path')
+    if not result_path or not os.path.exists(result_path):
+        return jsonify({'error': '生成文档文件不存在，无法修改'}), 404
+
+    payload = request.get_json(silent=True) or {}
+    selected_ids = [str(item) for item in (payload.get('suggestion_ids') or []) if str(item).strip()]
+    params_data = _load_generate_task_params(task)
+    pending = params_data.get('pending_revision_suggestions') or {}
+    suggestions = pending.get('suggestions') if isinstance(pending, dict) else []
+    if not isinstance(suggestions, list) or not suggestions:
+        return jsonify({'error': '暂无可应用的修订建议，请先发送修改意见生成建议'}), 400
+    selected = [
+        item for item in suggestions
+        if isinstance(item, dict) and (not selected_ids or str(item.get('id')) in selected_ids)
+    ]
+    if not selected:
+        return jsonify({'error': '请选择需要应用的修订建议'}), 400
+
+    try:
+        revised = _apply_generated_docx_revision_suggestions(
+            source_path=result_path,
+            suggestions=selected,
+            params=params_data,
+            output_dir=os.path.dirname(result_path),
+        )
+    except Exception as exc:
+        current_app.logger.exception("应用生成文档修订建议失败")
+        return jsonify({'error': f'应用修改失败：{exc}'}), 500
+
+    history = params_data.get('revision_history')
+    if not isinstance(history, list):
+        history = []
+    history.append({
+        'version': revised['version'],
+        'message': pending.get('instruction') or payload.get('message') or '应用修订建议',
+        'summary': revised.get('summary') or f"已应用 {len(selected)} 条修订建议",
+        'result_path': revised['path'],
+        'created_at': beijing_now_str(),
+    })
+    params_data['revision_history'] = history
+    params_data['latest_revision_version'] = revised['version']
+    params_data['pending_revision_suggestions'] = {}
+    _save_generate_task_params(task_id, params_data)
+    current_app.db.update_generate_task(
+        task_id,
+        result_path=revised['path'],
+        progress_message=f"已完成第 {revised['version']} 版对话修改",
+        completed_at=beijing_now_str(),
+    )
+    return jsonify({
+        'ok': True,
+        'version': revised['version'],
+        'summary': revised.get('summary') or '',
+        'filename': os.path.basename(revised['path']),
+        'revision_history': history,
+    })
+
+
 @bp.route('/delete/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
     task = current_app.db.get_generate_task(task_id)
@@ -432,9 +575,11 @@ def _create_generation_task(data: dict):
         parsed_brief = {**parsed_brief, **{key: value for key, value in llm_parsed_brief.items() if value}}
     data['title'] = str(
         parsed_brief.get('title')
-        or _derive_title_from_brief(generation_brief, template.name)
         or data.get('title')
+        or _derive_title_from_brief(generation_brief, template.name)
     ).strip()
+    inputs['title'] = data['title']
+    inputs['document_title'] = data['title']
     dynamic_values = inputs.get('dynamic_fields') or {}
     missing_dynamic = [
         field.label
@@ -445,8 +590,13 @@ def _create_generation_task(data: dict):
         return jsonify({'error': f"请填写模板必填项：{'、'.join(missing_dynamic)}"}), 400
     data['inputs'] = inputs
     specialty = get_specialty(data.get('specialty_id'))
+    if not specialty:
+        return jsonify({'error': '请先选择专业'}), 400
     specialty_id = specialty.get('id') if specialty else ''
     specialty_name = specialty.get('name') if specialty else ''
+    template_specialty_id = str((template_dict.get('metadata') or {}).get('specialty_id') or '').strip()
+    if template_specialty_id != specialty_id:
+        return jsonify({'error': '所选模板不属于当前专业，请重新选择模板'}), 400
     selected_cases = _resolve_template_reference_cases(
         template_dict,
         data.get('reference_case_ids') if isinstance(data.get('reference_case_ids'), list) else [],
@@ -515,6 +665,23 @@ def _create_generation_task(data: dict):
     return jsonify({'task_id': new_task_id, 'rerun_from': data.get('rerun_from')})
 
 
+def _load_generate_task_params(task: dict) -> dict:
+    try:
+        params = json.loads(task.get('params') or '{}')
+    except (TypeError, json.JSONDecodeError):
+        params = {}
+    return params if isinstance(params, dict) else {}
+
+
+def _save_generate_task_params(task_id: int, params: dict):
+    cursor = current_app.db.conn.cursor()
+    cursor.execute(
+        'UPDATE generate_tasks SET params = ? WHERE id = ?',
+        (json.dumps(params, ensure_ascii=False), task_id),
+    )
+    current_app.db.conn.commit()
+
+
 def _revise_generated_docx(
     *,
     source_path: str,
@@ -553,6 +720,83 @@ def _revise_generated_docx(
         'path': str(output_path),
         'version': version,
         'summary': operation.get('summary') or '',
+    }
+
+
+def _suggest_generated_docx_revisions(
+    *,
+    source_path: str,
+    instruction: str,
+    supplement_text: str = '',
+    params: dict,
+    llm_client,
+) -> dict:
+    from docx import Document
+
+    doc = Document(str(source_path))
+    context = _extract_docx_revision_context(doc)
+    prompt = _build_revision_suggestion_prompt(
+        instruction=instruction,
+        supplement_text=supplement_text,
+        params=params,
+        context=context,
+    )
+    response = llm_client.generate(prompt, system_prompt=(
+        "你是航空技术文档修订建议助手。你的任务是定位需要修改的章节或段落，"
+        "输出可由用户确认的局部修订建议。只输出 JSON 对象，不要输出 Markdown。"
+    ))
+    result = _parse_revision_suggestions(getattr(response, 'content', '') or '')
+    suggestions = result.get('suggestions') or []
+    if not suggestions:
+        raise RuntimeError("模型未返回可确认的修订建议，请更明确说明要修改的章节或原文")
+    suggestion_id = uuid.uuid4().hex
+    for index, item in enumerate(suggestions, start=1):
+        item['id'] = f"{suggestion_id}_{index}"
+        item['status'] = 'pending'
+    return {
+        'batch_id': suggestion_id,
+        'instruction': instruction,
+        'summary': result.get('summary') or f"共生成 {len(suggestions)} 条修订建议",
+        'created_at': beijing_now_str(),
+        'suggestions': suggestions,
+    }
+
+
+def _apply_generated_docx_revision_suggestions(
+    *,
+    source_path: str,
+    suggestions: list[dict],
+    params: dict,
+    output_dir: str,
+) -> dict:
+    from docx import Document
+
+    source = Path(source_path)
+    version = _next_revision_version(params)
+    output_path = Path(output_dir) / f"{source.stem}_v{version}{source.suffix}"
+    shutil.copyfile(source, output_path)
+    doc = Document(str(output_path))
+    applied_count = 0
+    failed = []
+    for item in suggestions:
+        operation = _revision_suggestion_to_operation(item)
+        applied = _apply_docx_revision_operation(doc, operation)
+        if applied:
+            applied_count += 1
+        else:
+            failed.append(item.get('id') or item.get('target_heading') or item.get('action'))
+    if applied_count == 0:
+        raise RuntimeError("未能在文档中定位到可修改位置，请重新生成更明确的修订建议")
+    doc.save(str(output_path))
+    summary = f"已应用 {applied_count} 条修订建议"
+    if failed:
+        summary += f"，{len(failed)} 条未定位"
+    return {
+        'path': str(output_path),
+        'version': version,
+        'summary': summary,
+        'applied_count': applied_count,
+        'failed': failed,
     }
 
 
@@ -629,6 +873,48 @@ def _build_revision_prompt(*, instruction: str, supplement_text: str = '', param
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def _build_revision_suggestion_prompt(*, instruction: str, supplement_text: str = '', params: dict, context: dict) -> str:
+    payload = {
+        'task': '根据用户修改意见，为当前 DOCX 生成可确认的局部修订建议清单。不要通篇重写。',
+        'document_meta': {
+            'title': params.get('title') or '',
+            'template_name': params.get('template_name') or '',
+            'document_kind_name': params.get('document_kind_name') or '',
+            'specialty_name': params.get('specialty_name') or '',
+        },
+        'user_instruction': instruction,
+        'supplement_material': _truncate_for_llm_parse(supplement_text, max_chars=12000) if supplement_text else '',
+        'available_headings': context.get('headings') or [],
+        'document_excerpt': context.get('excerpt') or '',
+        'output_schema': {
+            'summary': '一句话概括本轮建议',
+            'suggestions': [
+                {
+                    'action': 'replace 或 append',
+                    'target_heading': '优先填写要修改的章节标题；不确定则留空',
+                    'old_text_hint': 'replace 时填写当前文档中的一小段连续原文；append 时可留空',
+                    'new_text': '建议写入 Word 的正式正文，不能包含章节标题，不能使用 Markdown 表格',
+                    'reason': '为什么建议这样修改',
+                    'confidence': '0 到 1 的小数；定位越明确越高',
+                    'need_confirm': 'true/false；涉及事实、参数、结论或定位不确定时为 true',
+                }
+            ],
+        },
+        'rules': [
+            '每条 suggestion 只修改一个明确位置；如用户要求多处修改，拆成多条 suggestions。',
+            '优先做局部 replace 或 append，不要建议全文重写。',
+            '只依据当前文档内容、用户修改意见和补充材料修订，不编造用户未提供的新数据。',
+            '不得改变标题层级、模板格式、表格结构、页眉页脚或页面布局。',
+            'replace 必须提供 old_text_hint，且该 hint 应来自 document_excerpt 中的连续原文片段。',
+            'append 必须选择最相关 target_heading，新内容只写正式正文。',
+            'new_text 不要写 Markdown、解释性话语、章节标题或“修改建议”等标签。',
+            '如果用户要求全文统一术语，可以给出少量高置信替换建议；无法穷尽时在 reason 中说明需人工确认。',
+            '最多返回 8 条 suggestions。',
+        ],
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
 def _parse_revision_operation(content: str) -> dict:
     import re
 
@@ -658,6 +944,96 @@ def _parse_revision_operation(content: str) -> dict:
         'new_text': _sanitize_revision_text(new_text),
         'summary': str(data.get('summary') or '').strip(),
     }
+
+
+def _parse_revision_suggestions(content: str) -> dict:
+    data = _parse_json_object(content)
+    if not data:
+        operation = _parse_revision_operation(content)
+        if not operation:
+            return {}
+        return {
+            'summary': operation.get('summary') or '已生成 1 条修订建议',
+            'suggestions': [_operation_to_revision_suggestion(operation)],
+        }
+    raw_suggestions = data.get('suggestions') or data.get('patches') or []
+    if isinstance(raw_suggestions, dict):
+        raw_suggestions = [raw_suggestions]
+    suggestions = []
+    for item in raw_suggestions:
+        if not isinstance(item, dict):
+            continue
+        action = str(item.get('action') or item.get('operation') or '').strip().lower()
+        if action not in {'replace', 'append'}:
+            action = 'append'
+        new_text = _sanitize_revision_text(str(item.get('new_text') or '').strip())
+        if not new_text:
+            continue
+        suggestion = {
+            'action': action,
+            'target_heading': str(item.get('target_heading') or '').strip(),
+            'old_text_hint': str(item.get('old_text_hint') or '').strip(),
+            'new_text': new_text,
+            'reason': str(item.get('reason') or item.get('summary') or '').strip(),
+            'confidence': _clamp_confidence(item.get('confidence')),
+            'need_confirm': bool(item.get('need_confirm', False)),
+        }
+        if suggestion['action'] == 'replace' and not suggestion['old_text_hint']:
+            suggestion['need_confirm'] = True
+        suggestions.append(suggestion)
+        if len(suggestions) >= 8:
+            break
+    return {
+        'summary': str(data.get('summary') or '').strip(),
+        'suggestions': suggestions,
+    }
+
+
+def _parse_json_object(content: str) -> dict:
+    import re
+
+    raw = str(content or '').strip()
+    if raw.startswith('```'):
+        raw = re.sub(r'^```(?:json)?\s*', '', raw)
+        raw = re.sub(r'\s*```$', '', raw)
+    match = re.search(r'\{.*\}', raw, flags=re.S)
+    if match:
+        raw = match.group(0)
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _operation_to_revision_suggestion(operation: dict) -> dict:
+    return {
+        'action': operation.get('operation') or 'append',
+        'target_heading': operation.get('target_heading') or '',
+        'old_text_hint': operation.get('old_text_hint') or '',
+        'new_text': operation.get('new_text') or '',
+        'reason': operation.get('summary') or '',
+        'confidence': 0.7,
+        'need_confirm': True,
+    }
+
+
+def _revision_suggestion_to_operation(suggestion: dict) -> dict:
+    return {
+        'operation': str(suggestion.get('action') or suggestion.get('operation') or 'append').strip().lower(),
+        'target_heading': str(suggestion.get('target_heading') or '').strip(),
+        'old_text_hint': str(suggestion.get('old_text_hint') or '').strip(),
+        'new_text': _sanitize_revision_text(str(suggestion.get('new_text') or '')),
+        'summary': str(suggestion.get('reason') or suggestion.get('summary') or '').strip(),
+    }
+
+
+def _clamp_confidence(value) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.6
+    return max(0.0, min(1.0, number))
 
 
 def _sanitize_revision_text(text: str) -> str:
@@ -1021,6 +1397,11 @@ def _parse_generation_brief(brief: str, extra_labels=None) -> dict:
                 field_values[label].append(value)
             continue
         if current_key:
+            if current_key in {'title', 'product_name', 'project_name', 'test_item'} and not parsed.get(current_key):
+                parsed.setdefault(current_key, []).append(line)
+                if current_label:
+                    field_values.setdefault(current_label, []).append(line)
+                continue
             loose_key = _classify_loose_brief_line(line)
             if current_key in {'title', 'product_name', 'project_name', 'test_item'} and loose_key and loose_key != current_key:
                 parsed.setdefault(loose_key, []).append(line)
@@ -1397,6 +1778,50 @@ def _infer_references_from_brief(brief: str) -> str:
 def _has_source_docx(template: dict) -> bool:
     metadata = template.get("metadata") or {}
     return bool(metadata.get("source_docx_path") or metadata.get("source_path"))
+
+
+def _build_docx_preview(path: str, max_items: int = 500) -> dict:
+    from docx import Document
+
+    doc = Document(path)
+    items = []
+    paragraph_count = 0
+    table_count = 0
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if not text:
+            continue
+        style_name = str(getattr(paragraph.style, 'name', '') or '')
+        kind = 'heading' if style_name.lower().startswith('heading') or style_name.startswith('标题') else 'paragraph'
+        items.append({
+            'type': kind,
+            'text': text,
+            'style': style_name,
+        })
+        paragraph_count += 1
+        if len(items) >= max_items:
+            break
+    if len(items) < max_items:
+        for table in doc.tables:
+            rows = []
+            for row in table.rows[:40]:
+                cells = [cell.text.strip() for cell in row.cells]
+                if any(cells):
+                    rows.append(cells)
+            if rows:
+                items.append({
+                    'type': 'table',
+                    'rows': rows,
+                })
+                table_count += 1
+            if len(items) >= max_items:
+                break
+    return {
+        'items': items,
+        'paragraph_count': paragraph_count,
+        'table_count': table_count,
+        'truncated': len(items) >= max_items,
+    }
 
 
 def _wait_if_generation_paused(db, task_id: int):

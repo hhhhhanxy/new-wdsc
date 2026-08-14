@@ -1,7 +1,7 @@
 [project]
 name = "new-wdsc"
 version = "0.1.0"
-description = "文档审查与生成平台"
+description = "技术文档智能审查与辅助生成平台"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "flask>=3.0.0,<4.0.0",
@@ -27,4 +27,3 @@ dev = [
 
 [tool.uv]
 package = false
-

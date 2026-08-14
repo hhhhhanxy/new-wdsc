@@ -50,11 +50,16 @@ body {
     left: 0;
     bottom: 0;
     z-index: 100;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(47, 116, 224, 0.32) transparent;
 }
 
 .sidebar-brand {
     padding: 22px 18px;
     border-bottom: 1px solid #cad9e8;
+    flex: 0 0 auto;
 }
 
 .sidebar-brand-title {
@@ -88,8 +93,25 @@ body {
 }
 
 .sidebar-nav {
-    flex: 1;
+    flex: 0 0 auto;
     padding: 12px 0;
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(47, 116, 224, 0.26);
+    border-radius: 999px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(47, 116, 224, 0.42);
 }
 
 .sidebar-nav a {
@@ -164,9 +186,9 @@ body {
     width: 26px;
     height: 26px;
     margin-right: 10px;
-    border: 1px solid rgba(47, 116, 224, 0.18);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.46);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: #376a9a;
     cursor: pointer;
     transition: background 0.18s, border-color 0.18s, transform 0.18s;
@@ -185,8 +207,8 @@ body {
 }
 
 .sidebar-tree-toggle:hover {
-    border-color: rgba(47, 116, 224, 0.38);
-    background: rgba(47, 116, 224, 0.08);
+    color: #1d5fbf;
+    background: transparent;
 }
 
 .sidebar-tree-group.collapsed .sidebar-tree-toggle::before {
@@ -202,7 +224,7 @@ body {
     border-left: 1px solid rgba(74, 129, 186, 0.24);
     overflow: hidden;
     transition: max-height 0.22s ease, opacity 0.18s ease, margin 0.22s ease, padding 0.22s ease;
-    max-height: 360px;
+    max-height: none;
     opacity: 1;
 }
 
@@ -251,41 +273,63 @@ body {
     background: rgba(47, 116, 224, 0.06);
 }
 
-.sidebar-specialty-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 6px;
-}
-
-.sidebar-specialty-row .sidebar-subnav-link {
-    min-width: 0;
-}
-
-.sidebar-asset-shortcut {
-    display: grid;
-    place-items: center;
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    color: #3d6e9d;
-    line-height: 1;
-    background: transparent;
-}
-
-.sidebar-asset-shortcut:hover {
+.sidebar-nav .sidebar-subnav-link.active {
     color: #1d5fbf;
-    background: rgba(47, 116, 224, 0.08);
-    border-color: rgba(47, 116, 224, 0.18);
+    background: rgba(47, 116, 224, 0.11);
 }
 
-.asset-shortcut-icon {
-    display: block;
-    font-size: 15px;
-    line-height: 1;
-    transform: translateY(-1px);
+.sidebar-level2-group {
+    display: grid;
+    gap: 2px;
+}
+
+.sidebar-level2-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 8px 0 2px;
+    padding: 6px 12px 4px 8px;
+    border: 0;
+    background: transparent;
+    color: #2f5f88;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.sidebar-level2-title:hover {
+    color: #1d5fbf;
+}
+
+.sidebar-level2-arrow {
+    width: 7px;
+    height: 7px;
+    border-right: 1.8px solid currentColor;
+    border-bottom: 1.8px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.18s;
+}
+
+.sidebar-level2-group.collapsed .sidebar-level2-arrow {
+    transform: rotate(-45deg);
+}
+
+.sidebar-level3-list {
+    display: grid;
+    gap: 3px;
+    overflow: hidden;
+}
+
+.sidebar-level2-group.collapsed .sidebar-level3-list {
+    display: none;
+}
+
+.sidebar-nav .sidebar-level3-link {
+    margin-left: 10px;
+    padding-left: 18px;
+    font-size: 13px;
 }
 
 /* Main content */
@@ -1644,7 +1688,106 @@ textarea.form-control {
 
 .hidden { display: none !important; }
 
-/* Knowledge base placeholder */
+/* Knowledge base */
+.external-knowledge-workspace {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.external-knowledge-nav,
+.external-knowledge-group {
+    display: grid;
+    gap: 4px;
+}
+
+.external-knowledge-group-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin: 8px 0 3px;
+    padding: 4px 8px;
+    border: 0;
+    background: transparent;
+    color: #2f5f88;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.external-knowledge-group-title:hover {
+    color: #168fd3;
+}
+
+.external-knowledge-group-arrow {
+    width: 7px;
+    height: 7px;
+    border-right: 1.8px solid currentColor;
+    border-bottom: 1.8px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.18s;
+}
+
+.external-knowledge-group.collapsed .external-knowledge-group-arrow {
+    transform: rotate(-45deg);
+}
+
+.external-knowledge-group-body {
+    display: grid;
+    gap: 4px;
+}
+
+.external-knowledge-group.collapsed .external-knowledge-group-body {
+    display: none;
+}
+
+.external-knowledge-node {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+}
+
+.external-knowledge-node:hover {
+    background: #f7fcff;
+}
+
+.external-knowledge-node.active {
+    border-color: #bee8fb;
+    background: #edf9ff;
+    color: #168fd3;
+    font-weight: 700;
+}
+
+.external-knowledge-context {
+    padding: 10px 12px;
+    border: 1px solid #d7eefa;
+    border-radius: 8px;
+    background: #f7fcff;
+    margin-bottom: 12px;
+}
+
+.external-knowledge-context-title {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.external-knowledge-context-meta {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
 .knowledge-placeholder {
     max-width: 980px;
 }
@@ -1660,7 +1803,7 @@ textarea.form-control {
     padding: 16px;
     border: 1px solid var(--border);
     border-radius: 6px;
-    background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%);
+    background: #fff;
 }
 
 .knowledge-placeholder-item h3 {
@@ -2220,6 +2363,7 @@ textarea.form-control {
         gap: 16px;
     }
 
+    .external-knowledge-workspace,
     .knowledge-placeholder-grid {
         grid-template-columns: 1fr;
     }

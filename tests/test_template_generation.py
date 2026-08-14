@@ -357,6 +357,50 @@ def test_template_docx_generator_fills_source_docx_and_removes_red_instructions(
     assert "某型电动作动器鉴定试验" in text
 
 
+def test_template_docx_generator_replaces_fixed_template_title(tmp_path, monkeypatch):
+    from generators.base_generator import GeneratorFactory
+    from templates.template_manager import ChapterTemplate, DocumentTemplate
+
+    template_path = tmp_path / "title_template.docx"
+    template_doc = Document()
+    template_doc.add_heading("XX型飞机航电系统国产化升级项目", level=0)
+    template_doc.add_heading("1 目的", level=1)
+    template_doc.add_paragraph("NNNNN 的试验目的待补充。")
+    template_doc.save(template_path)
+
+    template = DocumentTemplate(
+        template_id="title_template",
+        name="标题替换模板",
+        description="用于验证固定模板标题替换",
+        source_type="uploaded_docx",
+        metadata={"source_path": str(template_path)},
+        chapters=[
+            ChapterTemplate(number="1", title="目的", placeholders=["NNNNN", "待补充"]),
+        ],
+    )
+
+    class FakeTemplateManager:
+        def get_template(self, template_id):
+            return template if template_id == "title_template" else None
+
+    monkeypatch.setattr("templates.template_manager.TemplateManager", FakeTemplateManager)
+
+    output_path = tmp_path / "generated.docx"
+    GeneratorFactory.create("template_docx").generate(
+        title="某型飞机大气数据模块环境适应性试验大纲",
+        params={
+            "template_id": "title_template",
+            "inputs": {"product_name": "ADM-200型大气数据模块"},
+        },
+        llm_client=FakeLLMClient(),
+        output_path=str(output_path),
+    )
+
+    text = "\n".join(p.text for p in Document(output_path).paragraphs)
+    assert "某型飞机大气数据模块环境适应性试验大纲" in text
+    assert "XX型飞机航电系统国产化升级项目" not in text
+
+
 def test_template_docx_generator_uses_llm_for_smart_generation(tmp_path, monkeypatch):
     from generators.base_generator import GeneratorFactory
     from templates.template_manager import ChapterTemplate, DocumentTemplate
@@ -1186,6 +1230,9 @@ def test_generated_docx_quality_checker_flags_placeholder_and_guidance(tmp_path)
     codes = {item["code"] for item in result["checks"] if not item["passed"]}
     assert "placeholder_residue" in codes
     assert "guidance_residue" in codes
+    failed = {item["code"]: item for item in result["checks"] if not item["passed"]}
+    assert failed["placeholder_residue"]["locations"][0]["location"].startswith("段落")
+    assert "NNNNN" in failed["placeholder_residue"]["locations"][0]["excerpt"]
 
 
 def test_generate_start_requires_product_name():

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}文档预览 - 技术文档智能审查与辅助生成平台{% endblock %}
+
+{% block content %}
+<style>
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    padding-bottom: 14px;
+    border-bottom: 3px solid rgba(33, 168, 243, 0.28);
+}
+.preview-header h1 {
+    margin-bottom: 6px;
+}
+.preview-meta {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+.preview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.preview-shell {
+    margin-top: 14px;
+    padding: 18px 24px;
+    border: 1px solid #d9e7f5;
+    border-radius: 8px;
+    background: #fff;
+}
+.preview-item {
+    margin: 0 0 10px;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.75;
+}
+.preview-heading {
+    margin: 18px 0 8px;
+    color: var(--text);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.preview-table-wrap {
+    margin: 14px 0;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.preview-table {
+    width: 100%;
+    min-width: 520px;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.preview-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.55;
+}
+.preview-table tr:last-child td {
+    border-bottom: 0;
+}
+.preview-table td:last-child {
+    border-right: 0;
+}
+.preview-note {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid #d9e7f5;
+    border-radius: 8px;
+    background: #f8fbff;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+</style>
+
+<div class="preview-header">
+    <div>
+        <h1>文档预览</h1>
+        <div class="preview-meta">
+            {{ filename }}<br>
+            共读取 {{ preview.paragraph_count }} 段正文，{{ preview.table_count }} 个表格
+        </div>
+    </div>
+    <div class="preview-actions">
+        <a class="btn btn-outline" href="/generate/">返回生成页</a>
+        <a class="btn btn-success" href="/generate/download/{{ task.id }}">下载 DOCX</a>
+    </div>
+</div>
+
+{% if preview.truncated %}
+<div class="preview-note">文档内容较长，当前预览仅展示前 {{ preview.items|length }} 个内容块。正式文件请下载 DOCX 查看完整内容。</div>
+{% else %}
+<div class="preview-note">当前为内容预览，用于快速核对正文和表格文本；正式排版、页眉页脚和分页以下载的 DOCX 为准。</div>
+{% endif %}
+
+<div class="preview-shell">
+    {% if preview.items %}
+        {% for item in preview.items %}
+            {% if item.type == 'heading' %}
+                <div class="preview-heading">{{ item.text }}</div>
+            {% elif item.type == 'table' %}
+                <div class="preview-table-wrap">
+                    <table class="preview-table">
+                        {% for row in item.rows %}
+                        <tr>
+                            {% for cell in row %}
+                            <td>{{ cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            {% else %}
+                <p class="preview-item">{{ item.text }}</p>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">未解析到可预览内容，请下载 DOCX 查看。</div>
+    {% endif %}
+</div>
+{% endblock %}

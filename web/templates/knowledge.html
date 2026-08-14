@@ -1,27 +1,28 @@
 {% extends "base.html" %}
-{% block title %}知识库 - 文档审查与生成平台{% endblock %}
+{% block title %}知识库 - 技术文档智能审查与辅助生成平台{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <h1>知识库</h1>
-    <p>预留用于管理审查与生成流程可引用的领域知识、标准依据和项目资料</p>
+    <p>集中维护文档审查与生成流程中可复用的规则、模板和优秀案例</p>
 </div>
 
-<div class="panel knowledge-placeholder">
-    <div class="panel-title">知识库能力预留</div>
-    <div class="knowledge-placeholder-grid">
-        <div class="knowledge-placeholder-item">
-            <h3>审查外挂</h3>
-            <p>后续可在文档审查时检索标准条款、领域约束和历史问题，为规则与 LLM 审查提供依据。</p>
+<div class="knowledge-entry-grid">
+    <div class="knowledge-entry-card">
+        <div>
+            <span class="knowledge-entry-kicker">审查知识</span>
+            <h2>审查规则管理</h2>
+            <p>维护通用规则、专业规则和规则集，供文档审查时按专业选择和组合使用。</p>
         </div>
-        <div class="knowledge-placeholder-item">
-            <h3>生成外挂</h3>
-            <p>后续可在文档生成时引用模板片段、产品参数和项目背景，减少重复输入。</p>
+        <a class="btn btn-primary" href="/rules/">进入</a>
+    </div>
+    <div class="knowledge-entry-card">
+        <div>
+            <span class="knowledge-entry-kicker">生成资产</span>
+            <h2>文档模板库及案例</h2>
+            <p>按专业管理文档模板、优秀案例及模板案例关联关系，供文档生成时直接引用。</p>
         </div>
-        <div class="knowledge-placeholder-item">
-            <h3>资料管理</h3>
-            <p>后续可接入文件上传、索引状态、标签分类、版本记录和引用追踪。</p>
-        </div>
+        <a class="btn btn-primary" href="/template-library/">进入</a>
     </div>
 </div>
 {% endblock %}

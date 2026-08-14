@@ -1,12 +1,202 @@
 {% extends "base.html" %}
-{% block title %}首页 - 文档审查与生成平台{% endblock %}
+{% block title %}首页 - 技术文档智能审查与辅助生成平台{% endblock %}
 
 {% block content %}
+<style>
+.company-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+}
+.overview-card {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+.overview-card span {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.overview-card strong {
+    display: block;
+    margin-top: 8px;
+    color: var(--text);
+    font-size: 28px;
+    line-height: 1.1;
+}
+.overview-card.blue strong { color: var(--primary); }
+.overview-card.green strong { color: var(--success); }
+.overview-card.orange strong { color: var(--warning); }
+.overview-card.purple strong { color: var(--purple); }
+.overview-card.red strong { color: var(--danger); }
+.company-chart-panel {
+    margin-top: 14px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+.company-chart-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+.company-chart-head h3 {
+    margin: 0;
+    font-size: 17px;
+}
+.company-chart-head p {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.specialty-bar-chart {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 18px;
+    align-items: flex-end;
+    min-height: 260px;
+    padding: 18px 14px 12px;
+    border: 1px solid #e4edf6;
+    border-radius: 8px;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0,
+            transparent calc(20% - 1px),
+            rgba(47, 116, 224, 0.08) calc(20% - 1px),
+            rgba(47, 116, 224, 0.08) 20%
+        ),
+        #fbfdff;
+}
+.specialty-bar-group {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 10px;
+    align-self: stretch;
+    min-width: 0;
+}
+.specialty-bar-group-title {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+}
+.specialty-bar-group-body {
+    display: grid;
+    grid-template-columns: repeat(var(--specialty-count, 1), minmax(0, 1fr));
+    gap: 10px;
+    align-items: flex-end;
+    height: 242px;
+    padding: 0 10px;
+    border-left: 1px solid rgba(47, 116, 224, 0.12);
+}
+.specialty-bar-group:first-child .specialty-bar-group-body {
+    border-left: 0;
+}
+.specialty-bar-row {
+    display: grid;
+    grid-template-rows: 24px 170px minmax(44px, auto);
+    gap: 8px;
+    align-items: end;
+    justify-items: center;
+    min-width: 0;
+}
+.specialty-bar-name {
+    align-self: start;
+    max-width: 74px;
+    min-height: 38px;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.25;
+    text-align: center;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+.specialty-bar-track {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    width: 28px;
+    height: 170px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: rgba(238, 245, 251, 0.82);
+}
+.specialty-bar-fill {
+    display: block;
+    width: 100%;
+    min-height: 2px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, #21a8f3, #2f74e0);
+    box-shadow: 0 4px 12px rgba(33, 168, 243, 0.18);
+}
+.specialty-bar-value {
+    align-self: end;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+}
+.specialty-axis {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.specialty-axis-scale {
+    display: flex;
+    justify-content: space-between;
+}
+.home-section-title {
+    margin: 18px 0 10px;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+}
+@media (max-width: 1280px) {
+    .company-overview-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (max-width: 760px) {
+    .company-overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .specialty-bar-row {
+        min-width: 54px;
+    }
+    .specialty-bar-chart {
+        display: flex;
+        overflow-x: auto;
+        align-items: flex-end;
+    }
+    .specialty-bar-group {
+        min-width: max-content;
+    }
+    .specialty-bar-group-body {
+        display: flex;
+    }
+    .specialty-bar-group-body {
+        padding: 0 6px;
+    }
+}
+</style>
 <div class="home-page">
 <section class="home-hero">
     <div class="home-hero-copy">
-        <h1>航空作动技术文档<br><span>审查与生成平台</span></h1>
-        <p>面向用户自定义规则、结构化章节定位、要素检查与报告归档的一体化文档处理平台</p>
+        <h1>技术文档智能审查<br><span>与辅助生成平台</span></h1>
+        <p>面向规则审查、结构化章节定位、模板化生成与任务归档的一体化技术文档处理平台</p>
     </div>
     <div class="home-hero-visual" aria-hidden="true">
         <div class="hero-doc-preview">
@@ -44,6 +234,70 @@
     </div>
 </section>
 
+<div class="company-overview-grid">
+    <div class="overview-card blue">
+        <span>模板数量</span>
+        <strong>{{ stats.template_count }}</strong>
+    </div>
+    <div class="overview-card purple">
+        <span>审查规则数</span>
+        <strong>{{ stats.rule_count }}</strong>
+    </div>
+    <div class="overview-card green">
+        <span>参考案例数</span>
+        <strong>{{ stats.reference_case_count }}</strong>
+    </div>
+    <div class="overview-card orange">
+        <span>总生成报告数</span>
+        <strong>{{ stats.generate_report_count }}</strong>
+    </div>
+    <div class="overview-card blue">
+        <span>总审查报告数</span>
+        <strong>{{ stats.review_report_count }}</strong>
+    </div>
+    <div class="overview-card red">
+        <span>总发现问题数</span>
+        <strong>{{ stats.total_issue_count }}</strong>
+    </div>
+</div>
+
+<div class="company-chart-panel">
+    <div class="company-chart-head">
+        <div>
+            <h3>各专业审查问题数量</h3>
+            <p>按专业树统计已完成审查文档中发现的问题数，用于观察专业维度质量风险分布。</p>
+        </div>
+    </div>
+    <div class="specialty-bar-chart">
+        {% for group in specialty_issue_groups %}
+        <div class="specialty-bar-group" style="--specialty-count: {{ group.stats|length }};">
+            <div class="specialty-bar-group-title">{{ group.name }}</div>
+            <div class="specialty-bar-group-body">
+                {% for item in group.stats %}
+                <div class="specialty-bar-row">
+                    <div class="specialty-bar-value">{{ item.count }}</div>
+                    <div class="specialty-bar-track">
+                        <span class="specialty-bar-fill" style="height: {{ ((item.count / max_specialty_issues * 100) if max_specialty_issues else 0)|round(1) }}%;"></span>
+                    </div>
+                    <div class="specialty-bar-name" title="{{ item.name }}">{{ item.name }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="specialty-axis">
+        <span>问题数</span>
+        <div class="specialty-axis-scale">
+            <span>0</span>
+            <span>{{ (max_specialty_issues / 2)|round(0, 'floor')|int if max_specialty_issues else 0 }}</span>
+            <span>{{ max_specialty_issues }}</span>
+        </div>
+        <span>专业</span>
+    </div>
+</div>
+
+<div class="home-section-title">常用入口</div>
 <div class="quick-actions">
     <a href="/review/" class="quick-card blue">
         <div class="card-body">
@@ -71,34 +325,5 @@
     </a>
 </div>
 
-<div class="stats-row">
-    <div class="stat-card">
-        <div class="stat-value blue">{{ stats.pending }}</div>
-        <div class="stat-label">待审查</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value orange">{{ stats.processing }}</div>
-        <div class="stat-label">审查中</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value green">{{ stats.completed }}</div>
-        <div class="stat-label">已完成</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value purple">{{ stats.pass_rate }}%</div>
-        <div class="stat-label">通过率</div>
-    </div>
-</div>
-
-<div class="panel">
-    <div class="panel-title">任务记录</div>
-    <div class="home-records-entry">
-        <div>
-            <h3>审查与生成历史记录</h3>
-            <p>统一查看审查任务、生成任务、执行状态、报告下载和后续操作。</p>
-        </div>
-        <a href="/records/" class="btn btn-primary">查看任务记录</a>
-    </div>
-</div>
 </div>
 {% endblock %}

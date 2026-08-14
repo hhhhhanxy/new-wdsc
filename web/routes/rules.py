@@ -36,6 +36,7 @@ SOURCE_DISPLAY = {
 
 # 规则集排序顺序
 SOURCE_ORDER = {"common": 0, "extension": 1}
+COMMON_RULE_SOURCES = {"common", "format", "grammar", "default", "general", "通用规则"}
 
 def _load_custom_sets() -> dict:
     """加载自定义规则集定义。"""
@@ -53,6 +54,21 @@ def _save_custom_sets(data: dict):
     os.makedirs(os.path.dirname(CUSTOM_SETS_FILE), exist_ok=True)
     with open(CUSTOM_SETS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def _rule_set_meta(source: str, custom_sets: dict | None = None) -> dict:
+    custom_sets = custom_sets if custom_sets is not None else _load_custom_sets()
+    info = custom_sets.get(source, {}) if isinstance(custom_sets.get(source, {}), dict) else {}
+    domain = str(info.get("domain") or "").strip()
+    specialty_id = str(info.get("specialty_id") or "").strip()
+    if not domain:
+        domain = "common" if source in COMMON_RULE_SOURCES or source in SOURCE_DISPLAY else ("specialty" if specialty_id else "common")
+    return {
+        "domain": domain,
+        "specialty_id": specialty_id,
+        "document_kind": str(info.get("document_kind") or "").strip(),
+        "default_enabled": bool(info.get("default_enabled", True)),
+    }
 
 
 def _load_import_batches() -> list[dict]:
@@ -109,11 +125,14 @@ def _group_rules_by_source(rules: list) -> list:
     for rule in rules:
         src = rule.source
         if src not in groups:
-            display = custom_sets.get(src, {}).get("display_name") or SOURCE_DISPLAY.get(src, src)
+            set_info = custom_sets.get(src, {}) if isinstance(custom_sets.get(src, {}), dict) else {}
+            display = set_info.get("display_name") or SOURCE_DISPLAY.get(src, src)
+            meta = _rule_set_meta(src, custom_sets)
             groups[src] = {
                 "source": src,
                 "display_name": display,
                 "custom": src in custom_sets,
+                **meta,
                 "rules": [],
             }
         groups[src]["rules"].append(_serialize_rule(rule))
@@ -121,14 +140,25 @@ def _group_rules_by_source(rules: list) -> list:
     # 添加空的自定义规则集
     for src, info in custom_sets.items():
         if src not in groups:
+            if not isinstance(info, dict):
+                info = {}
+            meta = _rule_set_meta(src, custom_sets)
             groups[src] = {
                 "source": src,
-                "display_name": info["display_name"],
+                "display_name": info.get("display_name") or src,
                 "custom": True,
+                **meta,
                 "rules": [],
             }
 
-    result = sorted(groups.values(), key=lambda g: SOURCE_ORDER.get(g["source"], 99))
+    result = sorted(
+        groups.values(),
+        key=lambda g: (
+            0 if g.get("domain") == "common" else 1,
+            SOURCE_ORDER.get(g["source"], 99),
+            g.get("display_name") or g.get("source"),
+        ),
+    )
 
     # 统计
     total = len(rules)
@@ -356,10 +386,13 @@ def index():
     """渲染规则管理页面。"""
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
     groups, total, enabled = _group_rules_by_source(rules)
+    from web.option_registry import get_specialties, get_specialty_groups
     return render_template(
         "rules.html",
         active_page="rules",
         groups=groups,
+        review_specialties=get_specialties("review"),
+        review_specialty_groups=get_specialty_groups("review"),
         total=total,
         enabled_count=enabled,
         disabled_count=total - enabled,
@@ -454,7 +487,21 @@ def api_create_set():
     if source in custom_sets or source in SOURCE_DISPLAY:
         return jsonify({"error": f"规则集 '{source}' 已存在"}), 400
 
-    custom_sets[source] = {"display_name": display_name}
+    domain = str(data.get("domain") or "common").strip()
+    specialty_id = str(data.get("specialty_id") or "").strip()
+    document_kind = str(data.get("document_kind") or "").strip()
+    if domain not in {"common", "specialty"}:
+        return jsonify({"error": "规则域无效"}), 400
+    if domain == "specialty" and not specialty_id:
+        return jsonify({"error": "专业规则集需要选择所属专业"}), 400
+
+    custom_sets[source] = {
+        "display_name": display_name,
+        "domain": domain,
+        "specialty_id": specialty_id,
+        "document_kind": document_kind,
+        "default_enabled": bool(data.get("default_enabled", True)),
+    }
     _save_custom_sets(custom_sets)
 
     return jsonify({"ok": True, "source": source, "display_name": display_name})
@@ -481,6 +528,15 @@ def api_copy_set(source: str):
     if target_source in custom_sets or target_source in SOURCE_DISPLAY or any(g["source"] == target_source for g in groups):
         return jsonify({"error": f"规则集 '{target_source}' 已存在"}), 400
 
+    source_meta = _rule_set_meta(source, custom_sets)
+    domain = str(data.get("domain") or source_meta.get("domain") or "common").strip()
+    specialty_id = str(data.get("specialty_id") or source_meta.get("specialty_id") or "").strip()
+    document_kind = str(data.get("document_kind") or source_meta.get("document_kind") or "").strip()
+    if domain not in {"common", "specialty"}:
+        return jsonify({"error": "规则域无效"}), 400
+    if domain == "specialty" and not specialty_id:
+        return jsonify({"error": "专业规则集需要选择所属专业"}), 400
+
     overrides = load_overrides()
     existing_ids = {rule.rule_id for rule in rules} | set(overrides)
     copied_count = 0
@@ -494,6 +550,10 @@ def api_copy_set(source: str):
         "display_name": display_name,
         "copied_from": source,
         "copied_at": beijing_now_str(),
+        "domain": domain,
+        "specialty_id": specialty_id,
+        "document_kind": document_kind,
+        "default_enabled": bool(data.get("default_enabled", source_meta.get("default_enabled", True))),
     }
     _save_custom_sets(custom_sets)
     save_overrides(overrides)

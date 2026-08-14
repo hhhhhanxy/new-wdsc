@@ -7,7 +7,7 @@ import threading
 import uuid
 import hashlib
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, jsonify, send_file, current_app
+from flask import Blueprint, render_template, request, jsonify, send_file, current_app, redirect, url_for
 from web.tasks import run_review_task
 from web.time_utils import BEIJING_TZ, beijing_now, beijing_now_str, format_beijing_time
 
@@ -83,6 +83,17 @@ def _rule_set_label(rule_set: str, groups: list = None, enabled_count: int = Non
         if enabled_count is not None:
             return f"全部规则（启用 {enabled_count} 条）"
         return "全部规则"
+    if "," in rule_set:
+        sources = [item.strip() for item in rule_set.split(",") if item.strip()]
+        groups = groups or []
+        names = []
+        for source in sources:
+            group = next((g for g in groups if g.get("source") == source), None)
+            names.append((group.get("display_name") if group else source) or source)
+        label = "、".join(names)
+        if enabled_count is not None:
+            return f"{label}（启用 {enabled_count} 条）"
+        return label
     if rule_set.startswith("specialty:"):
         specialty_id = rule_set.split(":", 1)[1].strip()
         try:
@@ -215,7 +226,20 @@ def index():
     rule_sets = [{"source": g["source"], "name": g["display_name"], "count": g["total"]} for g in groups]
     focus_task_id = request.args.get("task_id", type=int)
     initial_major_id = request.args.get("major", "")
-    from web.option_registry import get_specialties
+    from web.option_registry import get_specialties, get_specialty_groups
+    specialty_groups = get_specialty_groups("review")
+    if not focus_task_id and not initial_major_id:
+        first_specialty = next(
+            (
+                specialty
+                for group in specialty_groups
+                for specialty in (group.get("specialties") or [])
+                if specialty.get("id")
+            ),
+            None,
+        )
+        if first_specialty:
+            return redirect(url_for("review.index", major=first_specialty.get("id")))
 
     return render_template(
         'review.html',
@@ -223,6 +247,7 @@ def index():
         rule_sets=rule_sets,
         focus_task_id=focus_task_id,
         review_specialty_options=get_specialties("review"),
+        review_specialty_groups=specialty_groups,
         initial_major_id=initial_major_id,
     )
 
@@ -243,6 +268,8 @@ def upload():
     specialty_id = str(request.form.get('specialty_id') or '').strip()
     from web.option_registry import get_specialty, resolve_model_option
     specialty = get_specialty(specialty_id)
+    if not specialty:
+        return jsonify({'error': '请先选择文档所属专业'}), 400
     specialty_name = specialty.get('name') if specialty else ''
     model_option = resolve_model_option(request.form.get('model_id'), 'review')
     safe_name = os.path.basename(file.filename)

@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}文档审查与生成平台{% endblock %}</title>
+    <title>{% block title %}技术文档智能审查与辅助生成平台{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <!-- Mobile top bar (hidden on desktop) -->
     <div class="mobile-topbar" style="display:none;">
         <button onclick="toggleSidebar()">&#9776;</button>
-        <span>文档审查平台</span>
+        <span>技术文档智能审查与辅助生成平台</span>
     </div>
 
     <!-- Overlay for mobile sidebar -->
@@ -19,7 +19,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="sidebar-brand-title">
-                <h2>文档审查与辅助生成平台</h2>
+                <h2>技术文档智能审查与辅助生成平台</h2>
                 <img src="{{ url_for('static', filename='images/sidebar-aviation-doc.svg') }}" alt="">
             </div>
             <small>面向航空机载产品赋能</small>
@@ -36,10 +36,19 @@
                     <button type="button" class="sidebar-tree-toggle" onclick="toggleSidebarGroup('review')" aria-label="展开或收起文档审查专业目录"></button>
                 </div>
                 <div class="sidebar-subnav">
-                    <a href="/review/" class="sidebar-subnav-link" onclick="closeSidebarMobile()">全部审查</a>
-                    {% if review_specialties %}
-                    {% for specialty in review_specialties %}
-                    <a href="/review/?major={{ specialty.id }}" class="sidebar-subnav-link" onclick="closeSidebarMobile()">{{ specialty.name }}</a>
+                    {% if review_specialty_groups %}
+                    {% for group in review_specialty_groups %}
+                    <div class="sidebar-level2-group" data-sidebar-subgroup="review-{{ group.id }}">
+                        <button type="button" class="sidebar-level2-title" onclick="toggleSidebarSubgroup('review-{{ group.id }}')">
+                            <span>{{ group.name }}</span>
+                            <span class="sidebar-level2-arrow" aria-hidden="true"></span>
+                        </button>
+                        <div class="sidebar-level3-list">
+                    {% for specialty in group.specialties %}
+                            <a href="/review/?major={{ specialty.id }}" class="sidebar-subnav-link sidebar-level3-link" onclick="closeSidebarMobile()">{{ specialty.name }}</a>
+                    {% endfor %}
+                        </div>
+                    </div>
                     {% endfor %}
                     {% endif %}
                 </div>
@@ -53,29 +62,38 @@
                 </div>
                 <div class="sidebar-subnav">
                     <a href="/generate/" class="sidebar-subnav-link" onclick="closeSidebarMobile()">全部生成</a>
-                    {% if generate_specialties %}
-                    {% for specialty in generate_specialties %}
-                    <div class="sidebar-specialty-row">
-                        <a href="/generate/?major={{ specialty.id }}" class="sidebar-subnav-link" onclick="closeSidebarMobile()">{{ specialty.name }}</a>
-                        <a href="/template-library/?major={{ specialty.id }}" class="sidebar-asset-shortcut" title="专业资产库" aria-label="{{ specialty.name }}专业资产库" onclick="closeSidebarMobile()">
-                            <span class="asset-shortcut-icon" aria-hidden="true">□</span>
-                        </a>
+                    {% if generate_specialty_groups %}
+                    {% for group in generate_specialty_groups %}
+                    <div class="sidebar-level2-group" data-sidebar-subgroup="generate-{{ group.id }}">
+                        <button type="button" class="sidebar-level2-title" onclick="toggleSidebarSubgroup('generate-{{ group.id }}')">
+                            <span>{{ group.name }}</span>
+                            <span class="sidebar-level2-arrow" aria-hidden="true"></span>
+                        </button>
+                        <div class="sidebar-level3-list">
+                    {% for specialty in group.specialties %}
+                            <a href="/generate/?major={{ specialty.id }}" class="sidebar-subnav-link sidebar-level3-link" onclick="closeSidebarMobile()">{{ specialty.name }}</a>
+                    {% endfor %}
+                        </div>
                     </div>
                     {% endfor %}
                     {% endif %}
                 </div>
             </div>
+            <div class="sidebar-tree-group" data-sidebar-group="knowledge">
+                <div class="sidebar-tree-head">
+                    <button type="button" class="sidebar-tree-title {{ 'active' if active_page in ['rules', 'template_library', 'knowledge_external'] else '' }}" onclick="toggleSidebarGroup('knowledge')">
+                        <span>知识库</span>
+                    </button>
+                    <button type="button" class="sidebar-tree-toggle" onclick="toggleSidebarGroup('knowledge')" aria-label="展开或收起知识库目录"></button>
+                </div>
+                <div class="sidebar-subnav">
+                    <a href="/rules/" class="sidebar-subnav-link {{ 'active' if active_page == 'rules' else '' }}" onclick="closeSidebarMobile()">审查规则管理</a>
+                    <a href="/template-library/" class="sidebar-subnav-link {{ 'active' if active_page == 'template_library' else '' }}" onclick="closeSidebarMobile()">文档模板库及案例</a>
+                    <a href="/knowledge/external/" class="sidebar-subnav-link {{ 'active' if active_page == 'knowledge_external' else '' }}" onclick="closeSidebarMobile()">外挂知识库</a>
+                </div>
+            </div>
             <a href="/records/" class="{{ 'active' if active_page == 'records' else '' }}" onclick="closeSidebarMobile()">
-                <span>我的任务</span>
-            </a>
-            <a href="/rules/" class="{{ 'active' if active_page == 'rules' else '' }}" onclick="closeSidebarMobile()">
-                <span>审查规则管理</span>
-            </a>
-            <a href="/template-library/" class="{{ 'active' if active_page == 'template_library' else '' }}" onclick="closeSidebarMobile()">
-                <span>专业资产库</span>
-            </a>
-            <a href="/knowledge/" class="{{ 'active' if active_page == 'knowledge' else '' }}" onclick="closeSidebarMobile()">
-                <span>知识库</span>
+                <span>我的文档</span>
             </a>
         </nav>
     </aside>
@@ -86,7 +104,7 @@
 
     <div class="global-review-dock" id="globalReviewDock" style="display:none;">
         <button class="global-review-dock-main" type="button" onclick="openGlobalReviewTask()">
-            <span class="global-review-kicker">审查任务</span>
+            <span class="global-review-kicker">审查文档</span>
             <span class="global-review-title" id="globalReviewTitle">正在审查</span>
             <span class="global-review-detail" id="globalReviewDetail">等待同步进度</span>
             <span class="global-review-bar"><span id="globalReviewFill" style="width:0%"></span></span>
@@ -123,10 +141,26 @@
         } catch (e) {}
     }
 
+    function toggleSidebarSubgroup(groupName) {
+        const group = document.querySelector('[data-sidebar-subgroup="' + groupName + '"]');
+        if (!group) return;
+        group.classList.toggle('collapsed');
+        try {
+            localStorage.setItem('sidebar-subgroup-' + groupName, group.classList.contains('collapsed') ? 'collapsed' : 'open');
+        } catch (e) {}
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('[data-sidebar-group]').forEach(group => {
             try {
                 if (localStorage.getItem('sidebar-group-' + group.dataset.sidebarGroup) === 'collapsed') {
+                    group.classList.add('collapsed');
+                }
+            } catch (e) {}
+        });
+        document.querySelectorAll('[data-sidebar-subgroup]').forEach(group => {
+            try {
+                if (localStorage.getItem('sidebar-subgroup-' + group.dataset.sidebarSubgroup) === 'collapsed') {
                     group.classList.add('collapsed');
                 }
             } catch (e) {}
@@ -152,7 +186,7 @@
             task.status === 'paused' ? '已暂停' :
             task.status === 'pending' ? '等待审查' : '正在审查'
         );
-        document.getElementById('globalReviewTitle').textContent = task.filename || '审查任务';
+        document.getElementById('globalReviewTitle').textContent = task.filename || '审查文档';
         document.getElementById('globalReviewDetail').textContent =
             `${statusText}${task.progress_message ? '：' + task.progress_message : ''}`;
         document.getElementById('globalReviewPercent').textContent = pct + '%';
@@ -195,7 +229,7 @@
 
     function cancelGlobalReviewTask() {
         if (!globalReviewTask) return;
-        if (!confirm('确定停止当前审查任务？')) return;
+        if (!confirm('确定停止当前审查文档？')) return;
         fetch('/review/cancel/' + globalReviewTask.id, {method: 'POST'})
             .then(r => r.json())
             .then(data => {

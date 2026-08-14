@@ -33,7 +33,7 @@ def _review_items(db):
             "kind": "review",
             "kind_label": "文档审查",
             "id": task.get("id"),
-            "name": task.get("filename") or "未命名审查任务",
+            "name": task.get("filename") or "未命名审查文档",
             "source": task.get("rule_set_label") or "全部规则",
             "model_name": task.get("model_name") or "系统默认",
             "specialty_name": task.get("specialty_name") or "",
@@ -66,7 +66,7 @@ def _generate_items(db):
     items = []
     for task in tasks:
         result_path = task.get("result_path") or ""
-        filename = os.path.basename(result_path) if result_path else (task.get("template_name") or "未命名生成任务")
+        filename = os.path.basename(result_path) if result_path else (task.get("template_name") or "未命名生成文档")
         is_running = task.get("status") in RUNNING_STATUSES
         items.append({
             "kind": "generate",

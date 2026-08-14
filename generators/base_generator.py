@@ -141,6 +141,7 @@ class TemplateDocxGenerator(BaseGenerator):
 
         doc = Document(str(template_path))
         replacements = self._build_replacements(title, inputs)
+        self._replace_document_title_candidates(doc, title, replacements)
         chapters = self._flatten_chapters(template.chapters)
         chapter_targets = self._collect_generation_targets(doc, chapters)
         if "generation_mode" not in inputs:
@@ -186,6 +187,9 @@ class TemplateDocxGenerator(BaseGenerator):
         for block in list(self._iter_block_items(doc)):
             if isinstance(block, Paragraph):
                 text = block.text.strip()
+                if not current_chapter_key and self._is_template_document_title(text, title):
+                    self._replace_paragraph_text(block, title)
+                    continue
                 if self.classifier.heading_level(block) and not (
                     delete_context and self.classifier.is_context_continuation(text)
                 ):
@@ -193,9 +197,6 @@ class TemplateDocxGenerator(BaseGenerator):
                         control_callback()
                     current_chapter_key = self._match_chapter_key(text, chapters)
                     delete_context = ""
-                    if self._is_template_document_title(text):
-                        self._replace_paragraph_text(block, title)
-                        continue
                     self._replace_paragraph_runs(block, replacements)
                     continue
                 block_type = self.classifier.classify_paragraph(block, delete_context)
@@ -444,12 +445,45 @@ class TemplateDocxGenerator(BaseGenerator):
         compact = text.replace("|", "").replace(":", "").replace("-", "").strip()
         return not compact or text.startswith("|") or "文件编号" in text
 
-    def _is_template_document_title(self, text: str) -> bool:
-        normalized = str(text or "").replace(" ", "")
-        return (
-            "文档标题" in normalized
-            and any(token in normalized for token in ("模板", "模版", "试验大纲", "技术文档"))
-        )
+    def _is_template_document_title(self, text: str, target_title: str = "") -> bool:
+        normalized = str(text or "").strip().replace(" ", "")
+        if not normalized:
+            return False
+        if target_title and normalized == str(target_title).strip().replace(" ", ""):
+            return False
+        title_markers = ("文档标题", "文档名称", "文件名称", "试验大纲", "技术文件", "技术文档", "说明书", "规范", "报告", "方案", "项目")
+        template_markers = ("XX", "XXX", "某型", "模板", "模版", "项目")
+        if "文档标题" in normalized and any(token in normalized for token in title_markers):
+            return True
+        if len(normalized) <= 60 and any(token in normalized for token in title_markers):
+            return any(marker in normalized for marker in template_markers)
+        return False
+
+    def _replace_document_title_candidates(self, doc: DocumentType, title: str, replacements: Dict[str, str]):
+        title = str(title or "").strip()
+        if not title:
+            return
+        visited = 0
+        for block in self._iter_block_items(doc):
+            if isinstance(block, Paragraph):
+                text = block.text.strip()
+                if self.classifier.heading_level(block):
+                    break
+                if self._is_template_document_title(text, title):
+                    self._replace_paragraph_text(block, title)
+                    return
+                visited += 1
+            elif isinstance(block, Table):
+                for row in block.rows:
+                    for cell in row.cells:
+                        for paragraph in cell.paragraphs:
+                            text = paragraph.text.strip()
+                            if self._is_template_document_title(text, title):
+                                self._replace_paragraph_text(paragraph, title)
+                                return
+                            visited += 1
+            if visited >= 40:
+                break
 
     def _build_replacements(self, title: str, inputs: Dict[str, Any]) -> Dict[str, str]:
         product_name = str(inputs.get("product_name", "")).strip()

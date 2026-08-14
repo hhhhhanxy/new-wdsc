@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}生成模板库 - 文档审查与生成平台{% endblock %}
+{% block title %}生成模板库 - 技术文档智能审查与辅助生成平台{% endblock %}
 
 {% block content %}
 <style>
@@ -206,6 +206,9 @@
 .asset-meta-grid input {
     width: 100%;
 }
+#assetKindFilter {
+    grid-column: 1 / -1;
+}
 .reference-case-manager {
     display: grid;
     gap: 10px;
@@ -266,23 +269,192 @@
     margin-left: 6px;
     color: var(--primary);
 }
+.asset-workspace {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+}
+.asset-main-grid {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+}
+.asset-nav-list {
+    display: grid;
+    gap: 6px;
+}
+.asset-nav-section {
+    margin-top: 12px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+}
+.asset-tree-group {
+    display: grid;
+    gap: 4px;
+}
+.asset-tree-section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin: 8px 0 3px;
+    padding: 4px 8px;
+    border: 0;
+    background: transparent;
+    color: #2f5f88;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+.asset-tree-section-title:hover {
+    color: var(--primary-dark);
+}
+.asset-tree-section-arrow {
+    width: 7px;
+    height: 7px;
+    border-right: 1.8px solid currentColor;
+    border-bottom: 1.8px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.18s;
+}
+.asset-tree-group.collapsed .asset-tree-section-arrow {
+    transform: rotate(-45deg);
+}
+.asset-tree-group.collapsed .asset-tree-section-body {
+    display: none;
+}
+.asset-tree-parent {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text);
+}
+.asset-tree-parent:hover {
+    background: #f7fcff;
+}
+.asset-tree-parent.active {
+    border-color: #bee8fb;
+    background: #edf9ff;
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+.asset-tree-children {
+    display: grid;
+    gap: 4px;
+    margin: 2px 0 8px 14px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+}
+.asset-tree-child {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 7px 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: left;
+}
+.asset-tree-child:hover {
+    background: #f7fcff;
+    color: var(--text);
+}
+.asset-tree-child.active {
+    border-color: #bee8fb;
+    background: #f7fcff;
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+.asset-tree-child strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+.asset-tree-child span,
+.asset-tree-parent span:last-child {
+    flex: 0 0 auto;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.asset-context-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border: 1px solid #d7eefa;
+    border-radius: 8px;
+    background: #f7fcff;
+    margin-bottom: 12px;
+}
+.asset-context-title {
+    font-weight: 700;
+    color: var(--text);
+}
+.asset-context-meta {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+@media (max-width: 1280px) {
+    .asset-main-grid {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 1100px) {
+    .asset-workspace {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
 
 <div class="page-header">
-    <h1>专业资产库</h1>
+    <h1>文档模板库及案例</h1>
     <p>按专业管理技术文档模板与优秀案例库，生成时自动带出对应模板和参考案例</p>
 </div>
 
-<div class="two-col">
+<div class="asset-workspace">
     <div>
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>专业资产组</span>
-                <button class="btn btn-primary template-upload-btn" style="padding:6px 14px;font-size:14px;" onclick="document.getElementById('templateFile').click()">上传模板</button>
+                <span>专业导航</span>
                 <input type="file" id="templateFile" accept=".docx" style="display:none">
             </div>
+            <div class="asset-nav-list" id="assetNavList"></div>
+            <div class="rule-stats" id="assetNavStats"></div>
+        </div>
+    </div>
+
+    <div>
+        <div class="asset-context-bar">
+            <div>
+                <div class="asset-context-title" id="assetContextTitle">全部专业资产</div>
+                <div class="asset-context-meta" id="assetContextMeta">按左侧专业树查看对应模板与优秀案例。</div>
+            </div>
+            <button class="btn btn-primary template-upload-btn" id="uploadTemplateBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openTemplateUpload()">上传模板</button>
+        </div>
+        <div class="asset-main-grid">
+            <div>
+        <div class="panel">
+            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>专业资产组</span>
+            </div>
             <div class="asset-filter-grid">
-                <select class="form-control" id="assetSpecialtyFilter"></select>
+                <input type="hidden" id="assetSpecialtyFilter" value="all">
                 <select class="form-control" id="assetKindFilter"></select>
             </div>
             <ul class="rule-set-list" id="templateList"></ul>
@@ -341,6 +513,8 @@
             <div class="empty-state" id="templateHint">请选择左侧模板，或上传 DOCX 模板自动解析章节结构</div>
         </div>
     </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -350,6 +524,9 @@ let templates = [];
 let currentTemplate = null;
 let currentMode = 'view';
 let specialties = [];
+let specialtyGroups = [];
+let currentAssetScope = {type: 'all', specialty_id: '', name: '全部专业资产'};
+let collapsedAssetMajorGroups = new Set();
 const initialTemplateId = new URLSearchParams(window.location.search).get('template_id');
 const initialMajorId = new URLSearchParams(window.location.search).get('major') || '';
 const defaultKinds = ['试验大纲', '技术说明书', '产品规范', '验证报告', '需求文档', '通用特性文档'];
@@ -372,13 +549,21 @@ function loadAssetOptions() {
         .then(r => r.json())
         .then(data => {
             specialties = data.specialties || [];
+            specialtyGroups = data.groups || [];
+            if (initialMajorId && specialties.some(item => item.id === initialMajorId)) {
+                const selected = specialties.find(item => item.id === initialMajorId);
+                currentAssetScope = {type: 'specialty', specialty_id: initialMajorId, name: selected ? selected.name : '专业资产'};
+            }
             renderAssetFilters();
+            renderAssetNav();
             renderTemplateSpecialtyOptions();
             if (templates.length) renderTemplateList();
         })
         .catch(() => {
             specialties = [];
+            specialtyGroups = [];
             renderAssetFilters();
+            renderAssetNav();
             if (templates.length) renderTemplateList();
         });
 }
@@ -389,11 +574,11 @@ function getTemplateMetadata(template) {
 
 function getTemplateSpecialtyName(template) {
     const metadata = getTemplateMetadata(template);
-    return metadata.specialty_name || specialties.find(item => item.id === metadata.specialty_id)?.name || '未分专业';
+    return metadata.specialty_name || specialties.find(item => item.id === metadata.specialty_id)?.name || '未指定专业';
 }
 
 function getTemplateKindName(template) {
-    return getTemplateMetadata(template).document_kind_name || '未分类文档';
+    return getTemplateMetadata(template).document_kind_name || '未指定技术文档';
 }
 
 function getTemplateCaseCount(template) {
@@ -410,16 +595,100 @@ function renderAssetFilters() {
     const specialtyFilter = document.getElementById('assetSpecialtyFilter');
     const kindFilter = document.getElementById('assetKindFilter');
     if (!specialtyFilter || !kindFilter) return;
-    const currentSpecialty = specialtyFilter.value || initialMajorId || 'all';
+    const currentSpecialty = currentAssetScope.type === 'specialty' ? currentAssetScope.specialty_id : 'all';
     const currentKind = kindFilter.value || 'all';
-    specialtyFilter.innerHTML = '<option value="all">全部专业</option>' + specialties.map(item =>
-        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`
-    ).join('');
+    specialtyFilter.value = currentSpecialty;
     kindFilter.innerHTML = '<option value="all">全部技术文档</option>' + collectDocumentKinds().map(kind =>
         `<option value="${escapeHtml(kind)}">${escapeHtml(kind)}</option>`
     ).join('');
     specialtyFilter.value = specialties.some(item => item.id === currentSpecialty) ? currentSpecialty : 'all';
     kindFilter.value = collectDocumentKinds().includes(currentKind) ? currentKind : 'all';
+}
+
+function getTemplatesForSpecialty(specialtyId) {
+    return templates.filter(t => (getTemplateMetadata(t).specialty_id || '') === (specialtyId || ''));
+}
+
+function getCaseCountForSpecialty(specialtyId) {
+    return getTemplatesForSpecialty(specialtyId).reduce((sum, template) => sum + getTemplateCaseCount(template), 0);
+}
+
+function renderAssetNav() {
+    const target = document.getElementById('assetNavList');
+    if (!target) return;
+    const totalTemplates = templates.length;
+    const totalCases = templates.reduce((sum, template) => sum + getTemplateCaseCount(template), 0);
+    const grouped = specialtyGroups.length ? specialtyGroups : [{id: 'all', name: '专业', specialties}];
+    target.innerHTML = `
+        <div class="asset-nav-section">全部资产</div>
+        <div class="asset-tree-group">
+            <div class="asset-tree-parent ${currentAssetScope.type === 'all' ? 'active' : ''}" onclick="selectAssetScope('all')">
+                <span>全部专业</span><span>${totalTemplates}</span>
+            </div>
+        </div>
+        <div class="asset-nav-section">专业资产</div>
+        ${grouped.map(group => `
+            <div class="asset-tree-group ${collapsedAssetMajorGroups.has(group.id) ? 'collapsed' : ''}">
+                <button type="button" class="asset-tree-section-title" onclick="toggleAssetMajorGroup('${escapeHtml(group.id || '')}')">
+                    <span>${escapeHtml(group.name || '')}</span>
+                    <span class="asset-tree-section-arrow" aria-hidden="true"></span>
+                </button>
+                <div class="asset-tree-section-body">
+                    ${(group.specialties || []).map(item => {
+                    const templateCount = getTemplatesForSpecialty(item.id).length;
+                    const caseCount = getCaseCountForSpecialty(item.id);
+                    return `
+                        <div class="asset-tree-parent ${currentAssetScope.type === 'specialty' && currentAssetScope.specialty_id === item.id ? 'active' : ''}" onclick="selectAssetScope('specialty', '${escapeHtml(item.id)}')">
+                            <span>${escapeHtml(item.name)}</span><span>${templateCount}</span>
+                        </div>
+                        ${currentAssetScope.type === 'specialty' && currentAssetScope.specialty_id === item.id ? `
+                            <div class="asset-tree-children">
+                                <button type="button" class="asset-tree-child active">
+                                    <strong>模板</strong><span>${templateCount}</span>
+                                </button>
+                                <button type="button" class="asset-tree-child">
+                                    <strong>优秀案例</strong><span>${caseCount}</span>
+                                </button>
+                            </div>
+                        ` : ''}
+                    `;
+                    }).join('')}
+                </div>
+            </div>
+        `).join('')}
+    `;
+    document.getElementById('assetNavStats').innerHTML = `共 ${totalTemplates} 个模板 · ${totalCases} 个优秀案例`;
+}
+
+function toggleAssetMajorGroup(groupId) {
+    if (collapsedAssetMajorGroups.has(groupId)) {
+        collapsedAssetMajorGroups.delete(groupId);
+    } else {
+        collapsedAssetMajorGroups.add(groupId);
+    }
+    renderAssetNav();
+}
+
+function selectAssetScope(type, specialtyId = '') {
+    const specialty = specialties.find(item => item.id === specialtyId);
+    currentAssetScope = {
+        type,
+        specialty_id: type === 'specialty' ? specialtyId : '',
+        name: type === 'specialty' ? (specialty ? specialty.name : '专业资产') : '全部专业资产',
+    };
+    renderTemplateList();
+}
+
+function updateAssetContext(filteredCount) {
+    const title = document.getElementById('assetContextTitle');
+    const meta = document.getElementById('assetContextMeta');
+    const uploadBtn = document.getElementById('uploadTemplateBtn');
+    if (!title || !meta) return;
+    const specialtyName = currentAssetScope.name || '全部专业资产';
+    const kind = document.getElementById('assetKindFilter')?.value || 'all';
+    title.textContent = specialtyName;
+    meta.textContent = `${kind === 'all' ? '全部技术文档' : kind} · 当前显示 ${filteredCount} 个模板。`;
+    if (uploadBtn) uploadBtn.style.display = currentAssetScope.type === 'specialty' ? '' : 'none';
 }
 
 function renderTemplateList() {
@@ -434,6 +703,8 @@ function renderTemplateList() {
         return specialtyOk && kindOk;
     });
     document.getElementById('templateEmpty').style.display = filtered.length ? 'none' : '';
+    updateAssetContext(filtered.length);
+    renderAssetNav();
     list.innerHTML = filtered.map(t => `
         <li class="rule-set-item template-item ${currentTemplate && currentTemplate.id === t.id ? 'active' : ''}" onclick="selectTemplate('${escapeHtml(t.id)}')">
             <div class="template-list-main">
@@ -453,8 +724,15 @@ function renderTemplateList() {
     `).join('');
 }
 
-document.getElementById('assetSpecialtyFilter').addEventListener('change', renderTemplateList);
 document.getElementById('assetKindFilter').addEventListener('change', renderTemplateList);
+
+function openTemplateUpload() {
+    if (currentAssetScope.type !== 'specialty' || !currentAssetScope.specialty_id) {
+        alert('请先在左侧专业树选择具体专业，再上传模板');
+        return;
+    }
+    document.getElementById('templateFile').click();
+}
 
 function selectTemplate(id) {
     fetch('/template-library/api/templates/' + encodeURIComponent(id))
@@ -470,8 +748,14 @@ function selectTemplate(id) {
 document.getElementById('templateFile').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
+    if (currentAssetScope.type !== 'specialty' || !currentAssetScope.specialty_id) {
+        alert('请先在左侧专业树选择具体专业，再上传模板');
+        e.target.value = '';
+        return;
+    }
     const form = new FormData();
     form.append('file', file);
+    form.append('specialty_id', currentAssetScope.specialty_id);
     fetch('/template-library/api/parse', { method: 'POST', body: form })
         .then(r => r.json())
         .then(data => {
@@ -485,9 +769,9 @@ document.getElementById('templateFile').addEventListener('change', e => {
                 input_fields: data.input_fields || [],
                 chapters: data.chapters || []
             };
-            if (!currentTemplate.metadata.specialty_id && initialMajorId) {
-                const selectedSpecialty = specialties.find(item => item.id === initialMajorId);
-                currentTemplate.metadata.specialty_id = initialMajorId;
+            if (!currentTemplate.metadata.specialty_id && currentAssetScope.specialty_id) {
+                const selectedSpecialty = specialties.find(item => item.id === currentAssetScope.specialty_id);
+                currentTemplate.metadata.specialty_id = currentAssetScope.specialty_id;
                 currentTemplate.metadata.specialty_name = selectedSpecialty ? selectedSpecialty.name : '';
             }
             currentMode = 'create';
@@ -571,10 +855,19 @@ function renderTemplateSpecialtyOptions() {
     const select = document.getElementById('templateSpecialty');
     if (!select) return;
     const current = select.value || (currentTemplate && currentTemplate.metadata ? currentTemplate.metadata.specialty_id : '');
-    select.innerHTML = '<option value="">未分专业</option>' + specialties.map(item =>
-        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`
-    ).join('');
+    select.innerHTML = '<option value="">请选择专业</option>' + renderSpecialtyOptionGroups();
     select.value = specialties.some(item => item.id === current) ? current : '';
+}
+
+function renderSpecialtyOptionGroups() {
+    if (!specialtyGroups.length) {
+        return specialties.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
+    }
+    return specialtyGroups.map(group => `
+        <optgroup label="${escapeHtml(group.name || '')}">
+            ${(group.specialties || []).map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}
+        </optgroup>
+    `).join('');
 }
 
 function renderTemplateAssetMeta() {
@@ -912,6 +1205,8 @@ function saveCurrentTemplate() {
     currentTemplate.metadata.specialty_name = selectedSpecialty ? selectedSpecialty.name : '';
     currentTemplate.metadata.document_kind_name = document.getElementById('templateDocumentKind').value.trim();
     if (!currentTemplate.name) { alert('模板名称不能为空'); return; }
+    if (!currentTemplate.metadata.specialty_id) { alert('请选择模板所属专业'); return; }
+    if (!currentTemplate.metadata.document_kind_name) { alert('请填写技术文档类型'); return; }
     if (!currentTemplate.chapters || !currentTemplate.chapters.length) { alert('模板章节不能为空'); return; }
 
     const isCreate = currentMode === 'create' || !currentTemplate.id;
@@ -960,6 +1255,11 @@ function cloneTemplateForEdit(template) {
     copy.source_type = 'uploaded_docx';
     copy.metadata = copy.metadata || {};
     copy.metadata.copied_from = template.id;
+    if (currentAssetScope.type === 'specialty' && currentAssetScope.specialty_id) {
+        const selectedSpecialty = specialties.find(item => item.id === currentAssetScope.specialty_id);
+        copy.metadata.specialty_id = currentAssetScope.specialty_id;
+        copy.metadata.specialty_name = selectedSpecialty ? selectedSpecialty.name : '';
+    }
     return copy;
 }
 

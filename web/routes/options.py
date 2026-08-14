@@ -16,7 +16,10 @@ def models():
 
 @bp.route("/api/specialties")
 def specialties():
-    from web.option_registry import get_specialties
+    from web.option_registry import get_specialties, get_specialty_groups
 
     usage = request.args.get("usage") or None
-    return jsonify({"specialties": get_specialties(usage)})
+    return jsonify({
+        "specialties": get_specialties(usage),
+        "groups": get_specialty_groups(usage),
+    })

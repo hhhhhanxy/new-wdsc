@@ -47,11 +47,13 @@ def create_app():
 
     @app.context_processor
     def inject_sidebar_options():
-        from web.option_registry import get_specialties
+        from web.option_registry import get_specialties, get_specialty_groups
 
         return {
             'review_specialties': get_specialties('review'),
             'generate_specialties': get_specialties('generate'),
+            'review_specialty_groups': get_specialty_groups('review'),
+            'generate_specialty_groups': get_specialty_groups('generate'),
         }
 
     # Load extensions

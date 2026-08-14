@@ -1,11 +1,46 @@
 {
   "requir_doc": {
-    "display_name": "需求文档规则"
+    "display_name": "需求文档规则",
+    "domain": "specialty",
+    "specialty_id": "actuation",
+    "document_kind": "",
+    "default_enabled": true
   },
   "product_rules": {
-    "display_name": "X产品规范检查"
+    "display_name": "X产品规范检查",
+    "domain": "specialty",
+    "specialty_id": "actuation",
+    "document_kind": "",
+    "default_enabled": true
   },
   "requir_doc1": {
-    "display_name": "需求文档规则1"
+    "display_name": "需求文档规则1",
+    "domain": "specialty",
+    "specialty_id": "actuation",
+    "document_kind": "",
+    "default_enabled": true
+  },
+  "product_rules_copy": {
+    "display_name": "X产品规范检查 副本",
+    "copied_from": "product_rules",
+    "copied_at": "2026-08-12 11:19:51",
+    "domain": "specialty",
+    "specialty_id": "actuation",
+    "document_kind": "",
+    "default_enabled": true
+  },
+  "test": {
+    "display_name": "试验大纲",
+    "domain": "specialty",
+    "specialty_id": "hydraulic",
+    "document_kind": "",
+    "default_enabled": true
+  },
+  "cons": {
+    "display_name": "一致性",
+    "domain": "common",
+    "specialty_id": "",
+    "document_kind": "",
+    "default_enabled": true
   }
 }

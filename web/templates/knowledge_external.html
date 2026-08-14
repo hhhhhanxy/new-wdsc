@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}外挂知识库 - 技术文档智能审查与辅助生成平台{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>外挂知识库</h1>
+    <p>预留用于接入审查与生成流程可引用的领域知识、标准依据和项目资料</p>
+</div>
+
+<div class="external-knowledge-workspace">
+    <div>
+        <div class="panel">
+            <div class="panel-title">专业导航</div>
+            <div class="external-knowledge-nav">
+                <button type="button" class="external-knowledge-node active" onclick="selectExternalKnowledgeScope('all', '全部专业')">
+                    <span>全部专业</span>
+                </button>
+                {% for group in specialty_groups %}
+                <div class="external-knowledge-group" data-external-knowledge-group="{{ group.id }}">
+                    <button type="button" class="external-knowledge-group-title">
+                        <span>{{ group.name }}</span>
+                        <span class="external-knowledge-group-arrow" aria-hidden="true"></span>
+                    </button>
+                    <div class="external-knowledge-group-body">
+                    {% for specialty in group.specialties %}
+                        <button type="button" class="external-knowledge-node" data-specialty-id="{{ specialty.id }}" onclick="selectExternalKnowledgeScope('{{ specialty.id }}', '{{ specialty.name }}')">
+                            <span>{{ specialty.name }}</span>
+                        </button>
+                    {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="external-knowledge-context">
+            <div class="external-knowledge-context-title" id="externalKnowledgeTitle">全部专业</div>
+            <div class="external-knowledge-context-meta">当前为外挂知识库能力预留，后续可按专业接入资料、标准和索引。</div>
+        </div>
+        <div class="panel knowledge-placeholder">
+            <div class="panel-title">外挂知识库能力预留</div>
+            <div class="knowledge-placeholder-grid">
+                <div class="knowledge-placeholder-item">
+                    <h3>审查外挂</h3>
+                    <p>后续可在文档审查时检索标准条款、领域约束和历史问题，为规则与大模型审查提供依据。</p>
+                </div>
+                <div class="knowledge-placeholder-item">
+                    <h3>生成外挂</h3>
+                    <p>后续可在文档生成时引用模板片段、产品参数和项目背景，减少重复输入并提升生成一致性。</p>
+                </div>
+                <div class="knowledge-placeholder-item">
+                    <h3>资料管理</h3>
+                    <p>后续可接入文件上传、索引状态、标签分类、版本记录和引用追踪。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.selectExternalKnowledgeScope = function(specialtyId, name) {
+    document.querySelectorAll('.external-knowledge-node').forEach(node => {
+        node.classList.toggle('active', (node.dataset.specialtyId || 'all') === (specialtyId || 'all'));
+    });
+    if (specialtyId && specialtyId !== 'all') {
+        const node = document.querySelector('[data-specialty-id="' + specialtyId + '"]');
+        const group = node ? node.closest('.external-knowledge-group') : null;
+        if (group) group.classList.remove('collapsed');
+    }
+    const title = document.getElementById('externalKnowledgeTitle');
+    if (title) title.textContent = name || '全部专业';
+};
+
+window.toggleExternalKnowledgeGroup = function(groupId) {
+    const group = document.querySelector('[data-external-knowledge-group="' + groupId + '"]');
+    if (!group) return;
+    group.classList.toggle('collapsed');
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-external-knowledge-group]').forEach(group => {
+        const button = group.querySelector('.external-knowledge-group-title');
+        if (!button) return;
+        button.addEventListener('click', event => {
+            event.preventDefault();
+            window.toggleExternalKnowledgeGroup(group.dataset.externalKnowledgeGroup);
+        });
+    });
+});
+</script>
+{% endblock %}

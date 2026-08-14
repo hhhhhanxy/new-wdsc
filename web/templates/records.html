@@ -1,26 +1,26 @@
 {% extends "base.html" %}
-{% block title %}任务记录 - 文档审查与生成平台{% endblock %}
+{% block title %}我的文档 - 技术文档智能审查与辅助生成平台{% endblock %}
 
 {% block content %}
 <div class="records-page">
     <div class="page-header">
         <div>
-            <h1>任务记录</h1>
-            <p>集中查看文档审查与文档生成历史，处理下载、送审、暂停、继续、停止和删除操作。</p>
+            <h1>我的文档</h1>
+            <p>集中管理文档生成与审查记录，处理预览、下载、送审、暂停、继续、停止和删除操作。</p>
         </div>
     </div>
 
     <div class="records-stat-grid">
         <a class="records-stat-card" href="/records/">
-            <span>全部任务</span>
+            <span>全部文档</span>
             <strong>{{ stats.all }}</strong>
         </a>
         <a class="records-stat-card review" href="/records/?type=review">
-            <span>审查任务</span>
+            <span>审查文档</span>
             <strong>{{ stats.review }}</strong>
         </a>
         <a class="records-stat-card generate" href="/records/?type=generate">
-            <span>生成任务</span>
+            <span>生成文档</span>
             <strong>{{ stats.generate }}</strong>
         </a>
         <a class="records-stat-card running" href="/records/?status=running">
@@ -32,7 +32,7 @@
     <div class="panel">
         <form class="records-toolbar" method="get" action="/records/">
             <div class="records-filter">
-                <label>任务类型</label>
+                <label>文档类型</label>
                 <select class="form-control" name="type">
                     <option value="all" {% if filters.type == 'all' %}selected{% endif %}>全部</option>
                     <option value="review" {% if filters.type == 'review' %}selected{% endif %}>文档审查</option>
@@ -104,7 +104,7 @@
                             {% else %}
                             <button type="button" class="btn btn-outline" onclick="postRecordAction('/review/pause/{{ item.id }}')">暂停</button>
                             {% endif %}
-                            <button type="button" class="btn btn-outline btn-danger-text" onclick="confirmPostRecordAction('/review/cancel/{{ item.id }}', '确定停止这条审查任务？')">停止</button>
+                            <button type="button" class="btn btn-outline btn-danger-text" onclick="confirmPostRecordAction('/review/cancel/{{ item.id }}', '确定停止这条审查文档？')">停止</button>
                             <a class="btn btn-outline" href="/review/?task_id={{ item.id }}">查看进度</a>
                         {% elif item.can_download %}
                             <a class="btn btn-outline" href="/review/?task_id={{ item.id }}">查看结果</a>
@@ -120,7 +120,7 @@
                             {% else %}
                             <button type="button" class="btn btn-outline" onclick="postRecordAction('/generate/pause/{{ item.id }}')">暂停</button>
                             {% endif %}
-                            <button type="button" class="btn btn-outline btn-danger-text" onclick="confirmPostRecordAction('/generate/cancel/{{ item.id }}', '确定停止这条生成任务？')">停止</button>
+                            <button type="button" class="btn btn-outline btn-danger-text" onclick="confirmPostRecordAction('/generate/cancel/{{ item.id }}', '确定停止这条生成文档？')">停止</button>
                         {% endif %}
                         {% if item.can_download %}
                             <a class="btn btn-outline" href="/generate/download/{{ item.id }}">下载</a>
@@ -146,7 +146,7 @@
         </div>
         {% endif %}
         {% else %}
-        <div class="empty-state">暂无匹配的任务记录</div>
+        <div class="empty-state">暂无匹配的文档记录</div>
         {% endif %}
     </div>
 </div>
@@ -177,7 +177,7 @@ function confirmPostRecordAction(url, message) {
 }
 
 function deleteRecord(url) {
-    if (!confirm('确定删除这条任务记录？')) return;
+    if (!confirm('确定删除这条文档记录？')) return;
     handleRecordResponse(fetch(url, {method: 'DELETE'}), '删除失败');
 }
 

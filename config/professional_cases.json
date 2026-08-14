@@ -1,8 +1,20 @@
 {
+  "specialty_groups": [
+    {
+      "id": "core",
+      "name": "一核"
+    },
+    {
+      "id": "wings",
+      "name": "多翼"
+    }
+  ],
   "specialties": [
     {
       "id": "actuation",
-      "name": "作动专业",
+      "name": "机械传动及作动",
+      "group_id": "core",
+      "group_name": "一核",
       "usage": ["review", "generate"],
       "reference_cases": [
         {
@@ -34,20 +46,82 @@
       ]
     },
     {
+      "id": "electric_actuation",
+      "name": "电作动",
+      "group_id": "core",
+      "group_name": "一核",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "pneumatic_actuation",
+      "name": "气压作动",
+      "group_id": "core",
+      "group_name": "一核",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
       "id": "hydraulic",
-      "name": "液压专业",
+      "name": "液压作动",
+      "group_id": "core",
+      "group_name": "一核",
       "usage": ["review", "generate"],
       "reference_cases": []
     },
     {
-      "id": "flight_control",
-      "name": "飞控专业",
+      "id": "electronic_control",
+      "name": "电子控制",
+      "group_id": "core",
+      "group_name": "一核",
       "usage": ["review", "generate"],
       "reference_cases": []
     },
     {
-      "id": "electromechanical",
-      "name": "机电专业",
+      "id": "software_engineering",
+      "name": "软件工程",
+      "group_id": "core",
+      "group_name": "一核",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "weapon_launch",
+      "name": "武器发射",
+      "group_id": "wings",
+      "group_name": "多翼",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "high_lift_system",
+      "name": "高升力系统",
+      "group_id": "wings",
+      "group_name": "多翼",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "front_flap_weapon_bay_door",
+      "name": "前襟/武器仓门系统",
+      "group_id": "wings",
+      "group_name": "多翼",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "cargo_system",
+      "name": "货运系统",
+      "group_id": "wings",
+      "group_name": "多翼",
+      "usage": ["review", "generate"],
+      "reference_cases": []
+    },
+    {
+      "id": "door_actuation_system",
+      "name": "舱门作动系统",
+      "group_id": "wings",
+      "group_name": "多翼",
       "usage": ["review", "generate"],
       "reference_cases": []
     }

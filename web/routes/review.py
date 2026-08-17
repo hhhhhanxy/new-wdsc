@@ -138,6 +138,15 @@ ISSUE_REVIEW_STATUSES = {
 }
 
 
+def _enabled_rule_count_for_rule_set(rule_set: str) -> int:
+    from rules.loaders.rule_loader import RuleLoader
+    from web.tasks import _filter_rules_for_rule_set
+
+    rules = RuleLoader.load_all_rules("default", include_extensions=False)
+    selected = _filter_rules_for_rule_set(rules, rule_set)
+    return sum(1 for rule in selected if rule.enabled)
+
+
 def _issue_id(section_id: str, issue: dict, index: int) -> str:
     fingerprint = "|".join([
         str(section_id or ""),
@@ -270,6 +279,9 @@ def upload():
     specialty = get_specialty(specialty_id)
     if not specialty:
         return jsonify({'error': '请先选择文档所属专业'}), 400
+    enabled_rule_count = _enabled_rule_count_for_rule_set(rule_set)
+    if enabled_rule_count <= 0:
+        return jsonify({'error': '所选规则集中暂无已启用规则，请先到审查规则管理中提交审批并通过'}), 400
     specialty_name = specialty.get('name') if specialty else ''
     model_option = resolve_model_option(request.form.get('model_id'), 'review')
     safe_name = os.path.basename(file.filename)

@@ -101,6 +101,124 @@ def test_created_rule_scope_is_saved_and_read_back(tmp_path, monkeypatch):
     assert app.test_client().get(f"/rules/api/rules/{rule_id}").get_json()["scope"] == "body"
     saved = json.loads(overrides_path.read_text(encoding="utf-8"))
     assert saved[rule_id]["scope"] == "body"
+    assert saved[rule_id]["enabled"] is False
+    assert saved[rule_id]["approval_status"] == "draft"
+
+
+def test_custom_rule_approval_flow_controls_enabled_state(tmp_path, monkeypatch):
+    app, overrides_path = _app_with_temp_overrides(tmp_path, monkeypatch, {})
+    client = app.test_client()
+
+    response = client.post(
+        "/rules/api/rules",
+        json={
+            "source": "product_rules",
+            "name": "审批规则",
+            "description": "审批流程测试",
+            "severity": "warning",
+            "code": "AP-001",
+            "logic": "检查正文内容",
+            "standard_ref": "",
+            "scope": "body",
+            "params": {},
+        },
+    )
+    assert response.status_code == 200
+    rule_id = response.get_json()["rule_id"]
+
+    submitted = client.post(f"/rules/api/rules/{rule_id}/submit", json={})
+    assert submitted.status_code == 200
+    saved = json.loads(overrides_path.read_text(encoding="utf-8"))
+    assert saved[rule_id]["approval_status"] == "pending"
+    assert saved[rule_id]["enabled"] is False
+
+    rejected = client.post(f"/rules/api/rules/{rule_id}/reject", json={"comment": "补充依据"})
+    assert rejected.status_code == 200
+    saved = json.loads(overrides_path.read_text(encoding="utf-8"))
+    assert saved[rule_id]["approval_status"] == "rejected"
+    assert saved[rule_id]["approval_comment"] == "补充依据"
+    assert saved[rule_id]["enabled"] is False
+
+    assert client.post(f"/rules/api/rules/{rule_id}/submit", json={}).status_code == 200
+    approved = client.post(f"/rules/api/rules/{rule_id}/approve", json={"comment": "通过"})
+    assert approved.status_code == 200
+    saved = json.loads(overrides_path.read_text(encoding="utf-8"))
+    assert saved[rule_id]["approval_status"] == "enabled"
+    assert saved[rule_id]["enabled"] is True
+
+    loaded = client.get(f"/rules/api/rules/{rule_id}").get_json()
+    assert loaded["approval_status"] == "enabled"
+    assert loaded["enabled"] is True
+
+
+def test_batch_approval_actions_update_multiple_rules(tmp_path, monkeypatch):
+    app, overrides_path = _app_with_temp_overrides(tmp_path, monkeypatch, {
+        "rule_a": {
+            "source": "product_rules",
+            "name": "规则 A",
+            "description": "",
+            "category": "custom",
+            "severity": "warning",
+            "review_type": "llm",
+            "enabled": False,
+            "code": "A-001",
+            "logic": "检查 A",
+            "standard_ref": "",
+            "params": {},
+            "scope": "body",
+            "approval_status": "pending",
+        },
+        "rule_b": {
+            "source": "product_rules",
+            "name": "规则 B",
+            "description": "",
+            "category": "custom",
+            "severity": "warning",
+            "review_type": "llm",
+            "enabled": False,
+            "code": "B-001",
+            "logic": "检查 B",
+            "standard_ref": "",
+            "params": {},
+            "scope": "body",
+            "approval_status": "pending",
+        },
+        "rule_c": {
+            "source": "product_rules",
+            "name": "规则 C",
+            "description": "",
+            "category": "custom",
+            "severity": "warning",
+            "review_type": "llm",
+            "enabled": False,
+            "code": "C-001",
+            "logic": "检查 C",
+            "standard_ref": "",
+            "params": {},
+            "scope": "body",
+            "approval_status": "pending",
+        },
+    })
+    client = app.test_client()
+
+    approved = client.post(
+        "/rules/api/rules/batch-approve",
+        json={"rule_ids": ["rule_a", "rule_b"], "comment": "批量通过"},
+    )
+    assert approved.status_code == 200
+    assert approved.get_json()["approved_count"] == 2
+    saved = json.loads(overrides_path.read_text(encoding="utf-8"))
+    assert saved["rule_a"]["enabled"] is True
+    assert saved["rule_b"]["approval_status"] == "enabled"
+
+    rejected = client.post(
+        "/rules/api/rules/batch-reject",
+        json={"rule_ids": ["rule_c"], "comment": "依据不足"},
+    )
+    assert rejected.status_code == 200
+    saved = json.loads(overrides_path.read_text(encoding="utf-8"))
+    assert saved["rule_c"]["approval_status"] == "rejected"
+    assert saved["rule_c"]["approval_comment"] == "依据不足"
 
 
 def test_created_table_field_rule_type_and_params_are_saved_and_read_back(tmp_path, monkeypatch):

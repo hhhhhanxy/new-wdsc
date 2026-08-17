@@ -150,6 +150,11 @@
     cursor: pointer;
 }
 .rule-select-item:hover { background: #f7fbff; }
+.rule-select-item.disabled {
+    cursor: not-allowed;
+    opacity: .58;
+}
+.rule-select-item.disabled:hover { background: transparent; }
 .rule-select-check { color: var(--primary); font-weight: 700; }
 .rule-select-name {
     overflow: hidden;
@@ -159,7 +164,9 @@
     font-size: 14px;
 }
 .rule-select-sub { color: var(--text-secondary); font-size: 12px; }
-.rule-select-count { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+.rule-select-count { color: var(--text-secondary); font-size: 12px; white-space: nowrap; text-align:right; }
+.rule-select-count strong { color: var(--primary); font-weight:700; }
+.rule-select-empty-note { color:#9f1d15; font-size:12px; }
 .rule-select-footer {
     margin-top: 7px;
     padding-top: 7px;
@@ -514,8 +521,13 @@ function getSelectedRules() {
 }
 
 function syncRuleSetWithSpecialty() {
-    selectedReviewRuleSources = new Set(getVisibleReviewGroups().filter(g => g.default_enabled !== false).map(g => g.source));
-    if (!selectedReviewRuleSources.size && getVisibleReviewGroups()[0]) selectedReviewRuleSources.add(getVisibleReviewGroups()[0].source);
+    selectedReviewRuleSources = new Set(getVisibleReviewGroups()
+        .filter(g => g.default_enabled !== false && Number(g.enabled || 0) > 0)
+        .map(g => g.source));
+    if (!selectedReviewRuleSources.size) {
+        const firstUsable = getVisibleReviewGroups().find(g => Number(g.enabled || 0) > 0);
+        if (firstUsable) selectedReviewRuleSources.add(firstUsable.source);
+    }
     if (ruleSetSearch) ruleSetSearch.value = '';
     renderReviewRuleSetDropdown();
 }
@@ -538,6 +550,8 @@ function getSelectedReviewGroups() {
 
 function toggleReviewRuleSet(source, checked, event) {
     if (event) event.stopPropagation();
+    const group = getVisibleReviewGroups().find(item => item.source === source);
+    if (group && Number(group.enabled || 0) <= 0) return;
     if (checked) selectedReviewRuleSources.add(source);
     else selectedReviewRuleSources.delete(source);
     renderReviewRuleSetDropdown();
@@ -553,7 +567,7 @@ function renderRuleSetSummary(selected) {
         return;
     }
     const visible = selected.map(group =>
-        `<span class="rule-select-chip" title="${escapeHtml(group.display_name || group.source)}">${escapeHtml(group.display_name || group.source)}</span>`
+        `<span class="rule-select-chip" title="${escapeHtml(group.display_name || group.source)}">${escapeHtml(group.display_name || group.source)} · ${Number(group.enabled || 0)}条</span>`
     );
     target.innerHTML = visible.join('');
 }
@@ -573,22 +587,39 @@ function renderReviewRuleSetDropdown() {
     });
     ruleSetChecklist.innerHTML = filtered.length ? filtered.map(group => {
         const checked = selectedReviewRuleSources.has(group.source);
+        const enabled = Number(group.enabled || 0);
+        const pending = Number(group.pending || 0);
+        const draft = Number(group.draft || 0);
+        const rejected = Number(group.rejected || 0);
+        const disabled = enabled <= 0;
         return `
-        <div class="rule-select-item" onclick="toggleReviewRuleSet('${escapeHtml(group.source)}', ${!checked}, event)">
+        <div class="rule-select-item ${disabled ? 'disabled' : ''}" onclick="toggleReviewRuleSet('${escapeHtml(group.source)}', ${!checked}, event)">
             <span class="rule-select-check">${checked ? '✓' : ''}</span>
             <span>
                 <span class="rule-select-name">${escapeHtml(group.display_name || group.source)}</span>
-                <span class="rule-select-sub">${escapeHtml(group.document_kind || '全部文档类型')}</span>
+                <span class="rule-select-sub">${escapeHtml(group.document_kind || '全部文档类型')}${disabled ? ' · 暂无可用规则' : ''}</span>
             </span>
-            <span class="rule-select-count">${group.enabled}/${group.total}</span>
+            <span class="rule-select-count">
+                <strong>${enabled}</strong> 已启用<br>
+                待审批 ${pending} / 草稿 ${draft}${rejected ? ` / 退回 ${rejected}` : ''}
+            </span>
         </div>`;
     }).join('') : '<div class="empty-state">没有匹配的规则集</div>';
     const selected = getSelectedReviewGroups();
     const rules = getSelectedRules();
     const enabled = rules.filter(rule => rule.enabled).length;
+    const pending = selected.reduce((sum, group) => sum + Number(group.pending || 0), 0);
+    const draft = selected.reduce((sum, group) => sum + Number(group.draft || 0), 0);
     renderRuleSetSummary(selected);
-    document.getElementById('ruleSetHint').textContent =
-        selected.length ? `启用规则 ${enabled} 条 / 共 ${rules.length} 条` : '请至少勾选一个规则集。';
+    if (!selected.length) {
+        const usableCount = groups.filter(group => Number(group.enabled || 0) > 0).length;
+        document.getElementById('ruleSetHint').innerHTML = usableCount
+            ? '请至少勾选一个规则集。'
+            : '<span class="rule-select-empty-note">当前专业暂无已启用规则，请先到审查规则管理中提交审批并通过。</span>';
+    } else {
+        document.getElementById('ruleSetHint').textContent =
+            `本次将使用已启用规则 ${enabled} 条；待审批 ${pending} 条、草稿 ${draft} 条不会参与审查。`;
+    }
 }
 
 function toggleRuleSetDropdown(event) {
@@ -630,6 +661,13 @@ function startReview() {
     const selectedSources = Array.from(selectedReviewRuleSources);
     if (!selectedSources.length) {
         alert('请至少勾选一个规则集');
+        startBtn.disabled = false;
+        startBtn.textContent = '开始审查';
+        return;
+    }
+    const selectedEnabledCount = getSelectedRules().filter(rule => rule.enabled).length;
+    if (selectedEnabledCount <= 0) {
+        alert('所选规则集中暂无已启用规则，请先到审查规则管理中提交审批并通过。');
         startBtn.disabled = false;
         startBtn.textContent = '开始审查';
         return;

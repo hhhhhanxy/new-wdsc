@@ -18,7 +18,62 @@
 .review-type-btns label:has(input:checked) { border-color: var(--primary); background: #f1f3ff; }
 .btn-primary { background: var(--primary); }
 .btn-primary:hover { background: var(--primary-dark); }
-.panel-actions { display:flex; align-items:center; gap:8px; }
+.panel-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.rule-toolbar {
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:flex-start;
+    margin-bottom:10px;
+}
+.rule-toolbar-title strong {
+    display:block;
+    color:var(--text-primary);
+    font-size:15px;
+}
+.rule-toolbar-title span {
+    display:block;
+    margin-top:3px;
+    color:var(--text-secondary);
+    font-size:13px;
+}
+.rule-more-actions {
+    position:relative;
+}
+.rule-more-actions summary {
+    min-height:32px;
+    padding:6px 12px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    background:#fff;
+    color:var(--text-secondary);
+    cursor:pointer;
+    font-size:13px;
+    list-style:none;
+}
+.rule-more-actions summary::-webkit-details-marker { display:none; }
+.rule-more-actions[open] summary {
+    border-color:#c4caff;
+    color:var(--primary);
+}
+.rule-more-menu {
+    position:absolute;
+    right:0;
+    top:38px;
+    z-index:20;
+    display:grid;
+    gap:6px;
+    min-width:150px;
+    padding:8px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 8px 20px rgba(30,45,70,.12);
+}
+.rule-more-menu .btn {
+    width:100%;
+    justify-content:center;
+}
 .import-file-box {
     padding: 14px;
     border: 1px dashed var(--border);
@@ -72,6 +127,22 @@
 .rule-context-title { font-weight:700; color:var(--text); }
 .rule-context-meta { margin-top:4px; color:var(--text-secondary); font-size:13px; }
 .active-set-select { min-width:190px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text); }
+.rule-view-tabs { display:flex; gap:8px; margin-bottom:12px; }
+.rule-view-tab { border:1px solid var(--border); border-radius:6px; background:#fff; color:var(--text-secondary); padding:7px 12px; cursor:pointer; font-size:14px; }
+.rule-view-tab.active { border-color:#c4caff; background:#f1f3ff; color:var(--primary); font-weight:700; }
+.rule-view-tab .count { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; margin-left:6px; padding:0 5px; border-radius:999px; background:#eef2ff; color:var(--primary); font-size:12px; }
+.approval-badge { display:inline-flex; align-items:center; padding:3px 8px; border-radius:999px; font-size:12px; white-space:nowrap; }
+.approval-draft { background:#f3f4f6; color:#5f6b7a; }
+.approval-pending { background:#fff5d6; color:#8a5a00; }
+.approval-enabled { background:#e8f6ef; color:#237a57; }
+.approval-rejected { background:#fff0ee; color:#b42318; }
+.approval-disabled { background:#eef1f5; color:#697386; }
+.approval-comment { max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-secondary); font-size:12px; }
+.approval-filter-bar { display:none; grid-template-columns:120px minmax(220px, 1fr); gap:8px; margin:-2px 0 12px; }
+.approval-filter-bar.show { display:grid; }
+.approval-filter-bar select,
+.approval-filter-bar input { height:34px; border:1px solid var(--border); border-radius:6px; padding:6px 9px; background:#fff; color:var(--text); }
+.approval-reject-note { margin-bottom:12px; padding:10px 12px; border:1px solid #ffd9d5; border-radius:8px; background:#fff7f6; color:#9f1d15; font-size:13px; }
 @media (max-width: 1100px) { .rule-workspace { grid-template-columns:1fr; } }
 </style>
 <div class="page-header">
@@ -92,6 +163,18 @@
 
     <div>
         <div class="panel">
+            <div class="rule-view-tabs">
+                <button type="button" class="rule-view-tab active" id="ruleLibraryTab" onclick="switchRuleView('library')">规则库</button>
+                <button type="button" class="rule-view-tab" id="ruleApprovalTab" onclick="switchRuleView('approval')">待审批<span class="count" id="approvalPendingCount">0</span></button>
+            </div>
+            <div class="approval-filter-bar" id="approvalFilterBar">
+                <select id="approvalStatusFilter" onchange="updateApprovalFilters()">
+                    <option value="all">全部状态</option>
+                    <option value="pending">待审批</option>
+                    <option value="rejected">已退回</option>
+                </select>
+                <input type="search" id="approvalKeywordFilter" placeholder="搜索规则编号、名称、规则集或审批意见" oninput="updateApprovalFilters()">
+            </div>
             <div class="rule-context-bar">
                 <div>
                     <div class="rule-context-title" id="ruleContextTitle">请选择规则域</div>
@@ -102,16 +185,27 @@
                     <select class="active-set-select" id="activeSetSelect" style="display:none;" title="当前管理的规则集" onchange="setActiveRuleSet(this.value)"></select>
                 </div>
             </div>
-            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span id="currentSetTitle">请选择规则集</span>
+            <div class="rule-toolbar">
+                <div class="rule-toolbar-title">
+                    <strong id="currentSetTitle">请选择规则集</strong>
+                    <span id="currentSetSummary">选择规则域后管理规则集。</span>
+                </div>
                 <div class="panel-actions">
-                    <button class="btn btn-outline" id="exportSetBtn" style="display:none;" onclick="exportCurrentSet()">导出规则集</button>
-                    <button class="btn btn-outline" id="downloadTemplateBtn" style="display:none;" onclick="downloadImportTemplate()">下载模板</button>
-                    <button class="btn btn-outline" id="importHistoryBtn" style="display:none;" onclick="openImportHistory()">导入记录</button>
                     <button class="btn btn-outline" id="importRuleBtn" style="display:none;" onclick="openImportModal()">导入规则</button>
+                    <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openCreateRuleModal()">添加规则</button>
+                    <button class="btn btn-outline" id="submitSelectedApprovalBtn" style="display:none;" onclick="submitSelectedApprovals()">提交选中审批</button>
+                    <button class="btn btn-primary" id="approveSelectedBtn" style="display:none;" onclick="approveSelectedRules()">批量通过</button>
+                    <button class="btn btn-outline" id="rejectSelectedBtn" style="display:none;" onclick="rejectSelectedRules()">批量退回</button>
                     <button class="btn btn-outline" id="deleteSelectedRulesBtn" style="display:none;color:var(--danger);" onclick="deleteSelectedRules()">删除选中</button>
-                    <button class="btn btn-outline" id="deleteSetBtn" style="display:none;color:var(--danger);" onclick="deleteCurrentSet()">删除规则集</button>
-                    <button class="btn btn-primary" id="addRuleBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openCreateRuleModal()">+ 添加规则</button>
+                    <details class="rule-more-actions" id="ruleMoreActions" style="display:none;">
+                        <summary>更多</summary>
+                        <div class="rule-more-menu">
+                            <button class="btn btn-outline" id="exportSetBtn" style="display:none;" onclick="exportCurrentSet()">导出规则集</button>
+                            <button class="btn btn-outline" id="downloadTemplateBtn" style="display:none;" onclick="downloadImportTemplate()">下载导入模板</button>
+                            <button class="btn btn-outline" id="importHistoryBtn" style="display:none;" onclick="openImportHistory()">导入记录</button>
+                            <button class="btn btn-outline" id="deleteSetBtn" style="display:none;color:var(--danger);" onclick="deleteCurrentSet()">删除规则集</button>
+                        </div>
+                    </details>
                 </div>
             </div>
             <table class="rule-table" id="ruleTable" style="display:none;">
@@ -125,6 +219,7 @@
                         <th>类型</th>
                         <th>范围</th>
                         <th>级别</th>
+                        <th>审批意见</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -146,7 +241,7 @@
         <div class="modal-body">
             <div class="import-file-box">
                 <input type="file" id="importRuleFile" accept=".xlsx" onchange="resetImportPreview()">
-                <p style="margin:8px 0 0;color:var(--text-secondary);font-size:13px;">仅支持平台模板生成的 .xlsx 文件；所有规则将归入当前规则集并默认开启。</p>
+                <p style="margin:8px 0 0;color:var(--text-secondary);font-size:13px;">仅支持平台模板生成的 .xlsx 文件；导入后先进入草稿，不直接参与审查，提交审批通过后自动启用。</p>
             </div>
             <div class="import-options">
                 <label>遇到重复编号
@@ -348,10 +443,12 @@ const reviewSpecialtyGroups = {{ review_specialty_groups | tojson }};
 const totalCount = {{ total }};
 const enabledCount = {{ enabled_count }};
 const disabledCount = {{ disabled_count }};
+let approvalStats = {{ approval_stats | tojson }};
 const severities = {{ severities | tojson }};
 const reviewTypes = {{ review_types | tojson }};
 
 let currentGroup = null;
+let currentRuleView = 'library';
 let currentRuleScope = {type: 'common', specialty_id: '', name: '通用规则'};
 let currentRule = null;
 let selectedRuleIds = new Set();
@@ -359,6 +456,7 @@ let ruleSetPage = 1;
 let rulePage = 1;
 let lastImportPreview = null;
 let collapsedRuleMajorGroups = new Set();
+let approvalFilters = {status: 'all', keyword: ''};
 const pageSize = 10;
 
 const severityLabels = {};
@@ -372,6 +470,13 @@ const severityBadges = {
 
 const reviewTypeLabels = {};
 reviewTypes.forEach(t => reviewTypeLabels[t.value] = t.label);
+const approvalStatusLabels = {
+    draft: '草稿',
+    pending: '待审批',
+    enabled: '已启用',
+    rejected: '已退回',
+    disabled: '已停用',
+};
 const scopeLabels = {
     all: '全文',
     cover: '封面',
@@ -534,6 +639,51 @@ function getVisibleGroups() {
         : getCommonGroups();
 }
 
+function getAllRules() {
+    return groups.flatMap(group => (group.rules || []).map(rule => ({...rule, source_display_name: group.display_name})));
+}
+
+function getApprovalRules() {
+    const keyword = String(approvalFilters.keyword || '').trim().toLowerCase();
+    return getAllRules().filter(rule => {
+        if (!['pending', 'rejected'].includes(rule.approval_status)) return false;
+        if (approvalFilters.status !== 'all' && rule.approval_status !== approvalFilters.status) return false;
+        if (!keyword) return true;
+        const haystack = [
+            rule.code,
+            rule.name,
+            rule.source_display_name,
+            rule.approval_comment,
+            rule.logic,
+        ].join(' ').toLowerCase();
+        return haystack.includes(keyword);
+    });
+}
+
+function switchRuleView(view) {
+    currentRuleView = view === 'approval' ? 'approval' : 'library';
+    selectedRuleIds = new Set();
+    rulePage = 1;
+    renderRuleManagement();
+}
+
+function updateRuleViewTabs() {
+    document.getElementById('ruleLibraryTab').classList.toggle('active', currentRuleView === 'library');
+    document.getElementById('ruleApprovalTab').classList.toggle('active', currentRuleView === 'approval');
+    document.getElementById('approvalPendingCount').textContent = approvalStats.pending || 0;
+    document.getElementById('approvalFilterBar').classList.toggle('show', currentRuleView === 'approval');
+}
+
+function updateApprovalFilters() {
+    approvalFilters = {
+        status: document.getElementById('approvalStatusFilter').value || 'all',
+        keyword: document.getElementById('approvalKeywordFilter').value || '',
+    };
+    selectedRuleIds = new Set();
+    rulePage = 1;
+    renderRuleManagement();
+}
+
 function renderRuleNav() {
     const target = document.getElementById('ruleNavList');
     const commonGroups = getCommonGroups();
@@ -611,6 +761,7 @@ function selectRuleScope(type, specialtyId = '') {
 
 function renderSetList() {
     renderRuleNav();
+    updateRuleViewTabs();
     const visibleGroups = getVisibleGroups();
     const totalPages = Math.max(1, Math.ceil(visibleGroups.length / pageSize));
     ruleSetPage = Math.min(ruleSetPage, totalPages);
@@ -623,8 +774,32 @@ function renderSetList() {
 function renderRuleManagement() {
     renderSetList();
     const rules = getCurrentRules();
+    if (currentRuleView === 'approval') {
+        document.getElementById('ruleContextTitle').textContent = '待审批规则';
+        document.getElementById('ruleContextMeta').textContent =
+            `当前共有 ${approvalStats.pending || 0} 条待审批、${approvalStats.rejected || 0} 条已退回规则。审批通过后规则自动进入正式规则库并参与审查。`;
+        document.getElementById('createSetBtn').style.display = 'none';
+        document.getElementById('activeSetSelect').style.display = 'none';
+        document.getElementById('currentSetTitle').textContent = '审批列表';
+        document.getElementById('currentSetSummary').textContent = '可编辑待审批规则，通过后入库，退回后修改再提交。';
+        toggleRuleActions(false);
+        if (!rules.length) {
+            document.getElementById('noRulesHint').textContent = '暂无待审批或已退回规则';
+            document.getElementById('noRulesHint').style.display = '';
+            document.getElementById('ruleTable').style.display = 'none';
+            document.getElementById('rulePager').style.display = 'none';
+            syncRuleSelectionUi();
+            return;
+        }
+        document.getElementById('noRulesHint').style.display = 'none';
+        document.getElementById('ruleTable').style.display = '';
+        document.getElementById('rulePager').style.display = '';
+        renderRuleTable(rules);
+        return;
+    }
     if (!currentGroup) {
         document.getElementById('currentSetTitle').textContent = '请选择规则集';
+        document.getElementById('currentSetSummary').textContent = '选择规则域后管理规则集。';
         document.getElementById('noRulesHint').textContent = '选择当前目录下的规则集查看规则列表';
         document.getElementById('noRulesHint').style.display = '';
         document.getElementById('ruleTable').style.display = 'none';
@@ -634,6 +809,8 @@ function renderRuleManagement() {
         return;
     }
     document.getElementById('currentSetTitle').textContent = currentGroup.display_name;
+    document.getElementById('currentSetSummary').textContent =
+        `${rules.length} 条规则 · ${rules.filter(rule => rule.approval_status === 'enabled').length} 条已启用 · ${rules.filter(rule => rule.approval_status === 'pending').length} 条待审批 · ${currentGroup.custom ? '自定义规则集' : '系统规则集'}`;
     toggleRuleActions(true);
     if (!rules.length) {
         document.getElementById('noRulesHint').textContent = '当前选择暂无规则，可在右上角添加或导入规则';
@@ -651,12 +828,21 @@ function renderRuleManagement() {
 
 function toggleRuleActions(show) {
     const editable = show && currentGroup;
+    const hasMore = editable;
     document.getElementById('exportSetBtn').style.display = editable ? '' : 'none';
     document.getElementById('addRuleBtn').style.display = editable ? '' : 'none';
     document.getElementById('downloadTemplateBtn').style.display = editable ? '' : 'none';
     document.getElementById('importHistoryBtn').style.display = editable ? '' : 'none';
     document.getElementById('importRuleBtn').style.display = editable ? '' : 'none';
+    document.getElementById('submitSelectedApprovalBtn').style.display = 'none';
+    document.getElementById('approveSelectedBtn').style.display = 'none';
+    document.getElementById('rejectSelectedBtn').style.display = 'none';
     document.getElementById('deleteSetBtn').style.display = editable && currentGroup.custom ? '' : 'none';
+    const more = document.getElementById('ruleMoreActions');
+    if (more) {
+        more.style.display = hasMore ? '' : 'none';
+        if (!hasMore) more.open = false;
+    }
 }
 
 function updateRuleContext() {
@@ -667,7 +853,7 @@ function updateRuleContext() {
         || (currentRuleScope.type === 'specialty' && currentRuleScope.specialty_id);
     document.getElementById('ruleContextTitle').textContent = currentRuleScope.name;
     document.getElementById('ruleContextMeta').textContent =
-        `当前目录 ${groups.length} 个规则集，正在管理 ${currentGroup ? '“' + currentGroup.display_name + '”' : '0 个'}，共 ${rules.length} 条规则，${enabled} 条启用。`;
+        `当前目录 ${groups.length} 个规则集，正在管理 ${currentGroup ? '“' + currentGroup.display_name + '”' : '0 个'}，共 ${rules.length} 条规则，${enabled} 条已启用。`;
     document.getElementById('createSetBtn').style.display = canCreateSet ? '' : 'none';
     renderActiveSetSelect(groups);
 }
@@ -720,22 +906,17 @@ function renderRuleTable(rules) {
     tbody.innerHTML = pageRules.map(r => `
         <tr>
             <td><input type="checkbox" class="rule-row-check" value="${escapeHtml(r.rule_id)}" ${selectedRuleIds.has(r.rule_id) ? 'checked' : ''} onchange="toggleRuleSelection('${escapeHtml(r.rule_id)}', this.checked)"></td>
-            <td>${r.code || ''}</td>
-            <td><span class="status-dot ${r.enabled ? 'on' : 'off'}" title="${r.enabled ? '已启用' : '已禁用'}"></span></td>
+            <td>${escapeHtml(r.code || '')}</td>
+            <td>${renderApprovalBadge(r)}</td>
             <td>${escapeHtml(r.source_display_name || r.source || '')}</td>
             <td>
-                <div class="rule-name-cell" title="${r.name}">${r.name}</div>
+                <div class="rule-name-cell" title="${escapeHtml(r.name)}">${escapeHtml(r.name)}</div>
             </td>
             <td>${reviewTypeLabels[r.review_type] || r.review_type}</td>
             <td>${scopeLabels[r.scope] || r.scope || '全文'}</td>
             <td><span class="badge ${severityBadges[r.severity] || 'badge-default'}">${severityLabels[r.severity] || r.severity}</span></td>
-            <td>
-                <div class="rule-actions">
-                    <button class="btn btn-outline" onclick="openEdit('${r.rule_id}')">编辑</button>
-                    <button class="btn btn-outline" onclick="toggleEnabled('${r.rule_id}', ${!r.enabled})">${r.enabled ? '禁用' : '启用'}</button>
-                    <button class="icon-muted-btn" title="删除规则" aria-label="删除规则" onclick="deleteRule('${r.rule_id}')">&times;</button>
-                </div>
-            </td>
+            <td><div class="approval-comment" title="${escapeHtml(r.approval_comment || '')}">${escapeHtml(r.approval_comment || '-')}</div></td>
+            <td><div class="rule-actions">${renderRuleActions(r)}</div></td>
         </tr>
     `).join('');
 
@@ -743,7 +924,34 @@ function renderRuleTable(rules) {
     syncRuleSelectionUi();
 }
 
+function renderApprovalBadge(rule) {
+    const status = rule.approval_status || (rule.enabled ? 'enabled' : 'disabled');
+    return `<span class="approval-badge approval-${escapeHtml(status)}">${escapeHtml(rule.approval_status_label || approvalStatusLabels[status] || status)}</span>`;
+}
+
+function renderRuleActions(rule) {
+    const id = escapeHtml(rule.rule_id);
+    const actions = [`<button class="btn btn-outline" onclick="openEdit('${id}')">编辑</button>`];
+    if (!rule.custom) {
+        actions.push(`<button class="btn btn-outline" onclick="toggleEnabled('${id}', ${!rule.enabled})">${rule.enabled ? '禁用' : '启用'}</button>`);
+        return actions.join('');
+    }
+    if (['draft', 'rejected', 'disabled'].includes(rule.approval_status)) {
+        actions.push(`<button class="btn btn-primary" onclick="submitRuleApproval('${id}')">提交审批</button>`);
+    }
+    if (rule.approval_status === 'pending') {
+        actions.push(`<button class="btn btn-primary" onclick="approveRule('${id}')">通过</button>`);
+        actions.push(`<button class="btn btn-outline" onclick="rejectRule('${id}')">退回</button>`);
+    }
+    if (rule.approval_status === 'enabled') {
+        actions.push(`<button class="btn btn-outline" onclick="disableRule('${id}')">停用</button>`);
+    }
+    actions.push(`<button class="icon-muted-btn" title="删除规则" aria-label="删除规则" onclick="deleteRule('${id}')">&times;</button>`);
+    return actions.join('');
+}
+
 function getCurrentRules() {
+    if (currentRuleView === 'approval') return getApprovalRules();
     return currentGroup ? (currentGroup.rules || []).map(rule => ({...rule, source_display_name: currentGroup.display_name})) : [];
 }
 
@@ -778,6 +986,24 @@ function syncRuleSelectionUi() {
         selectPage.indeterminate = checkedCount > 0 && checkedCount < pageIds.length;
     }
     const deleteBtn = document.getElementById('deleteSelectedRulesBtn');
+    const submitBtn = document.getElementById('submitSelectedApprovalBtn');
+    const approveBtn = document.getElementById('approveSelectedBtn');
+    const rejectBtn = document.getElementById('rejectSelectedBtn');
+    const selectedRules = getCurrentRules().filter(rule => selectedRuleIds.has(rule.rule_id));
+    const submittableCount = selectedRules.filter(rule => rule.custom && ['draft', 'rejected', 'disabled'].includes(rule.approval_status)).length;
+    const pendingCount = selectedRules.filter(rule => rule.custom && rule.approval_status === 'pending').length;
+    if (submitBtn) {
+        submitBtn.style.display = submittableCount ? '' : 'none';
+        submitBtn.textContent = submittableCount ? `提交审批(${submittableCount})` : '提交选中审批';
+    }
+    if (approveBtn) {
+        approveBtn.style.display = currentRuleView === 'approval' && pendingCount ? '' : 'none';
+        approveBtn.textContent = pendingCount ? `批量通过(${pendingCount})` : '批量通过';
+    }
+    if (rejectBtn) {
+        rejectBtn.style.display = currentRuleView === 'approval' && pendingCount ? '' : 'none';
+        rejectBtn.textContent = pendingCount ? `批量退回(${pendingCount})` : '批量退回';
+    }
     if (deleteBtn) {
         deleteBtn.style.display = selectedRuleIds.size ? '' : 'none';
         deleteBtn.textContent = selectedRuleIds.size ? `删除选中(${selectedRuleIds.size})` : '删除选中';
@@ -804,6 +1030,154 @@ function toggleEnabled(ruleId, newState) {
         const source = currentGroup.source;
         currentGroup = groups.find(g => g.source === source) || currentGroup;
         renderRuleManagement();
+    });
+}
+
+function postRuleApproval(ruleId, action, comment = '') {
+    return fetch(`/rules/api/rules/${encodeURIComponent(ruleId)}/${action}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({comment: comment}),
+    }).then(async response => {
+        const data = await response.json();
+        if (!response.ok || data.error) {
+            alert(data.error || '操作失败');
+            return null;
+        }
+        return data;
+    }).catch(error => {
+        alert('操作失败：' + error.message);
+        return null;
+    });
+}
+
+function submitRuleApproval(ruleId) {
+    const rule = getAllRules().find(item => item.rule_id === ruleId);
+    if (!rule) return;
+    const message = rule.approval_status === 'rejected'
+        ? '确定重新提交审批？'
+        : '确定提交审批？提交后规则暂不参与审查，审批通过后自动启用。';
+    if (!confirm(message)) return;
+    const source = currentGroup ? currentGroup.source : '';
+    postRuleApproval(ruleId, 'submit').then(data => {
+        if (!data) return;
+        reloadProfiles(() => currentRuleView === 'approval' ? renderRuleManagement() : restoreCurrentGroup(source));
+    });
+}
+
+function submitSelectedApprovals() {
+    const selectedRules = getCurrentRules().filter(rule => selectedRuleIds.has(rule.rule_id));
+    const ids = selectedRules
+        .filter(rule => rule.custom && ['draft', 'rejected', 'disabled'].includes(rule.approval_status))
+        .map(rule => rule.rule_id);
+    if (!ids.length) return;
+    if (!confirm(`确定提交选中的 ${ids.length} 条规则审批？`)) return;
+    const source = currentGroup ? currentGroup.source : '';
+    Promise.all(ids.map(ruleId =>
+        postRuleApproval(ruleId, 'submit').then(data => Boolean(data))
+    )).then(results => {
+        const failed = results.filter(ok => !ok).length;
+        selectedRuleIds = new Set();
+        if (failed) alert(`已提交 ${ids.length - failed} 条，${failed} 条失败。`);
+        reloadProfiles(() => currentRuleView === 'approval' ? renderRuleManagement() : restoreCurrentGroup(source));
+    });
+}
+
+function approveRule(ruleId) {
+    const comment = prompt('审批意见（可选）', '审批通过');
+    if (comment === null) return;
+    const source = currentGroup ? currentGroup.source : '';
+    postRuleApproval(ruleId, 'approve', comment).then(data => {
+        if (!data) return;
+        reloadProfiles(() => currentRuleView === 'approval' ? renderRuleManagement() : restoreCurrentGroup(source));
+    });
+}
+
+function rejectRule(ruleId) {
+    const comment = prompt('请填写退回意见');
+    if (comment === null) return;
+    if (!comment.trim()) {
+        alert('请填写退回意见');
+        return;
+    }
+    const source = currentGroup ? currentGroup.source : '';
+    postRuleApproval(ruleId, 'reject', comment.trim()).then(data => {
+        if (!data) return;
+        reloadProfiles(() => currentRuleView === 'approval' ? renderRuleManagement() : restoreCurrentGroup(source));
+    });
+}
+
+function batchRuleApproval(action, ruleIds, comment = '') {
+    const endpoint = action === 'approve' ? 'batch-approve' : 'batch-reject';
+    return fetch(`/rules/api/rules/${endpoint}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rule_ids: ruleIds, comment: comment}),
+    }).then(async response => {
+        const data = await response.json();
+        if (!response.ok || data.error) {
+            alert(data.error || '批量操作失败');
+            return null;
+        }
+        return data;
+    }).catch(error => {
+        alert('批量操作失败：' + error.message);
+        return null;
+    });
+}
+
+function selectedPendingRuleIds() {
+    return getCurrentRules()
+        .filter(rule => selectedRuleIds.has(rule.rule_id) && rule.custom && rule.approval_status === 'pending')
+        .map(rule => rule.rule_id);
+}
+
+function approveSelectedRules() {
+    const ids = selectedPendingRuleIds();
+    if (!ids.length) return;
+    const comment = prompt('批量审批意见（可选）', '审批通过');
+    if (comment === null) return;
+    batchRuleApproval('approve', ids, comment).then(data => {
+        if (!data) return;
+        selectedRuleIds = new Set();
+        if ((data.failed || []).length) {
+            alert(`已通过 ${data.approved_count || 0} 条，${data.failed.length} 条失败。`);
+        }
+        reloadProfiles(() => renderRuleManagement());
+    });
+}
+
+function rejectSelectedRules() {
+    const ids = selectedPendingRuleIds();
+    if (!ids.length) return;
+    const comment = prompt('请填写批量退回意见');
+    if (comment === null) return;
+    if (!comment.trim()) {
+        alert('请填写退回意见');
+        return;
+    }
+    batchRuleApproval('reject', ids, comment.trim()).then(data => {
+        if (!data) return;
+        selectedRuleIds = new Set();
+        if ((data.failed || []).length) {
+            alert(`已退回 ${data.rejected_count || 0} 条，${data.failed.length} 条失败。`);
+        }
+        reloadProfiles(() => renderRuleManagement());
+    });
+}
+
+function disableRule(ruleId) {
+    if (!confirm('确定停用此规则？停用后不会参与文档审查，可重新提交审批。')) return;
+    fetch('/rules/api/rules/' + encodeURIComponent(ruleId), {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled: false, approval_status: 'disabled'}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { alert(data.error); return; }
+        const source = currentGroup ? currentGroup.source : '';
+        reloadProfiles(() => restoreCurrentGroup(source));
     });
 }
 
@@ -855,6 +1229,9 @@ function closeModal() {
 
 function renderModalBody(rule) {
     let html = '';
+    if (rule.custom && rule.approval_status === 'rejected' && rule.approval_comment) {
+        html += `<div class="approval-reject-note"><strong>退回意见：</strong>${escapeHtml(rule.approval_comment)}</div>`;
+    }
     if (rule.custom) {
         html += `<div class="modal-field"><label>规则名称</label><input type="text" id="editName" value="${escapeHtml(rule.name || '')}"></div>`;
         html += `<div class="modal-field"><label>描述</label><input type="text" id="editDescription" value="${escapeHtml(rule.description || '')}"></div>`;
@@ -884,12 +1261,19 @@ function renderModalBody(rule) {
             </div>`;
     }
     html += `<div class="modal-divider">基本属性</div>`;
-    html += `<div class="modal-field"><label>启用状态</label>
-        <label class="toggle-switch">
-            <input type="checkbox" id="editEnabled" ${rule.enabled ? 'checked' : ''}>
-            <span class="toggle-slider"></span>
-        </label>
-    </div>`;
+    if (rule.custom) {
+        html += `<div class="modal-field"><label>审批状态</label><div class="readonly">${renderApprovalBadge(rule)}</div></div>`;
+        if (rule.approval_comment) {
+            html += `<div class="modal-field"><label>审批意见</label><div class="readonly">${escapeHtml(rule.approval_comment)}</div></div>`;
+        }
+    } else {
+        html += `<div class="modal-field"><label>启用状态</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="editEnabled" ${rule.enabled ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>`;
+    }
     html += `<div class="modal-field"><label>严重级别</label>
         <select id="editSeverity">
             ${severities.map(s => `<option value="${s.value}" ${rule.severity === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
@@ -1092,7 +1476,6 @@ function saveRule() {
     if (!currentRule) return;
 
     const updates = {
-        enabled: document.getElementById('editEnabled').checked,
         severity: document.getElementById('editSeverity').value,
         review_type: selectedReviewType('editReviewType'),
         code: document.getElementById('editCode').value.trim(),
@@ -1102,6 +1485,9 @@ function saveRule() {
         target_headings: parseListInput(document.getElementById('editTargetHeadings').value),
         required_elements: parseListInput(document.getElementById('editRequiredElements').value),
     };
+    if (!currentRule.custom) {
+        updates.enabled = document.getElementById('editEnabled').checked;
+    }
     if (currentRule.custom) {
         updates.name = document.getElementById('editName').value.trim();
         updates.description = document.getElementById('editDescription').value.trim();
@@ -1401,10 +1787,16 @@ function confirmRuleImport() {
     button.textContent = '导入中...';
     submitRuleImport(true).then(data => {
         if (!data) return;
-        alert(`导入完成：新增 ${data.created_count} 条，更新 ${data.updated_count} 条，跳过 ${data.skip_count} 条`);
+        const importedIds = [...(data.created_rule_ids || []), ...(data.updated_rule_ids || [])];
+        alert(`导入完成：新增 ${data.created_count} 条，更新 ${data.updated_count} 条，跳过 ${data.skip_count} 条。已为你选中本批草稿规则，可直接点击“提交审批”。`);
         const source = currentGroup ? currentGroup.source : '';
         closeImportModal();
-        reloadProfiles(() => restoreCurrentGroup(source));
+        reloadProfiles(() => {
+            currentRuleView = 'library';
+            restoreCurrentGroup(source);
+            selectedRuleIds = new Set(importedIds);
+            syncRuleSelectionUi();
+        });
     }).finally(() => {
         button.textContent = '确认导入';
     });
@@ -1549,6 +1941,7 @@ function createRule() {
     .then(data => {
         if (data.error) { alert(data.error); return; }
         closeCreateRuleModal();
+        alert('规则已保存为草稿，请检查后提交审批。');
         const source = currentGroup ? currentGroup.source : '';
         reloadProfiles(() => restoreCurrentGroup(source));
     });
@@ -1561,6 +1954,7 @@ function reloadProfiles(callback) {
         .then(data => {
             groups.length = 0;
             groups.push(...data.groups);
+            approvalStats = data.approval_stats || approvalStats || {};
             if (callback) callback();
             else renderRuleManagement();
         });

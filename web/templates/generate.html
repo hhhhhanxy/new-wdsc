@@ -1986,6 +1986,13 @@ function renderRevisionSuggestions(data) {
         const actionLabel = item.action === 'replace' ? '替换' : '补充';
         const confidence = Math.round(Number(item.confidence || 0) * 100);
         const confirmText = item.need_confirm ? '需确认' : '可直接应用';
+        const paragraphText = item.target_paragraph_index !== null && item.target_paragraph_index !== undefined
+            ? ` · 段落 ${escapeHtml(item.target_paragraph_index)}`
+            : '';
+        const multiHints = Array.isArray(item.multi_old_text_hints) ? item.multi_old_text_hints : [];
+        const oldText = multiHints.length
+            ? ` · 跨 ${multiHints.length} 段原文`
+            : (item.old_text_hint ? ' · 原文：' + escapeHtml(item.old_text_hint) : '');
         return `
             <label class="revision-suggestion-item">
                 <input type="checkbox" class="revision-suggestion-check" value="${escapeHtml(item.id || '')}" checked>
@@ -1995,7 +2002,7 @@ function renderRevisionSuggestions(data) {
                         <span>${escapeHtml(item.target_heading || '未指定章节')}</span>
                     </div>
                     <div class="revision-suggestion-meta">
-                        ${escapeHtml(confirmText)} · 置信度 ${confidence || 60}%${item.old_text_hint ? ' · 原文：' + escapeHtml(item.old_text_hint) : ''}
+                        ${escapeHtml(confirmText)} · 置信度 ${confidence || 60}%${paragraphText}${oldText}
                     </div>
                     ${item.reason ? `<div class="revision-suggestion-meta">原因：${escapeHtml(item.reason)}</div>` : ''}
                     <div class="revision-suggestion-text">${escapeHtml(item.new_text || '')}</div>

@@ -37,6 +37,13 @@ SOURCE_DISPLAY = {
 # 规则集排序顺序
 SOURCE_ORDER = {"common": 0, "extension": 1}
 COMMON_RULE_SOURCES = {"common", "format", "grammar", "default", "general", "通用规则"}
+APPROVAL_STATUS_LABELS = {
+    "draft": "草稿",
+    "pending": "待审批",
+    "enabled": "已启用",
+    "rejected": "已退回",
+    "disabled": "已停用",
+}
 
 def _load_custom_sets() -> dict:
     """加载自定义规则集定义。"""
@@ -93,7 +100,9 @@ def _serialize_rule(rule: Rule) -> dict:
     """将 Rule 对象序列化为 JSON 安全的字典。"""
     # 判断是否为自定义规则（通过 override 创建的）
     overrides = load_overrides()
-    is_custom = rule.rule_id in overrides and "name" in overrides[rule.rule_id]
+    override = overrides.get(rule.rule_id, {})
+    is_custom = rule.rule_id in overrides and "name" in override
+    approval_status = _rule_approval_status(rule, override)
 
     return {
         "rule_id": rule.rule_id,
@@ -114,7 +123,25 @@ def _serialize_rule(rule: Rule) -> dict:
         "scope": rule.scope.value if hasattr(rule.scope, "value") else str(rule.scope or "all"),
         "target_headings": rule.target_headings,
         "required_elements": rule.required_elements,
+        "approval_status": approval_status,
+        "approval_status_label": APPROVAL_STATUS_LABELS.get(approval_status, approval_status),
+        "approval_comment": str(override.get("approval_comment") or ""),
+        "submitted_at": str(override.get("submitted_at") or ""),
+        "approved_at": str(override.get("approved_at") or ""),
+        "rejected_at": str(override.get("rejected_at") or ""),
+        "created_at": str(override.get("created_at") or ""),
+        "updated_at": str(override.get("updated_at") or ""),
     }
+
+
+def _rule_approval_status(rule: Rule, override: dict | None = None) -> str:
+    override = override or {}
+    status = str(override.get("approval_status") or "").strip()
+    if status in APPROVAL_STATUS_LABELS:
+        return status
+    if "name" not in override:
+        return "enabled" if rule.enabled else "disabled"
+    return "enabled" if rule.enabled else "draft"
 
 
 def _group_rules_by_source(rules: list) -> list:
@@ -166,8 +193,21 @@ def _group_rules_by_source(rules: list) -> list:
     for g in result:
         g["total"] = len(g["rules"])
         g["enabled"] = sum(1 for r in g["rules"] if r["enabled"])
+        g["pending"] = sum(1 for r in g["rules"] if r.get("approval_status") == "pending")
+        g["draft"] = sum(1 for r in g["rules"] if r.get("approval_status") == "draft")
+        g["rejected"] = sum(1 for r in g["rules"] if r.get("approval_status") == "rejected")
 
     return result, total, enabled
+
+
+def _approval_stats(groups: list[dict]) -> dict:
+    rules = [rule for group in groups for rule in group.get("rules", [])]
+    return {
+        "pending": sum(1 for rule in rules if rule.get("approval_status") == "pending"),
+        "draft": sum(1 for rule in rules if rule.get("approval_status") == "draft"),
+        "rejected": sum(1 for rule in rules if rule.get("approval_status") == "rejected"),
+        "enabled": sum(1 for rule in rules if rule.get("approval_status") == "enabled"),
+    }
 
 
 def _validate_custom_rule_definition(data: dict, require_logic: bool = True):
@@ -276,6 +316,9 @@ def _rule_set_exists(source: str) -> bool:
 
 def _build_custom_rule_data(payload: dict) -> dict:
     params = _normalize_rule_params(payload.get("params") or {})
+    approval_status = str(payload.get("approval_status") or "draft").strip()
+    if approval_status not in {"draft", "pending", "enabled", "rejected", "disabled"}:
+        approval_status = "draft"
     return {
         "source": payload["source"],
         "name": payload["name"].strip(),
@@ -283,7 +326,7 @@ def _build_custom_rule_data(payload: dict) -> dict:
         "category": "custom",
         "severity": RuleSeverity(payload.get("severity", "warning")).value,
         "review_type": ReviewType(payload.get("review_type", "llm")).value,
-        "enabled": bool(payload.get("enabled", True)),
+        "enabled": bool(payload.get("enabled", False)) and approval_status == "enabled",
         "code": payload["code"].strip(),
         "logic": payload.get("logic", "").strip(),
         "standard_ref": payload.get("standard_ref", "").strip(),
@@ -292,6 +335,10 @@ def _build_custom_rule_data(payload: dict) -> dict:
         "scope": RuleScope(payload.get("scope", "all")).value,
         "target_headings": _normalize_list(payload.get("target_headings")),
         "required_elements": _normalize_list(payload.get("required_elements")),
+        "approval_status": approval_status,
+        "approval_comment": str(payload.get("approval_comment") or "").strip(),
+        "created_at": payload.get("created_at") or beijing_now_str(),
+        "updated_at": beijing_now_str(),
     }
 
 
@@ -308,7 +355,7 @@ def _copied_rule_data(rule: dict, target_source: str) -> dict:
         "category": "custom",
         "severity": RuleSeverity(rule.get("severity", "warning")).value,
         "review_type": ReviewType(rule.get("review_type", "llm")).value,
-        "enabled": bool(rule.get("enabled", True)),
+        "enabled": False,
         "code": code,
         "logic": str(rule.get("logic") or "").strip(),
         "standard_ref": str(rule.get("standard_ref") or "").strip(),
@@ -317,6 +364,10 @@ def _copied_rule_data(rule: dict, target_source: str) -> dict:
         "scope": RuleScope(rule.get("scope", "all")).value,
         "target_headings": _normalize_list(rule.get("target_headings")),
         "required_elements": _normalize_list(rule.get("required_elements")),
+        "approval_status": "draft",
+        "approval_comment": "",
+        "created_at": beijing_now_str(),
+        "updated_at": beijing_now_str(),
     }
 
 
@@ -386,6 +437,7 @@ def index():
     """渲染规则管理页面。"""
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
     groups, total, enabled = _group_rules_by_source(rules)
+    approval_stats = _approval_stats(groups)
     from web.option_registry import get_specialties, get_specialty_groups
     return render_template(
         "rules.html",
@@ -396,6 +448,7 @@ def index():
         total=total,
         enabled_count=enabled,
         disabled_count=total - enabled,
+        approval_stats=approval_stats,
         severities=[{"value": s.value, "label": {"error": "错误", "warning": "警告", "info": "信息"}.get(s.value, s.value)} for s in RuleSeverity],
         review_types=[{"value": t.value, "label": {"rule": "规则引擎", "llm": "LLM", "both": "规则+LLM"}.get(t.value, t.value)} for t in ReviewType],
     )
@@ -406,7 +459,12 @@ def api_profiles():
     """返回所有规则集及规则列表。"""
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
     groups, total, enabled = _group_rules_by_source(rules)
-    return jsonify({"groups": groups, "total": total, "enabled": enabled})
+    return jsonify({
+        "groups": groups,
+        "total": total,
+        "enabled": enabled,
+        "approval_stats": _approval_stats(groups),
+    })
 
 
 @bp.route("/api/rules/<rule_id>")
@@ -469,6 +527,106 @@ def api_update_rule(rule_id: str):
         return jsonify(result), 400
 
     return jsonify(result)
+
+
+def _update_rule_approval(rule_id: str, status: str, comment: str = "") -> dict:
+    overrides = load_overrides()
+    rule_data = overrides.get(rule_id)
+    if not rule_data or "name" not in rule_data:
+        return {"error": "仅自定义规则支持审批流程"}
+    if status not in APPROVAL_STATUS_LABELS:
+        return {"error": "审批状态无效"}
+
+    now = beijing_now_str()
+    rule_data["approval_status"] = status
+    rule_data["approval_comment"] = str(comment or "").strip()
+    rule_data["updated_at"] = now
+    if status == "pending":
+        rule_data["enabled"] = False
+        rule_data["submitted_at"] = now
+    elif status == "enabled":
+        rule_data["enabled"] = True
+        rule_data["approved_at"] = now
+    elif status == "rejected":
+        rule_data["enabled"] = False
+        rule_data["rejected_at"] = now
+    elif status in {"draft", "disabled"}:
+        rule_data["enabled"] = False
+    save_overrides(overrides)
+    return {"ok": True, "rule_id": rule_id, "approval_status": status}
+
+
+@bp.route("/api/rules/<rule_id>/submit", methods=["POST"])
+def api_submit_rule_approval(rule_id: str):
+    """提交规则审批。"""
+    data = request.get_json(silent=True) or {}
+    result = _update_rule_approval(rule_id, "pending", data.get("comment", ""))
+    if "error" in result:
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@bp.route("/api/rules/<rule_id>/approve", methods=["POST"])
+def api_approve_rule(rule_id: str):
+    """审批通过并启用规则。"""
+    data = request.get_json(silent=True) or {}
+    result = _update_rule_approval(rule_id, "enabled", data.get("comment", ""))
+    if "error" in result:
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@bp.route("/api/rules/<rule_id>/reject", methods=["POST"])
+def api_reject_rule(rule_id: str):
+    """退回规则修改。"""
+    data = request.get_json(silent=True) or {}
+    comment = str(data.get("comment") or "").strip()
+    if not comment:
+        return jsonify({"error": "请填写退回意见"}), 400
+    result = _update_rule_approval(rule_id, "rejected", comment)
+    if "error" in result:
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@bp.route("/api/rules/batch-approve", methods=["POST"])
+def api_batch_approve_rules():
+    """批量审批通过规则。"""
+    data = request.get_json(silent=True) or {}
+    rule_ids = data.get("rule_ids") or []
+    if not isinstance(rule_ids, list) or not rule_ids:
+        return jsonify({"error": "请选择需要审批通过的规则"}), 400
+    comment = str(data.get("comment") or "").strip()
+    success = []
+    failed = []
+    for rule_id in rule_ids:
+        result = _update_rule_approval(str(rule_id), "enabled", comment)
+        if "error" in result:
+            failed.append({"rule_id": rule_id, "error": result["error"]})
+        else:
+            success.append(rule_id)
+    return jsonify({"ok": True, "approved_count": len(success), "failed": failed})
+
+
+@bp.route("/api/rules/batch-reject", methods=["POST"])
+def api_batch_reject_rules():
+    """批量退回规则。"""
+    data = request.get_json(silent=True) or {}
+    rule_ids = data.get("rule_ids") or []
+    comment = str(data.get("comment") or "").strip()
+    if not isinstance(rule_ids, list) or not rule_ids:
+        return jsonify({"error": "请选择需要退回的规则"}), 400
+    if not comment:
+        return jsonify({"error": "请填写退回意见"}), 400
+    success = []
+    failed = []
+    for rule_id in rule_ids:
+        result = _update_rule_approval(str(rule_id), "rejected", comment)
+        if "error" in result:
+            failed.append({"rule_id": rule_id, "error": result["error"]})
+        else:
+            success.append(rule_id)
+    return jsonify({"ok": True, "rejected_count": len(success), "failed": failed})
 
 
 @bp.route("/api/sets", methods=["POST"])
@@ -768,6 +926,8 @@ def api_import_rules(source: str):
         "imported_count": len(created) + len(updated),
         "created_count": len(created),
         "updated_count": len(updated),
+        "created_rule_ids": list(created.keys()),
+        "updated_rule_ids": list(updated.keys()),
     })
 
 

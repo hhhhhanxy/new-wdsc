@@ -111,7 +111,7 @@ def _upload(client, file_bytes, commit=False, source="test_outline", duplicate_m
     )
 
 
-def test_rule_import_preview_and_commit_defaults_to_enabled(tmp_path, monkeypatch):
+def test_rule_import_preview_and_commit_defaults_to_draft(tmp_path, monkeypatch):
     app, overrides_path = _test_app(tmp_path, monkeypatch)
     workbook = _xlsx_bytes([[
         1,
@@ -138,13 +138,16 @@ def test_rule_import_preview_and_commit_defaults_to_enabled(tmp_path, monkeypatc
 
     response = _upload(app.test_client(), workbook, commit=True)
     assert response.status_code == 200
-    assert response.get_json()["imported_count"] == 1
+    data = response.get_json()
+    assert data["imported_count"] == 1
+    assert len(data["created_rule_ids"]) == 1
 
     saved = json.loads(overrides_path.read_text(encoding="utf-8"))
     imported = next(iter(saved.values()))
     assert imported["source"] == "test_outline"
     assert imported["code"] == "T-001"
-    assert imported["enabled"] is True
+    assert imported["enabled"] is False
+    assert imported["approval_status"] == "draft"
     assert imported["target_headings"] == ["范围", "试验项目"]
 
 

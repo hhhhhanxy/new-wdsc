@@ -712,7 +712,7 @@ def _revise_generated_docx(
     output_path = Path(output_dir) / f"{source.stem}_v{version}{source.suffix}"
     shutil.copyfile(source, output_path)
     doc = Document(str(output_path))
-    context = _extract_docx_revision_context(doc)
+    context = _extract_docx_revision_context(doc, query=' '.join([instruction, supplement_text]))
     prompt = _build_revision_prompt(
         instruction=instruction,
         supplement_text=supplement_text,
@@ -748,7 +748,7 @@ def _suggest_generated_docx_revisions(
     from docx import Document
 
     doc = Document(str(source_path))
-    context = _extract_docx_revision_context(doc)
+    context = _extract_docx_revision_context(doc, query=' '.join([instruction, supplement_text]))
     prompt = _build_revision_suggestion_prompt(
         instruction=instruction,
         supplement_text=supplement_text,
@@ -822,7 +822,7 @@ def _next_revision_version(params: dict) -> int:
     return max(versions or [1]) + 1
 
 
-def _extract_docx_revision_context(doc, max_chars: int = 26000) -> dict:
+def _extract_docx_revision_context(doc, query: str = '', max_chars: int = 26000) -> dict:
     paragraphs = []
     headings = []
     current_heading = ''
@@ -841,19 +841,94 @@ def _extract_docx_revision_context(doc, max_chars: int = 26000) -> dict:
             'text': text,
             'is_heading': is_heading,
         })
-    lines = []
-    total_chars = 0
-    for item in paragraphs:
-        line = f"[{item['index']}] {item['heading'] + ' / ' if item['heading'] and not item['is_heading'] else ''}{item['text']}"
-        if total_chars + len(line) > max_chars:
-            break
-        lines.append(line)
-        total_chars += len(line)
+    selected_indexes = _select_revision_context_indexes(paragraphs, query, max_chars)
+    lines = [_format_revision_context_line(paragraphs[i]) for i in selected_indexes]
     return {
         'headings': headings[:120],
         'paragraphs': paragraphs,
         'excerpt': '\n'.join(lines),
+        'excerpt_note': '每行开头 [段落编号] 可用于 target_paragraph_index，长文档仅展示与修改意见最相关的片段。',
     }
+
+
+def _format_revision_context_line(item: dict) -> str:
+    prefix = item['heading'] + ' / ' if item['heading'] and not item['is_heading'] else ''
+    return f"[{item['index']}] {prefix}{item['text']}"
+
+
+def _select_revision_context_indexes(paragraphs: list[dict], query: str = '', max_chars: int = 26000) -> list[int]:
+    if not paragraphs:
+        return []
+    tokens = _revision_query_tokens(query)
+    if not tokens:
+        selected = []
+        total_chars = 0
+        for index, item in enumerate(paragraphs):
+            line = _format_revision_context_line(item)
+            if total_chars + len(line) > max_chars:
+                break
+            selected.append(index)
+            total_chars += len(line)
+        return selected
+
+    scored = []
+    for index, item in enumerate(paragraphs):
+        haystack = _normalize_revision_text(' '.join([
+            item.get('heading') or '',
+            item.get('text') or '',
+        ]))
+        score = sum(3 if token in _normalize_revision_text(item.get('heading') or '') else 0 for token in tokens)
+        score += sum(1 for token in tokens if token in haystack)
+        if score:
+            scored.append((score, index))
+    if not scored:
+        return _select_revision_context_indexes(paragraphs, '', max_chars)
+
+    selected = set()
+    for _, index in sorted(scored, key=lambda item: (-item[0], item[1]))[:24]:
+        for neighbor in range(max(0, index - 2), min(len(paragraphs), index + 4)):
+            selected.add(neighbor)
+    for index, item in enumerate(paragraphs):
+        if item.get('is_heading'):
+            selected.add(index)
+
+    ordered = sorted(selected)
+    final = []
+    total_chars = 0
+    for index in ordered:
+        line = _format_revision_context_line(paragraphs[index])
+        if total_chars + len(line) > max_chars and final:
+            continue
+        if total_chars + len(line) > max_chars * 1.15:
+            break
+        final.append(index)
+        total_chars += len(line)
+    return final
+
+
+def _revision_query_tokens(text: str) -> list[str]:
+    import re
+
+    raw = str(text or '')
+    candidates = re.findall(r'[\u4e00-\u9fff]{2,}|[A-Za-z0-9][A-Za-z0-9_\-./]{1,}', raw)
+    stopwords = {
+        '修改', '补充', '替换', '删除', '增加', '调整', '完善', '章节', '内容',
+        '文档', '要求', '需要', '这个', '那个', '进行', '保持', '格式',
+    }
+    tokens = []
+    for item in candidates:
+        token = _normalize_revision_text(item)
+        if len(token) < 2 or token in stopwords:
+            continue
+        if token not in tokens:
+            tokens.append(token)
+        if re.fullmatch(r'[\u4e00-\u9fff]{4,}', token):
+            for size in (4, 3, 2):
+                for start in range(0, len(token) - size + 1):
+                    part = token[start:start + size]
+                    if part not in stopwords and part not in tokens:
+                        tokens.append(part)
+    return tokens[:32]
 
 
 def _build_revision_prompt(*, instruction: str, supplement_text: str = '', params: dict, context: dict) -> str:
@@ -868,10 +943,12 @@ def _build_revision_prompt(*, instruction: str, supplement_text: str = '', param
         'user_instruction': instruction,
         'supplement_material': _truncate_for_llm_parse(supplement_text, max_chars=12000) if supplement_text else '',
         'available_headings': context.get('headings') or [],
+        'excerpt_note': context.get('excerpt_note') or '',
         'document_excerpt': context.get('excerpt') or '',
         'output_schema': {
             'operation': 'replace 或 append',
             'target_heading': '优先填写要修改的章节标题；不确定则留空',
+            'target_paragraph_index': '优先填写 document_excerpt 中最匹配的 [段落编号]；不确定则留空',
             'old_text_hint': 'replace 时填写原文中的一小段连续文本；append 时可留空',
             'new_text': '需要写入 Word 的正文，不能包含章节标题，不能使用 Markdown 表格',
             'summary': '一句话说明本次修改',
@@ -879,8 +956,10 @@ def _build_revision_prompt(*, instruction: str, supplement_text: str = '', param
         'rules': [
             '只依据当前文档内容和用户修改意见修订，不编造用户未要求的新数据。',
             '不要改变标题层级、模板格式、表格结构、页眉页脚或页面布局。',
+            '优先使用 document_excerpt 中的 [段落编号] 精确定位，不要让 target_paragraph_index 指向标题段落，除非用户明确要求修改标题。',
             '如用户要求补充内容，operation 使用 append，并选择最相关 target_heading。',
             '如用户要求改写已有内容，operation 使用 replace，并提供 old_text_hint。',
+            'replace 的 old_text_hint 必须来自当前文档连续原文；如果修改跨多个自然段，可使用 multi_old_text_hints 数组列出多个连续片段。',
             'new_text 只写正式正文，不要写 Markdown，不要写解释。',
         ],
     }
@@ -899,6 +978,7 @@ def _build_revision_suggestion_prompt(*, instruction: str, supplement_text: str 
         'user_instruction': instruction,
         'supplement_material': _truncate_for_llm_parse(supplement_text, max_chars=12000) if supplement_text else '',
         'available_headings': context.get('headings') or [],
+        'excerpt_note': context.get('excerpt_note') or '',
         'document_excerpt': context.get('excerpt') or '',
         'output_schema': {
             'summary': '一句话概括本轮建议',
@@ -906,7 +986,9 @@ def _build_revision_suggestion_prompt(*, instruction: str, supplement_text: str 
                 {
                     'action': 'replace 或 append',
                     'target_heading': '优先填写要修改的章节标题；不确定则留空',
+                    'target_paragraph_index': '优先填写 document_excerpt 中最匹配的 [段落编号]；不确定则留空',
                     'old_text_hint': 'replace 时填写当前文档中的一小段连续原文；append 时可留空',
+                    'multi_old_text_hints': '可选；跨多个自然段替换时，填写多个连续原文片段',
                     'new_text': '建议写入 Word 的正式正文，不能包含章节标题，不能使用 Markdown 表格',
                     'reason': '为什么建议这样修改',
                     'confidence': '0 到 1 的小数；定位越明确越高',
@@ -919,7 +1001,9 @@ def _build_revision_suggestion_prompt(*, instruction: str, supplement_text: str 
             '优先做局部 replace 或 append，不要建议全文重写。',
             '只依据当前文档内容、用户修改意见和补充材料修订，不编造用户未提供的新数据。',
             '不得改变标题层级、模板格式、表格结构、页眉页脚或页面布局。',
+            '优先使用 document_excerpt 中的 [段落编号] 精确定位；target_paragraph_index 应指向需要替换或追加位置附近的正文段落。',
             'replace 必须提供 old_text_hint，且该 hint 应来自 document_excerpt 中的连续原文片段。',
+            '跨段替换时使用 multi_old_text_hints，并确保这些片段在文档中相邻或位于同一章节。',
             'append 必须选择最相关 target_heading，新内容只写正式正文。',
             'new_text 不要写 Markdown、解释性话语、章节标题或“修改建议”等标签。',
             '如果用户要求全文统一术语，可以给出少量高置信替换建议；无法穷尽时在 reason 中说明需人工确认。',
@@ -954,7 +1038,9 @@ def _parse_revision_operation(content: str) -> dict:
     return {
         'operation': operation,
         'target_heading': str(data.get('target_heading') or '').strip(),
+        'target_paragraph_index': _optional_int(data.get('target_paragraph_index')),
         'old_text_hint': str(data.get('old_text_hint') or '').strip(),
+        'multi_old_text_hints': _normalize_revision_hints(data.get('multi_old_text_hints')),
         'new_text': _sanitize_revision_text(new_text),
         'summary': str(data.get('summary') or '').strip(),
     }
@@ -986,7 +1072,9 @@ def _parse_revision_suggestions(content: str) -> dict:
         suggestion = {
             'action': action,
             'target_heading': str(item.get('target_heading') or '').strip(),
+            'target_paragraph_index': _optional_int(item.get('target_paragraph_index')),
             'old_text_hint': str(item.get('old_text_hint') or '').strip(),
+            'multi_old_text_hints': _normalize_revision_hints(item.get('multi_old_text_hints')),
             'new_text': new_text,
             'reason': str(item.get('reason') or item.get('summary') or '').strip(),
             'confidence': _clamp_confidence(item.get('confidence')),
@@ -1024,7 +1112,9 @@ def _operation_to_revision_suggestion(operation: dict) -> dict:
     return {
         'action': operation.get('operation') or 'append',
         'target_heading': operation.get('target_heading') or '',
+        'target_paragraph_index': operation.get('target_paragraph_index'),
         'old_text_hint': operation.get('old_text_hint') or '',
+        'multi_old_text_hints': operation.get('multi_old_text_hints') or [],
         'new_text': operation.get('new_text') or '',
         'reason': operation.get('summary') or '',
         'confidence': 0.7,
@@ -1036,7 +1126,9 @@ def _revision_suggestion_to_operation(suggestion: dict) -> dict:
     return {
         'operation': str(suggestion.get('action') or suggestion.get('operation') or 'append').strip().lower(),
         'target_heading': str(suggestion.get('target_heading') or '').strip(),
+        'target_paragraph_index': _optional_int(suggestion.get('target_paragraph_index')),
         'old_text_hint': str(suggestion.get('old_text_hint') or '').strip(),
+        'multi_old_text_hints': _normalize_revision_hints(suggestion.get('multi_old_text_hints')),
         'new_text': _sanitize_revision_text(str(suggestion.get('new_text') or '')),
         'summary': str(suggestion.get('reason') or suggestion.get('summary') or '').strip(),
     }
@@ -1048,6 +1140,30 @@ def _clamp_confidence(value) -> float:
     except (TypeError, ValueError):
         return 0.6
     return max(0.0, min(1.0, number))
+
+
+def _optional_int(value) -> int | None:
+    try:
+        if value is None or value == '':
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_revision_hints(value) -> list[str]:
+    if isinstance(value, str):
+        raw_items = [value]
+    elif isinstance(value, list):
+        raw_items = value
+    else:
+        raw_items = []
+    hints = []
+    for item in raw_items:
+        text = str(item or '').strip()
+        if text and text not in hints:
+            hints.append(text)
+    return hints[:8]
 
 
 def _sanitize_revision_text(text: str) -> str:
@@ -1066,14 +1182,25 @@ def _apply_docx_revision_operation(doc, operation: dict) -> bool:
     paragraphs = list(doc.paragraphs)
     target_heading = operation.get('target_heading') or ''
     old_hint = operation.get('old_text_hint') or ''
+    multi_hints = operation.get('multi_old_text_hints') or []
+    paragraph_index = operation.get('target_paragraph_index')
     new_lines = [line for line in str(operation.get('new_text') or '').splitlines() if line.strip()]
     if not new_lines:
         return False
 
     start_index, end_index = _find_revision_chapter_range(paragraphs, target_heading)
     search_range = range(start_index, end_index)
-    if operation.get('operation') == 'replace' and old_hint:
-        target = _find_paragraph_by_hint(paragraphs, old_hint, search_range)
+    if operation.get('operation') == 'replace':
+        if multi_hints:
+            target_range = _find_paragraph_range_by_hints(paragraphs, multi_hints, search_range)
+            if target_range:
+                _replace_paragraph_range_preserving_style(paragraphs, target_range[0], target_range[1], new_lines)
+                return True
+        target = None
+        if old_hint:
+            target = _find_paragraph_by_hint(paragraphs, old_hint, search_range, preferred_index=paragraph_index)
+        if target is None:
+            target = _valid_revision_paragraph_index(paragraphs, paragraph_index, search_range)
         if target is not None:
             _replace_paragraph_text_preserving_style(paragraphs[target], new_lines[0])
             insert_after = paragraphs[target]
@@ -1081,7 +1208,9 @@ def _apply_docx_revision_operation(doc, operation: dict) -> bool:
                 insert_after = _insert_paragraph_after(insert_after, line)
             return True
 
-    insert_index = _find_append_anchor(paragraphs, start_index, end_index)
+    insert_index = _valid_revision_paragraph_index(paragraphs, paragraph_index, search_range)
+    if insert_index is None:
+        insert_index = _find_append_anchor(paragraphs, start_index, end_index)
     if insert_index is None:
         return False
     insert_after = paragraphs[insert_index]
@@ -1095,12 +1224,23 @@ def _find_revision_chapter_range(paragraphs, target_heading: str) -> tuple[int, 
         return 0, 0
     if not target_heading:
         return 0, len(paragraphs)
-    heading_index = 0
     normalized_target = _normalize_revision_text(target_heading)
+    heading_index = None
     for index, paragraph in enumerate(paragraphs):
-        if normalized_target and normalized_target in _normalize_revision_text(paragraph.text):
+        if (
+            normalized_target
+            and _heading_level(paragraph)
+            and normalized_target in _normalize_revision_text(paragraph.text)
+        ):
             heading_index = index
             break
+    if heading_index is None:
+        for index, paragraph in enumerate(paragraphs):
+            if normalized_target and normalized_target in _normalize_revision_text(paragraph.text):
+                heading_index = index
+                break
+    if heading_index is None:
+        return 0, len(paragraphs)
     end_index = len(paragraphs)
     base_level = _heading_level(paragraphs[heading_index])
     if base_level:
@@ -1124,17 +1264,81 @@ def _heading_level(paragraph) -> int:
     return 0
 
 
-def _find_paragraph_by_hint(paragraphs, hint: str, search_range) -> int | None:
+def _find_paragraph_by_hint(paragraphs, hint: str, search_range, preferred_index: int | None = None) -> int | None:
     normalized_hint = _normalize_revision_text(hint)
     if not normalized_hint:
         return None
+    preferred = _valid_revision_paragraph_index(paragraphs, preferred_index, search_range)
+    if preferred is not None:
+        preferred_text = _normalize_revision_text(paragraphs[preferred].text)
+        if normalized_hint in preferred_text or _revision_similarity(normalized_hint, preferred_text) >= 0.62:
+            return preferred
     for index in search_range:
         if normalized_hint in _normalize_revision_text(paragraphs[index].text):
             return index
+    best_index = None
+    best_score = 0.0
+    for index in search_range:
+        score = _revision_similarity(normalized_hint, _normalize_revision_text(paragraphs[index].text))
+        if score > best_score:
+            best_index = index
+            best_score = score
+    if best_index is not None and best_score >= 0.72:
+        return best_index
     for index, paragraph in enumerate(paragraphs):
         if normalized_hint in _normalize_revision_text(paragraph.text):
             return index
     return None
+
+
+def _find_paragraph_range_by_hints(paragraphs, hints: list[str], search_range) -> tuple[int, int] | None:
+    normalized = [_normalize_revision_text(item) for item in hints if _normalize_revision_text(item)]
+    if not normalized:
+        return None
+    search_indexes = list(search_range)
+    for start_pos, start_index in enumerate(search_indexes):
+        end_index = start_index
+        matched = 0
+        cursor_pos = start_pos
+        while cursor_pos < len(search_indexes) and matched < len(normalized):
+            index = search_indexes[cursor_pos]
+            text = _normalize_revision_text(paragraphs[index].text)
+            if normalized[matched] in text or _revision_similarity(normalized[matched], text) >= 0.72:
+                end_index = index
+                matched += 1
+            cursor_pos += 1
+            if cursor_pos - start_pos > max(8, len(normalized) + 3):
+                break
+        if matched == len(normalized):
+            return start_index, end_index
+    return None
+
+
+def _valid_revision_paragraph_index(paragraphs, index: int | None, search_range) -> int | None:
+    if index is None:
+        return None
+    if index < 0 or index >= len(paragraphs):
+        return None
+    search_set = set(search_range)
+    if search_set and index not in search_set:
+        return None
+    if _heading_level(paragraphs[index]):
+        return None
+    if not paragraphs[index].text.strip():
+        return None
+    return index
+
+
+def _revision_similarity(left: str, right: str) -> float:
+    if not left or not right:
+        return 0.0
+    if left in right or right in left:
+        return min(len(left), len(right)) / max(len(left), len(right))
+    left_chars = set(left)
+    right_chars = set(right)
+    if not left_chars or not right_chars:
+        return 0.0
+    return len(left_chars & right_chars) / len(left_chars | right_chars)
 
 
 def _find_append_anchor(paragraphs, start_index: int, end_index: int) -> int | None:
@@ -1157,6 +1361,23 @@ def _replace_paragraph_text_preserving_style(paragraph, text: str):
             run.text = ''
     else:
         paragraph.add_run(text)
+
+
+def _replace_paragraph_range_preserving_style(paragraphs, start_index: int, end_index: int, new_lines: list[str]):
+    _replace_paragraph_text_preserving_style(paragraphs[start_index], new_lines[0])
+    for index in range(end_index, start_index, -1):
+        _remove_paragraph(paragraphs[index])
+    insert_after = paragraphs[start_index]
+    for line in new_lines[1:]:
+        insert_after = _insert_paragraph_after(insert_after, line)
+
+
+def _remove_paragraph(paragraph):
+    element = paragraph._element
+    parent = element.getparent()
+    if parent is not None:
+        parent.remove(element)
+        paragraph._p = paragraph._element = None
 
 
 def _insert_paragraph_after(paragraph, text: str):

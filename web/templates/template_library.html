@@ -265,6 +265,45 @@
     color: var(--text-primary);
     font-size: 14px;
 }
+.asset-summary-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 8px;
+}
+.asset-summary-strip span {
+    padding: 4px 9px;
+    border: 1px solid #dcebf7;
+    border-radius: 999px;
+    background: #fff;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.asset-detail-section {
+    margin-top: 10px;
+    border: 1px solid #dcebf7;
+    border-radius: 8px;
+    background: #fbfdff;
+}
+.asset-detail-section summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 700;
+}
+.asset-detail-section summary span {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+}
+.asset-detail-section-body {
+    padding: 0 12px 12px;
+}
 .template-case-count {
     margin-left: 6px;
     color: var(--primary);
@@ -451,7 +490,7 @@
             <div>
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>专业资产组</span>
+                <span>模板列表</span>
             </div>
             <div class="asset-filter-grid">
                 <input type="hidden" id="assetSpecialtyFilter" value="all">
@@ -496,19 +535,31 @@
                     <textarea id="templateDescription" placeholder="说明模板用途、适用文档或生成口径"></textarea>
                 </div>
                 <div class="template-asset-meta" id="templateAssetMeta"></div>
-                <div class="modal-divider" style="display:flex;justify-content:space-between;align-items:center;">
-                    <span>当前模板关联优秀案例</span>
-                    <button class="btn btn-primary btn-sm" id="uploadReferenceCaseBtn" onclick="uploadReferenceCase()" style="display:none;">上传优秀案例</button>
-                    <input type="file" id="referenceCaseFile" accept=".docx" style="display:none">
-                </div>
-                <div id="referenceCaseManager" class="reference-case-manager"></div>
-                <div class="modal-divider" style="display:flex;justify-content:space-between;align-items:center;">
-                    <span>生成输入字段</span>
-                    <button class="btn btn-outline btn-sm" id="addInputFieldBtn" onclick="addInputField()" style="display:none;">+ 字段</button>
-                </div>
-                <div id="inputFieldEditor"></div>
-                <div class="modal-divider">章节结构</div>
-                <div id="chapterEditor"></div>
+                <details class="asset-detail-section" id="referenceCaseSection">
+                    <summary>优秀案例 <span id="referenceCaseSummary">0 个</span></summary>
+                    <div class="asset-detail-section-body">
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                            <button class="btn btn-primary btn-sm" id="uploadReferenceCaseBtn" onclick="uploadReferenceCase()" style="display:none;">上传优秀案例</button>
+                            <input type="file" id="referenceCaseFile" accept=".docx" style="display:none">
+                        </div>
+                        <div id="referenceCaseManager" class="reference-case-manager"></div>
+                    </div>
+                </details>
+                <details class="asset-detail-section" id="inputFieldSection">
+                    <summary>生成输入字段 <span id="inputFieldSummary">0 个</span></summary>
+                    <div class="asset-detail-section-body">
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                            <button class="btn btn-outline btn-sm" id="addInputFieldBtn" onclick="addInputField()" style="display:none;">添加字段</button>
+                        </div>
+                        <div id="inputFieldEditor"></div>
+                    </div>
+                </details>
+                <details class="asset-detail-section" id="chapterSection">
+                    <summary>章节结构 <span id="chapterSummary">0 个章节</span></summary>
+                    <div class="asset-detail-section-body">
+                        <div id="chapterEditor"></div>
+                    </div>
+                </details>
             </div>
             <div class="empty-state" id="templateHint">请选择左侧模板，或上传 DOCX 模板自动解析章节结构</div>
         </div>
@@ -876,16 +927,36 @@ function renderTemplateAssetMeta() {
     const sourceName = metadata.source_filename || '无原始 DOCX';
     const sourcePath = metadata.source_docx_path || metadata.source_path || '';
     const caseCount = getTemplateCaseCount(currentTemplate);
+    const fieldCount = (currentTemplate.input_fields || []).length;
+    const chapterCount = countAssetChapters(currentTemplate.chapters || []);
     target.innerHTML = `
         <div class="asset-group-summary">
             <strong>${escapeHtml(getTemplateSpecialtyName(currentTemplate))} / ${escapeHtml(getTemplateKindName(currentTemplate))} / ${escapeHtml(currentTemplate.name || '未命名模板')}</strong>
-            <span>这是一个专业资产组：该模板下维护的 ${caseCount} 个优秀案例，只会在生成选择此模板时带出。</span>
+            <span>生成页选择该模板时，会自动带出本模板关联的优秀案例。</span>
+            <div class="asset-summary-strip">
+                <span>优秀案例 ${caseCount}</span>
+                <span>输入字段 ${fieldCount}</span>
+                <span>章节 ${chapterCount}</span>
+                <span>版本 v${escapeHtml(metadata.version || 1)}</span>
+            </div>
         </div>
         <div>原始模板文件：${escapeHtml(sourceName)}</div>
         <div>专业资产：${escapeHtml(getTemplateSpecialtyName(currentTemplate))} · ${escapeHtml(getTemplateKindName(currentTemplate))}</div>
         <div>格式来源：${sourcePath ? escapeHtml(sourcePath) : '内置模板或复制模板，暂无原始格式文件'}</div>
         <div>模板版本：v${escapeHtml(metadata.version || 1)}${metadata.updated_at ? ' · 更新时间：' + escapeHtml(metadata.updated_at) : ''}</div>
     `;
+    setText('referenceCaseSummary', `${caseCount} 个`);
+    setText('inputFieldSummary', `${fieldCount} 个`);
+    setText('chapterSummary', `${chapterCount} 个章节`);
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function countAssetChapters(chapters) {
+    return (chapters || []).reduce((sum, chapter) => sum + 1 + countAssetChapters(chapter.sub_chapters || []), 0);
 }
 
 function renderReferenceCaseManager() {
@@ -1035,6 +1106,8 @@ function renderInputTypeOptions(value) {
 }
 
 function addInputField() {
+    const section = document.getElementById('inputFieldSection');
+    if (section) section.open = true;
     currentTemplate.input_fields = currentTemplate.input_fields || [];
     const index = currentTemplate.input_fields.length + 1;
     currentTemplate.input_fields.push({
@@ -1153,12 +1226,16 @@ function renderBlockRows(block) {
 }
 
 function addRootChapter() {
+    const section = document.getElementById('chapterSection');
+    if (section) section.open = true;
     currentTemplate.chapters = currentTemplate.chapters || [];
     currentTemplate.chapters.push(makeChapter(String(currentTemplate.chapters.length + 1), '新章节'));
     renderChapterEditor();
 }
 
 function addChildChapter(path) {
+    const section = document.getElementById('chapterSection');
+    if (section) section.open = true;
     const chapter = getChapter(path);
     chapter.sub_chapters = chapter.sub_chapters || [];
     const number = chapter.number ? `${chapter.number}.${chapter.sub_chapters.length + 1}` : '';

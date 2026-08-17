@@ -15,6 +15,8 @@ OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "rule_overrides.json")
 VALID_OVERRIDE_FIELDS = {
     "enabled", "severity", "review_type", "params", "code", "logic", "standard_ref",
     "description", "name", "aliases", "scope", "target_headings", "required_elements",
+    "approval_status", "approval_comment", "submitted_at", "approved_at", "rejected_at",
+    "created_at", "updated_at",
 }
 CUSTOM_RULE_FIELDS = {"source", "name", "description", "category"}
 

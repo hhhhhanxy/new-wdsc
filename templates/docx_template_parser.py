@@ -17,8 +17,11 @@ class DocxTemplateParser:
     """Parse DOCX headings into an editable generation template chapter tree."""
 
     heading_number_pattern = re.compile(r"^\s*(\d+(?:\.\d+)*)\s*[\.\、．]?\s*(.+?)\s*$")
-    heading_style_pattern = re.compile(r"(?:Heading|标题)\s*(\d+)", re.IGNORECASE)
     placeholder_pattern = re.compile(r"(?:N{3,}|X{2,}|X\s*项目|X项目|＿+|_{2,})")
+    toc_page_pattern = re.compile(r".+(?:\t| {2,}|…{2,}|\.{2,})\s*(?:[IVXLCDM]+|\d+)\s*$", re.IGNORECASE)
+    appendix_pattern = re.compile(r"^\s*附录\s*([A-ZＡ-Ｚ])(?:\s+|[（(]|$)(.*)$", re.IGNORECASE)
+    figure_table_caption_pattern = re.compile(r"^\s*(?:表|图)\s*\d+(?:[-－—]\d+)?\s*")
+    document_title_pattern = re.compile(r"(?:规范|报告|大纲|说明书|计划|方案|规程|手册|细则|要求)$")
 
     def __init__(self):
         self.classifier = DocxBlockClassifier()
@@ -28,6 +31,7 @@ class DocxTemplateParser:
         headings = []
         current_heading = None
         current_context = ""
+        region = "front_matter"
 
         for block_item in self._iter_block_items(doc):
             if isinstance(block_item, Paragraph):
@@ -35,34 +39,28 @@ class DocxTemplateParser:
                 if not text:
                     continue
                 style_name = block_item.style.name if block_item.style else ""
-                level = self.classifier.heading_level(block_item)
-                number = ""
-                title = text
 
-                number_match = self.heading_number_pattern.match(text)
-                if number_match and level:
-                    number, title = self.classifier.heading_parts(text)
-                    level = number.count(".") + 1
+                if self._is_toc_start(text):
+                    region = "toc"
+                    current_context = ""
+                    continue
 
-                if (level or number) and not (
-                    current_context and self.classifier.is_context_continuation(text)
-                ):
-                    current_heading = {
-                        "number": number,
-                        "title": title,
-                        "level": max(1, level or 1),
-                        "style_name": style_name,
-                        "body_style_name": "",
-                        "description": "",
-                        "required": True,
-                        "guidance_prompt": "",
-                        "template_blocks": [],
-                        "placeholders": [],
-                        "sub_chapters": [],
-                        "_guidance_parts": [],
-                    }
+                if region == "toc":
+                    if self._is_toc_entry(text, style_name):
+                        continue
+                    region = "body" if self._is_body_start(block_item, text) else "front_matter"
+
+                if region == "front_matter" and not self._is_body_start(block_item, text):
+                    continue
+
+                heading = self._detect_heading(block_item, current_context)
+                if heading:
+                    region = "body"
+                    current_heading = heading
                     headings.append(current_heading)
                     current_context = ""
+                    continue
+                if self._looks_like_document_title(text):
                     continue
 
                 if current_heading:
@@ -89,6 +87,107 @@ class DocxTemplateParser:
             "description": "由 DOCX 模板自动解析生成",
             "chapters": self._build_tree(headings),
         }
+
+    def _detect_heading(self, paragraph, current_context: str = "") -> dict | None:
+        text = paragraph.text.strip()
+        if not text or self._is_non_chapter_numbered_text(paragraph, text):
+            return None
+        if current_context and self.classifier.is_context_continuation(text):
+            return None
+        if self.classifier.is_example_marker(text) or self.classifier.is_instruction_marker(text):
+            return None
+
+        style_name = paragraph.style.name if paragraph.style else ""
+        if self._is_toc_entry(text, style_name) or self._looks_like_document_title(text):
+            return None
+
+        if self._is_preface_heading(text, style_name):
+            return self._make_heading("", "前言", 1, style_name)
+
+        appendix_match = self.appendix_pattern.match(text)
+        if appendix_match and len(text) <= 80:
+            number = f"附录{appendix_match.group(1).upper()}"
+            title = appendix_match.group(2).strip(" （()")
+            return self._make_heading(number, title, 1, style_name, required=False)
+
+        level = self.classifier.heading_level(paragraph)
+        number_match = self.heading_number_pattern.match(text)
+        if not number_match:
+            return None
+
+        number, title = self.classifier.heading_parts(text)
+        if not self._is_valid_heading_title(number, title, text):
+            return None
+        return self._make_heading(number, title, number.count(".") + 1 if number else max(1, level or 1), style_name)
+
+    def _make_heading(self, number: str, title: str, level: int, style_name: str, required: bool = True) -> dict:
+        return {
+            "number": number,
+            "title": title,
+            "level": max(1, level or 1),
+            "style_name": style_name,
+            "body_style_name": "",
+            "description": "",
+            "required": required,
+            "guidance_prompt": "",
+            "template_blocks": [],
+            "placeholders": [],
+            "sub_chapters": [],
+            "_guidance_parts": [],
+        }
+
+    def _is_body_start(self, paragraph, text: str) -> bool:
+        return bool(self._is_preface_heading(text, paragraph.style.name if paragraph.style else "") or self._detect_heading(paragraph, ""))
+
+    def _is_toc_start(self, text: str) -> bool:
+        normalized = re.sub(r"\s+", "", text or "")
+        return normalized in {"目次", "目录"}
+
+    def _is_toc_entry(self, text: str, style_name: str = "") -> bool:
+        style = (style_name or "").strip().lower()
+        if style.startswith("toc"):
+            return True
+        if self.toc_page_pattern.match(text or ""):
+            return True
+        if "（章标题）" in text or "（条标题）" in text:
+            return True
+        return False
+
+    def _is_preface_heading(self, text: str, style_name: str = "") -> bool:
+        normalized = re.sub(r"\s+", "", text or "")
+        if normalized == "前言":
+            return True
+        return "前言" in (style_name or "") and len(normalized) <= 4
+
+    def _looks_like_document_title(self, text: str) -> bool:
+        clean = re.sub(r"\s+", "", text or "")
+        if len(clean) > 40 or self.heading_number_pattern.match(clean):
+            return False
+        return bool(self.document_title_pattern.search(clean))
+
+    def _is_non_chapter_numbered_text(self, paragraph, text: str) -> bool:
+        style_name = paragraph.style.name if paragraph.style else ""
+        if style_name == "List Paragraph":
+            return True
+        if self.figure_table_caption_pattern.match(text):
+            return True
+        if text.startswith(("式中", "注：", "注:", "ID号", "需求内容", "需求来源", "需求类型", "类型：")):
+            return True
+        return False
+
+    def _is_valid_heading_title(self, number: str, title: str, text: str) -> bool:
+        title = (title or "").strip()
+        if not number or not title or len(text) > 100:
+            return False
+        if len(title) > 55:
+            return False
+        if self.placeholder_pattern.fullmatch(title.replace("（章标题）", "").replace("（条标题）", "").strip()):
+            return False
+        if title.endswith(("。", "；", ";")) and len(title) > 24:
+            return False
+        if re.search(r"[:：]", title) and not re.search(r"(目标|目的|范围|依据|方法|结果|建议|要求|说明)$", title):
+            return False
+        return True
 
     def _fallback_headings(self, doc: Document) -> list[dict]:
         result = []
@@ -215,15 +314,6 @@ class DocxTemplateParser:
             "example": "举例",
             "example_table": "举例表格",
         }.get(block_type, "模板内容")
-
-    def _is_example_marker(self, text: str) -> bool:
-        return self.classifier.is_example_marker(text)
-
-    def _is_red_paragraph(self, paragraph) -> bool:
-        return self.classifier.is_red_paragraph(paragraph)
-
-    def _is_red_run(self, run) -> bool:
-        return self.classifier.is_red_run(run)
 
     def _iter_block_items(self, parent):
         if isinstance(parent, DocumentType):

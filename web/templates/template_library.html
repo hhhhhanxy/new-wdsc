@@ -20,56 +20,9 @@
 .template-upload-btn:hover {
     background: #168fd3;
 }
-.template-editor-list,
-.template-editor-list ul {
-    list-style: none;
-    padding-left: 0;
-}
-.template-editor-list ul {
-    margin-left: 18px;
-    margin-top: 8px;
-}
-.template-editor-item {
-    padding: 10px;
-    margin-bottom: 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: #fbfdff;
-}
-.template-editor-row {
-    display: grid;
-    grid-template-columns: 90px minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: center;
-}
-.template-editor-row input {
-    min-width: 0;
-}
 .template-editor-actions {
     display: flex;
     gap: 6px;
-}
-.template-editor-guidance {
-    width: 100%;
-    min-height: 64px;
-    margin-top: 8px;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 14px;
-    resize: vertical;
-}
-.template-editor-meta {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 8px;
-}
-.template-editor-meta input,
-.template-editor-meta select {
-    min-width: 0;
-    font-size: 13px;
 }
 .template-asset-meta {
     display: grid;
@@ -132,6 +85,81 @@
     height: 26px;
     padding: 0 9px;
     font-size: 12px;
+}
+.template-list-panel {
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+}
+.template-list-head {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.4fr) minmax(120px, 0.8fr) 70px 82px auto;
+    gap: 10px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    background: #f7fcff;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.template-list-panel .rule-set-list {
+    display: grid;
+    gap: 0;
+}
+.template-list-panel .rule-set-item {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.4fr) minmax(120px, 0.8fr) 70px 82px auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 48px;
+    padding: 8px 10px;
+    margin-bottom: 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: #ffffff;
+}
+.template-list-panel .rule-set-item:last-child {
+    border-bottom: 0;
+}
+.template-list-panel .rule-set-item:hover {
+    background: #f7fcff;
+}
+.template-list-panel .rule-set-item.active {
+    border-left: 3px solid var(--primary);
+    background: #edf9ff;
+}
+.template-list-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 10px 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.template-list-more {
+    border: 0;
+    background: transparent;
+    color: var(--primary-dark);
+    cursor: pointer;
+    font-size: 12px;
+}
+.template-list-more:hover {
+    text-decoration: underline;
+}
+.template-list-kind,
+.template-list-source,
+.template-list-case {
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.template-list-case {
+    color: var(--primary-dark);
 }
 .template-list-action {
     border-color: #c8e5f5;
@@ -201,13 +229,81 @@
     gap: 10px;
     margin-bottom: 12px;
 }
+.asset-filter-grid {
+    grid-template-columns: minmax(180px, 0.42fr) minmax(240px, 1fr) auto;
+    align-items: center;
+}
 .asset-filter-grid select,
+.asset-filter-grid input,
 .asset-meta-grid select,
 .asset-meta-grid input {
     width: 100%;
 }
-#assetKindFilter {
-    grid-column: 1 / -1;
+.document-kind-input {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(160px, 0.75fr);
+    gap: 8px;
+}
+.document-kind-input input {
+    display: none;
+}
+.document-kind-input.custom input {
+    display: block;
+}
+.document-kind-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+}
+.document-kind-manage-btn {
+    border: 0;
+    background: transparent;
+    color: var(--primary-dark);
+    font-size: 12px;
+    cursor: pointer;
+}
+.document-kind-manager {
+    display: grid;
+    gap: 10px;
+}
+.document-kind-create {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+.document-kind-list {
+    display: grid;
+    gap: 8px;
+    max-height: 360px;
+    overflow: auto;
+}
+.document-kind-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fbfdff;
+}
+.document-kind-row strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+.document-kind-row span {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.document-kind-row-actions {
+    display: flex;
+    gap: 6px;
 }
 .reference-case-manager {
     display: grid;
@@ -304,6 +400,86 @@
 .asset-detail-section-body {
     padding: 0 12px 12px;
 }
+.chapter-workspace {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.45fr) minmax(0, 1.55fr);
+    gap: 12px;
+    max-height: 58vh;
+    min-height: 380px;
+}
+.chapter-outline,
+.chapter-detail-pane {
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+.chapter-outline {
+    padding: 8px;
+}
+.chapter-outline-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 4px;
+    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+}
+.chapter-outline-item:hover {
+    background: #f7fcff;
+}
+.chapter-outline-item.active {
+    border-color: #bee8fb;
+    background: #edf9ff;
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+.chapter-outline-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.chapter-outline-meta {
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+.chapter-detail-pane {
+    padding: 12px;
+}
+.chapter-detail-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.chapter-detail-head strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.chapter-detail-grid {
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 8px;
+}
+.chapter-detail-grid input,
+.chapter-detail-grid select,
+.chapter-detail-grid textarea {
+    width: 100%;
+}
+.chapter-detail-grid textarea {
+    min-height: 74px;
+    resize: vertical;
+}
 .template-case-count {
     margin-left: 6px;
     color: var(--primary);
@@ -316,8 +492,8 @@
 }
 .asset-main-grid {
     display: grid;
-    grid-template-columns: 360px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
     align-items: start;
 }
 .asset-nav-list {
@@ -449,6 +625,111 @@
     color: var(--text-secondary);
     font-size: 13px;
 }
+.asset-overview-panel {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+.asset-overview-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.asset-overview-text {
+    margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+.asset-overview-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 180px));
+    gap: 10px;
+    margin-top: 14px;
+}
+.asset-overview-stat {
+    padding: 12px;
+    border: 1px solid #dcebf7;
+    border-radius: 6px;
+    background: #f7fcff;
+}
+.asset-overview-stat strong {
+    display: block;
+    color: var(--primary-dark);
+    font-size: 22px;
+    line-height: 1.2;
+}
+.asset-overview-stat span {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.asset-overview-distribution {
+    margin-top: 18px;
+}
+.asset-overview-subtitle {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 700;
+}
+.asset-distribution-list {
+    display: grid;
+    gap: 7px;
+}
+.asset-distribution-group {
+    display: grid;
+    gap: 7px;
+    margin-top: 10px;
+}
+.asset-distribution-group:first-child {
+    margin-top: 0;
+}
+.asset-distribution-group-title {
+    color: #2f5f88;
+    font-size: 13px;
+    font-weight: 700;
+}
+.asset-distribution-row {
+    display: grid;
+    grid-template-columns: 150px 80px 80px minmax(120px, 1fr);
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: #fbfdff;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-align: left;
+}
+.asset-distribution-row:hover {
+    border-color: #d7eefa;
+    background: #f7fcff;
+}
+.asset-distribution-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+}
+.asset-distribution-value {
+    font-size: 12px;
+}
+.asset-distribution-track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #eaf4fb;
+}
+.asset-distribution-bar {
+    height: 100%;
+    min-width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #21a8f3, #79c8f5);
+}
 @media (max-width: 1280px) {
     .asset-main-grid {
         grid-template-columns: 1fr;
@@ -457,6 +738,16 @@
 @media (max-width: 1100px) {
     .asset-workspace {
         grid-template-columns: 1fr;
+    }
+    .chapter-workspace {
+        grid-template-columns: 1fr;
+        max-height: none;
+    }
+    .asset-distribution-row {
+        grid-template-columns: minmax(120px, 1fr) 72px 72px;
+    }
+    .asset-distribution-track {
+        grid-column: 1 / -1;
     }
 }
 </style>
@@ -486,84 +777,143 @@
             </div>
             <button class="btn btn-primary template-upload-btn" id="uploadTemplateBtn" style="display:none;padding:6px 14px;font-size:14px;" onclick="openTemplateUpload()">上传模板</button>
         </div>
-        <div class="asset-main-grid">
+        <div class="asset-overview-panel" id="assetAllOverview">
+            <div class="asset-overview-title">请选择左侧具体专业</div>
+            <div class="asset-overview-text">模板和优秀案例按专业维护；全部专业仅展示资产总量，避免后期模板过多时列表混杂。</div>
+            <div class="asset-overview-stats">
+                <div class="asset-overview-stat">
+                    <strong id="assetOverviewTemplateCount">0</strong>
+                    <span>模板总数</span>
+                </div>
+                <div class="asset-overview-stat">
+                    <strong id="assetOverviewCaseCount">0</strong>
+                    <span>优秀案例</span>
+                </div>
+            </div>
+            <div class="asset-overview-distribution">
+                <div class="asset-overview-subtitle">专业资产分布</div>
+                <div class="asset-distribution-list" id="assetOverviewDistribution"></div>
+            </div>
+        </div>
+        <div class="asset-main-grid" id="assetMainGrid">
             <div>
-        <div class="panel">
-            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span>模板列表</span>
+                <div class="panel">
+                    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>模板列表</span>
+                    </div>
+                    <div class="asset-filter-grid">
+                        <input type="hidden" id="assetSpecialtyFilter" value="all">
+                        <select class="form-control" id="assetKindFilter"></select>
+                        <input class="form-control" type="search" id="templateSearchInput" placeholder="搜索模板名称、类型或来源">
+                        <button class="btn btn-outline btn-sm" type="button" onclick="openDocumentKindManager()">管理类型</button>
+                    </div>
+                    <div class="template-list-panel">
+                        <div class="template-list-head">
+                            <span>模板名称</span>
+                            <span>技术文档类型</span>
+                            <span>案例</span>
+                            <span>来源</span>
+                            <span>操作</span>
+                        </div>
+                        <ul class="rule-set-list" id="templateList"></ul>
+                        <div class="empty-state" id="templateEmpty" style="display:none;">暂无模板</div>
+                    </div>
+                    <div class="template-list-foot" id="templateListFoot" style="display:none;">
+                        <span id="templateListSummary"></span>
+                        <button class="template-list-more" type="button" id="templateListMoreBtn" onclick="showMoreTemplates()">查看更多</button>
+                    </div>
+                </div>
             </div>
-            <div class="asset-filter-grid">
-                <input type="hidden" id="assetSpecialtyFilter" value="all">
-                <select class="form-control" id="assetKindFilter"></select>
+
+            <div>
+                <div class="panel">
+                    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span id="editorTitle">模板结构</span>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn btn-outline" id="copyTemplateBtn" onclick="copyCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">复制编辑</button>
+                            <button class="btn btn-outline btn-danger-text" id="deleteTemplateBtn" onclick="deleteCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">删除模板</button>
+                            <button class="btn btn-outline" id="replaceSourceBtn" onclick="document.getElementById('replaceTemplateFile').click()" style="display:none;padding:6px 14px;font-size:14px;">替换源文件</button>
+                            <input type="file" id="replaceTemplateFile" accept=".docx" style="display:none">
+                            <button class="btn btn-outline" id="addRootBtn" onclick="addRootChapter()" style="display:none;padding:6px 14px;font-size:14px;">+ 章节</button>
+                            <button class="btn btn-primary" id="saveTemplateBtn" onclick="saveCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">保存模板</button>
+                        </div>
+                    </div>
+                    <div id="templateEditor" style="display:none;">
+                        <div class="asset-meta-grid">
+                            <div class="modal-field">
+                                <label>所属专业</label>
+                                <select id="templateSpecialty"></select>
+                            </div>
+                            <div class="modal-field">
+                                <label class="document-kind-label">
+                                    <span>技术文档类型</span>
+                                    <button class="document-kind-manage-btn" type="button" onclick="openDocumentKindManager()">管理类型</button>
+                                </label>
+                                <div class="document-kind-input" id="documentKindInputWrap">
+                                    <select id="templateDocumentKindSelect" onchange="toggleDocumentKindCustom()"></select>
+                                    <input type="text" id="templateDocumentKindCustom" placeholder="输入新的技术文档类型">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-field">
+                            <label>模板名称</label>
+                            <input type="text" id="templateName" placeholder="请输入模板名称">
+                        </div>
+                        <div class="modal-field">
+                            <label>模板说明</label>
+                            <textarea id="templateDescription" placeholder="说明模板用途、适用文档或生成口径"></textarea>
+                        </div>
+                        <div class="template-asset-meta" id="templateAssetMeta"></div>
+                        <details class="asset-detail-section" id="referenceCaseSection">
+                            <summary>优秀案例 <span id="referenceCaseSummary">0 个</span></summary>
+                            <div class="asset-detail-section-body">
+                                <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                                    <button class="btn btn-primary btn-sm" id="uploadReferenceCaseBtn" onclick="uploadReferenceCase()" style="display:none;">上传优秀案例</button>
+                                    <input type="file" id="referenceCaseFile" accept=".docx" style="display:none">
+                                </div>
+                                <div id="referenceCaseManager" class="reference-case-manager"></div>
+                            </div>
+                        </details>
+                        <details class="asset-detail-section" id="inputFieldSection">
+                            <summary>生成输入字段 <span id="inputFieldSummary">0 个</span></summary>
+                            <div class="asset-detail-section-body">
+                                <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                                    <button class="btn btn-outline btn-sm" id="addInputFieldBtn" onclick="addInputField()" style="display:none;">添加字段</button>
+                                </div>
+                                <div id="inputFieldEditor"></div>
+                            </div>
+                        </details>
+                        <details class="asset-detail-section" id="chapterSection">
+                            <summary>章节结构 <span id="chapterSummary">0 个章节</span></summary>
+                            <div class="asset-detail-section-body">
+                                <div id="chapterEditor"></div>
+                            </div>
+                        </details>
+                    </div>
+                    <div class="empty-state" id="templateHint">请选择左侧模板，或上传 DOCX 模板自动解析章节结构</div>
+                </div>
             </div>
-            <ul class="rule-set-list" id="templateList"></ul>
-            <div class="empty-state" id="templateEmpty" style="display:none;">暂无模板</div>
         </div>
     </div>
+</div>
 
-    <div>
-        <div class="panel">
-            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
-                <span id="editorTitle">模板结构</span>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-outline" id="copyTemplateBtn" onclick="copyCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">复制编辑</button>
-                    <button class="btn btn-outline btn-danger-text" id="deleteTemplateBtn" onclick="deleteCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">删除模板</button>
-                    <button class="btn btn-outline" id="replaceSourceBtn" onclick="document.getElementById('replaceTemplateFile').click()" style="display:none;padding:6px 14px;font-size:14px;">替换源文件</button>
-                    <input type="file" id="replaceTemplateFile" accept=".docx" style="display:none">
-                    <button class="btn btn-outline" id="addRootBtn" onclick="addRootChapter()" style="display:none;padding:6px 14px;font-size:14px;">+ 章节</button>
-                    <button class="btn btn-primary" id="saveTemplateBtn" onclick="saveCurrentTemplate()" style="display:none;padding:6px 14px;font-size:14px;">保存模板</button>
-                </div>
-            </div>
-
-            <div id="templateEditor" style="display:none;">
-                <div class="asset-meta-grid">
-                    <div class="modal-field">
-                        <label>所属专业</label>
-                        <select id="templateSpecialty"></select>
-                    </div>
-                    <div class="modal-field">
-                        <label>技术文档类型</label>
-                        <input type="text" id="templateDocumentKind" placeholder="例如：试验大纲、技术说明书、产品规范">
-                    </div>
-                </div>
-                <div class="modal-field">
-                    <label>模板名称</label>
-                    <input type="text" id="templateName" placeholder="请输入模板名称">
-                </div>
-                <div class="modal-field">
-                    <label>模板说明</label>
-                    <textarea id="templateDescription" placeholder="说明模板用途、适用文档或生成口径"></textarea>
-                </div>
-                <div class="template-asset-meta" id="templateAssetMeta"></div>
-                <details class="asset-detail-section" id="referenceCaseSection">
-                    <summary>优秀案例 <span id="referenceCaseSummary">0 个</span></summary>
-                    <div class="asset-detail-section-body">
-                        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-                            <button class="btn btn-primary btn-sm" id="uploadReferenceCaseBtn" onclick="uploadReferenceCase()" style="display:none;">上传优秀案例</button>
-                            <input type="file" id="referenceCaseFile" accept=".docx" style="display:none">
-                        </div>
-                        <div id="referenceCaseManager" class="reference-case-manager"></div>
-                    </div>
-                </details>
-                <details class="asset-detail-section" id="inputFieldSection">
-                    <summary>生成输入字段 <span id="inputFieldSummary">0 个</span></summary>
-                    <div class="asset-detail-section-body">
-                        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-                            <button class="btn btn-outline btn-sm" id="addInputFieldBtn" onclick="addInputField()" style="display:none;">添加字段</button>
-                        </div>
-                        <div id="inputFieldEditor"></div>
-                    </div>
-                </details>
-                <details class="asset-detail-section" id="chapterSection">
-                    <summary>章节结构 <span id="chapterSummary">0 个章节</span></summary>
-                    <div class="asset-detail-section-body">
-                        <div id="chapterEditor"></div>
-                    </div>
-                </details>
-            </div>
-            <div class="empty-state" id="templateHint">请选择左侧模板，或上传 DOCX 模板自动解析章节结构</div>
+<div class="modal-overlay" id="documentKindModal">
+    <div class="modal" style="width:620px;">
+        <div class="modal-header">
+            <h3>技术文档类型管理</h3>
+            <button class="modal-close" onclick="closeDocumentKindManager()">&times;</button>
         </div>
-    </div>
+        <div class="modal-body">
+            <div class="document-kind-manager">
+                <div class="document-kind-create">
+                    <input type="text" id="newDocumentKindName" placeholder="输入新的技术文档类型，如可靠性分配报告">
+                    <button class="btn btn-primary" type="button" onclick="createDocumentKind()">新增类型</button>
+                </div>
+                <div class="document-kind-list" id="documentKindList"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeDocumentKindManager()">关闭</button>
         </div>
     </div>
 </div>
@@ -578,9 +928,13 @@ let specialties = [];
 let specialtyGroups = [];
 let currentAssetScope = {type: 'all', specialty_id: '', name: '全部专业资产'};
 let collapsedAssetMajorGroups = new Set();
+let selectedChapterPath = '';
+let documentKinds = [];
+let templateVisibleLimit = 20;
+const templatePageSize = 20;
 const initialTemplateId = new URLSearchParams(window.location.search).get('template_id');
 const initialMajorId = new URLSearchParams(window.location.search).get('major') || '';
-const defaultKinds = ['试验大纲', '技术说明书', '产品规范', '验证报告', '需求文档', '通用特性文档'];
+const fallbackKinds = ['试验大纲', '可靠性分配报告', '技术说明书', '产品规范', '验证报告', '需求文档', '通用特性文档'];
 
 function loadTemplates() {
     fetch('/template-library/api/templates')
@@ -588,10 +942,27 @@ function loadTemplates() {
         .then(data => {
             templates = data.templates || [];
             renderTemplateList();
+            loadDocumentKinds();
             if (initialTemplateId && !currentTemplate) {
                 const exists = templates.some(t => t.id === initialTemplateId);
                 if (exists) selectTemplate(initialTemplateId);
             }
+        });
+}
+
+function loadDocumentKinds() {
+    fetch('/template-library/api/document-kinds')
+        .then(r => r.json())
+        .then(data => {
+            documentKinds = data.document_kinds || [];
+            renderAssetFilters();
+            if (currentTemplate) {
+                const metadata = currentTemplate.metadata || {};
+                renderTemplateDocumentKindOptions(metadata.document_kind_name || '');
+            }
+        })
+        .catch(() => {
+            documentKinds = [];
         });
 }
 
@@ -639,7 +1010,163 @@ function getTemplateCaseCount(template) {
 
 function collectDocumentKinds() {
     const fromTemplates = templates.map(t => getTemplateKindName(t)).filter(Boolean);
-    return Array.from(new Set(defaultKinds.concat(fromTemplates)));
+    const fromRegistry = documentKinds.map(item => item.name).filter(Boolean);
+    return Array.from(new Set((fromRegistry.length ? fromRegistry : fallbackKinds).concat(fromTemplates)));
+}
+
+function guessDocumentKindFromName(name) {
+    const text = String(name || '').replace(/\.docx$/i, '');
+    return collectDocumentKinds().find(kind => text.includes(kind)) || '';
+}
+
+function renderTemplateDocumentKindOptions(value = '') {
+    const select = document.getElementById('templateDocumentKindSelect');
+    const customInput = document.getElementById('templateDocumentKindCustom');
+    const wrap = document.getElementById('documentKindInputWrap');
+    if (!select || !customInput || !wrap) return;
+    const kinds = collectDocumentKinds();
+    const known = kinds.includes(value);
+    select.innerHTML = '<option value="">请选择技术文档类型</option>' +
+        kinds.map(kind => `<option value="${escapeHtml(kind)}">${escapeHtml(kind)}</option>`).join('') +
+        '<option value="__custom__">新增技术文档类型...</option>';
+    select.value = value && known ? value : (value ? '__custom__' : '');
+    customInput.value = value && !known ? value : '';
+    customInput.disabled = currentMode === 'view';
+    select.disabled = currentMode === 'view';
+    wrap.classList.toggle('custom', select.value === '__custom__');
+}
+
+function toggleDocumentKindCustom() {
+    const select = document.getElementById('templateDocumentKindSelect');
+    const wrap = document.getElementById('documentKindInputWrap');
+    if (!select || !wrap) return;
+    wrap.classList.toggle('custom', select.value === '__custom__');
+    if (select.value === '__custom__') {
+        setTimeout(() => document.getElementById('templateDocumentKindCustom')?.focus(), 0);
+    }
+}
+
+function currentDocumentKindValue() {
+    const select = document.getElementById('templateDocumentKindSelect');
+    const customInput = document.getElementById('templateDocumentKindCustom');
+    if (!select) return '';
+    if (select.value === '__custom__') return (customInput ? customInput.value : '').trim();
+    return select.value.trim();
+}
+
+function openDocumentKindManager() {
+    const modal = document.getElementById('documentKindModal');
+    if (modal) modal.classList.add('open');
+    loadDocumentKindsForManager();
+}
+
+function closeDocumentKindManager() {
+    const modal = document.getElementById('documentKindModal');
+    if (modal) modal.classList.remove('open');
+}
+
+function loadDocumentKindsForManager() {
+    fetch('/template-library/api/document-kinds')
+        .then(r => r.json())
+        .then(data => {
+            documentKinds = data.document_kinds || [];
+            renderDocumentKindManager();
+            renderAssetFilters();
+        })
+        .catch(err => alert('加载技术文档类型失败: ' + err.message));
+}
+
+function renderDocumentKindManager() {
+    const target = document.getElementById('documentKindList');
+    if (!target) return;
+    if (!documentKinds.length) {
+        target.innerHTML = '<div class="empty-state">暂无技术文档类型</div>';
+        return;
+    }
+    target.innerHTML = documentKinds.map(item => {
+        const count = item.template_count || 0;
+        const source = item.is_default ? '系统预置' : (item.is_custom ? '自定义' : '来自模板');
+        const deleteDisabled = item.can_delete ? '' : 'disabled';
+        const deleteTitle = item.can_delete ? '' : (count ? `已有 ${count} 个模板使用，不能删除` : '系统预置类型不能删除');
+        const renameDisabled = item.is_default ? 'disabled' : '';
+        const encodedName = encodeURIComponent(item.name);
+        return `
+            <div class="document-kind-row">
+                <div>
+                    <strong title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</strong>
+                    <span>${source} · ${count ? count + ' 个模板使用' : '暂无模板使用'}</span>
+                </div>
+                <div class="document-kind-row-actions">
+                    <button class="btn btn-outline btn-sm" ${renameDisabled} onclick="renameDocumentKind(decodeURIComponent('${encodedName}'))">重命名</button>
+                    <button class="btn btn-outline btn-sm btn-danger-text" ${deleteDisabled} title="${escapeHtml(deleteTitle)}" onclick="deleteDocumentKind(decodeURIComponent('${encodedName}'))">删除</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function createDocumentKind() {
+    const input = document.getElementById('newDocumentKindName');
+    const name = (input ? input.value : '').trim();
+    if (!name) { alert('请输入技术文档类型名称'); return; }
+    fetch('/template-library/api/document-kinds', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name})
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            if (input) input.value = '';
+            documentKinds = data.document_kinds || [];
+            renderDocumentKindManager();
+            renderAssetFilters();
+            renderTemplateDocumentKindOptions(currentDocumentKindValue());
+        })
+        .catch(err => alert('新增类型失败: ' + err.message));
+}
+
+function renameDocumentKind(oldName) {
+    const newName = prompt('请输入新的技术文档类型名称', oldName);
+    if (newName === null) return;
+    const cleanName = newName.trim();
+    if (!cleanName) { alert('技术文档类型名称不能为空'); return; }
+    fetch('/template-library/api/document-kinds/rename', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({old_name: oldName, new_name: cleanName})
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            if (currentTemplate && currentTemplate.metadata && currentTemplate.metadata.document_kind_name === oldName) {
+                currentTemplate.metadata.document_kind_name = cleanName;
+            }
+            documentKinds = data.document_kinds || [];
+            loadTemplates();
+            renderDocumentKindManager();
+            renderAssetFilters();
+            renderTemplateDocumentKindOptions(currentDocumentKindValue());
+        })
+        .catch(err => alert('重命名失败: ' + err.message));
+}
+
+function deleteDocumentKind(name) {
+    if (!confirm(`确定删除技术文档类型“${name}”？`)) return;
+    fetch('/template-library/api/document-kinds/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name})
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); return; }
+            documentKinds = data.document_kinds || [];
+            renderDocumentKindManager();
+            renderAssetFilters();
+            renderTemplateDocumentKindOptions(currentDocumentKindValue());
+        })
+        .catch(err => alert('删除类型失败: ' + err.message));
 }
 
 function renderAssetFilters() {
@@ -662,6 +1189,38 @@ function getTemplatesForSpecialty(specialtyId) {
 
 function getCaseCountForSpecialty(specialtyId) {
     return getTemplatesForSpecialty(specialtyId).reduce((sum, template) => sum + getTemplateCaseCount(template), 0);
+}
+
+function renderAssetOverviewDistribution() {
+    const target = document.getElementById('assetOverviewDistribution');
+    if (!target) return;
+    const grouped = specialtyGroups.length ? specialtyGroups : [{id: 'all', name: '专业', specialties}];
+    const specialtyRows = specialties.map(item => {
+        const templateCount = getTemplatesForSpecialty(item.id).length;
+        const caseCount = getCaseCountForSpecialty(item.id);
+        return {...item, templateCount, caseCount, total: templateCount + caseCount};
+    });
+    const maxTotal = Math.max(1, ...specialtyRows.map(item => item.total));
+    target.innerHTML = grouped.map(group => {
+        const rows = (group.specialties || []).map(item => {
+            const counts = specialtyRows.find(row => row.id === item.id) || {...item, templateCount: 0, caseCount: 0, total: 0};
+            const width = counts.total ? Math.max(8, Math.round((counts.total / maxTotal) * 100)) : 0;
+            return `
+                <button type="button" class="asset-distribution-row" onclick="selectAssetScope('specialty', '${escapeHtml(item.id)}')">
+                    <span class="asset-distribution-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+                    <span class="asset-distribution-value">模板 ${counts.templateCount}</span>
+                    <span class="asset-distribution-value">案例 ${counts.caseCount}</span>
+                    <span class="asset-distribution-track"><span class="asset-distribution-bar" style="width:${width}%;"></span></span>
+                </button>
+            `;
+        }).join('');
+        return `
+            <div class="asset-distribution-group">
+                <div class="asset-distribution-group-title">${escapeHtml(group.name || '专业')}</div>
+                ${rows}
+            </div>
+        `;
+    }).join('');
 }
 
 function renderAssetNav() {
@@ -722,11 +1281,22 @@ function toggleAssetMajorGroup(groupId) {
 
 function selectAssetScope(type, specialtyId = '') {
     const specialty = specialties.find(item => item.id === specialtyId);
+    templateVisibleLimit = templatePageSize;
     currentAssetScope = {
         type,
         specialty_id: type === 'specialty' ? specialtyId : '',
         name: type === 'specialty' ? (specialty ? specialty.name : '专业资产') : '全部专业资产',
     };
+    if (currentTemplate) {
+        const metadata = getTemplateMetadata(currentTemplate);
+        const shouldKeep = type === 'specialty' && metadata.specialty_id === specialtyId;
+        if (!shouldKeep) {
+            currentTemplate = null;
+            currentMode = 'view';
+            selectedChapterPath = '';
+            renderEditor();
+        }
+    }
     renderTemplateList();
 }
 
@@ -734,37 +1304,68 @@ function updateAssetContext(filteredCount) {
     const title = document.getElementById('assetContextTitle');
     const meta = document.getElementById('assetContextMeta');
     const uploadBtn = document.getElementById('uploadTemplateBtn');
+    const overview = document.getElementById('assetAllOverview');
+    const mainGrid = document.getElementById('assetMainGrid');
     if (!title || !meta) return;
     const specialtyName = currentAssetScope.name || '全部专业资产';
     const kind = document.getElementById('assetKindFilter')?.value || 'all';
+    const totalCases = templates.reduce((sum, template) => sum + getTemplateCaseCount(template), 0);
     title.textContent = specialtyName;
-    meta.textContent = `${kind === 'all' ? '全部技术文档' : kind} · 当前显示 ${filteredCount} 个模板。`;
+    if (currentAssetScope.type === 'all') {
+        meta.textContent = `共 ${templates.length} 个模板 · ${totalCases} 个优秀案例。请选择左侧具体专业查看和维护模板。`;
+    } else {
+        meta.textContent = `${kind === 'all' ? '全部技术文档' : kind} · 当前显示 ${filteredCount} 个模板。`;
+    }
     if (uploadBtn) uploadBtn.style.display = currentAssetScope.type === 'specialty' ? '' : 'none';
+    if (overview) overview.style.display = currentAssetScope.type === 'all' ? '' : 'none';
+    if (mainGrid) mainGrid.style.display = currentAssetScope.type === 'all' ? 'none' : '';
+    setText('assetOverviewTemplateCount', templates.length);
+    setText('assetOverviewCaseCount', totalCases);
+    renderAssetOverviewDistribution();
 }
 
 function renderTemplateList() {
     const list = document.getElementById('templateList');
     renderAssetFilters();
+    if (currentAssetScope.type === 'all') {
+        updateAssetContext(0);
+        renderAssetNav();
+        if (list) list.innerHTML = '';
+        renderTemplateListFoot(0, 0);
+        return;
+    }
     const specialtyFilter = document.getElementById('assetSpecialtyFilter')?.value || 'all';
     const kindFilter = document.getElementById('assetKindFilter')?.value || 'all';
+    const searchText = (document.getElementById('templateSearchInput')?.value || '').trim().toLowerCase();
     const filtered = templates.filter(t => {
         const metadata = getTemplateMetadata(t);
         const specialtyOk = specialtyFilter === 'all' || metadata.specialty_id === specialtyFilter;
         const kindOk = kindFilter === 'all' || getTemplateKindName(t) === kindFilter;
-        return specialtyOk && kindOk;
+        const sourceLabel = t.source_type === 'built_in' ? '内置示例' : '用户模板';
+        const searchable = [
+            t.name,
+            getTemplateKindName(t),
+            getTemplateSpecialtyName(t),
+            sourceLabel,
+            `案例 ${getTemplateCaseCount(t)}`,
+        ].join(' ').toLowerCase();
+        const searchOk = !searchText || searchable.includes(searchText);
+        return specialtyOk && kindOk && searchOk;
     });
-    document.getElementById('templateEmpty').style.display = filtered.length ? 'none' : '';
+    const visible = filtered.slice(0, templateVisibleLimit);
+    const empty = document.getElementById('templateEmpty');
+    empty.style.display = filtered.length ? 'none' : '';
+    empty.textContent = searchText || kindFilter !== 'all' ? '未找到匹配模板' : '暂无模板';
     updateAssetContext(filtered.length);
     renderAssetNav();
-    list.innerHTML = filtered.map(t => `
+    list.innerHTML = visible.map(t => `
         <li class="rule-set-item template-item ${currentTemplate && currentTemplate.id === t.id ? 'active' : ''}" onclick="selectTemplate('${escapeHtml(t.id)}')">
             <div class="template-list-main">
-                <div class="set-name">${escapeHtml(t.name)}</div>
-                <div class="template-source">
-                    ${escapeHtml(getTemplateSpecialtyName(t))} · ${escapeHtml(getTemplateKindName(t))} · ${t.source_type === 'built_in' ? '内置示例模板' : '用户模板'}
-                    <span class="template-case-count">案例 ${getTemplateCaseCount(t)}</span>
-                </div>
+                <div class="set-name" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</div>
             </div>
+            <div class="template-list-kind" title="${escapeHtml(getTemplateKindName(t))}">${escapeHtml(getTemplateKindName(t))}</div>
+            <div class="template-list-case">案例 ${getTemplateCaseCount(t)}</div>
+            <div class="template-list-source">${t.source_type === 'built_in' ? '内置示例' : '用户模板'}</div>
             <div class="template-list-actions">
                 ${t.source_type === 'built_in'
                     ? `<button class="btn btn-outline template-list-action" onclick="event.stopPropagation(); copyTemplate('${escapeHtml(t.id)}')">复制</button>`
@@ -773,9 +1374,32 @@ function renderTemplateList() {
             </div>
         </li>
     `).join('');
+    renderTemplateListFoot(filtered.length, visible.length);
 }
 
-document.getElementById('assetKindFilter').addEventListener('change', renderTemplateList);
+function renderTemplateListFoot(total, visible) {
+    const foot = document.getElementById('templateListFoot');
+    const summary = document.getElementById('templateListSummary');
+    const moreBtn = document.getElementById('templateListMoreBtn');
+    if (!foot || !summary || !moreBtn) return;
+    foot.style.display = total ? '' : 'none';
+    summary.textContent = `共 ${total} 个模板，当前显示 ${visible} 个`;
+    moreBtn.style.display = visible < total ? '' : 'none';
+}
+
+function showMoreTemplates() {
+    templateVisibleLimit += templatePageSize;
+    renderTemplateList();
+}
+
+document.getElementById('assetKindFilter').addEventListener('change', () => {
+    templateVisibleLimit = templatePageSize;
+    renderTemplateList();
+});
+document.getElementById('templateSearchInput').addEventListener('input', () => {
+    templateVisibleLimit = templatePageSize;
+    renderTemplateList();
+});
 
 function openTemplateUpload() {
     if (currentAssetScope.type !== 'specialty' || !currentAssetScope.specialty_id) {
@@ -791,6 +1415,7 @@ function selectTemplate(id) {
         .then(template => {
             currentTemplate = template;
             currentMode = template.source_type === 'built_in' ? 'view' : 'edit';
+            selectedChapterPath = '0';
             renderTemplateList();
             renderEditor();
         });
@@ -813,19 +1438,22 @@ document.getElementById('templateFile').addEventListener('change', e => {
             if (data.error) { alert(data.error); return; }
             currentTemplate = {
                 id: data.id || '',
-                name: data.name || file.name.replace(/\.docx$/i, ''),
+                name: cleanTemplateName(file.name),
                 description: data.description || '',
                 metadata: data.metadata || {},
                 source_type: 'uploaded_docx',
                 input_fields: data.input_fields || [],
                 chapters: data.chapters || []
             };
+            currentTemplate.metadata.document_kind_name =
+                currentTemplate.metadata.document_kind_name || guessDocumentKindFromName(file.name);
             if (!currentTemplate.metadata.specialty_id && currentAssetScope.specialty_id) {
                 const selectedSpecialty = specialties.find(item => item.id === currentAssetScope.specialty_id);
                 currentTemplate.metadata.specialty_id = currentAssetScope.specialty_id;
                 currentTemplate.metadata.specialty_name = selectedSpecialty ? selectedSpecialty.name : '';
             }
             currentMode = 'create';
+            selectedChapterPath = '0';
             renderTemplateList();
             renderEditor();
         });
@@ -847,6 +1475,7 @@ document.getElementById('replaceTemplateFile').addEventListener('change', e => {
             if (data.error) { alert(data.error); return; }
             currentTemplate = data.template;
             currentMode = 'edit';
+            selectedChapterPath = '0';
             loadTemplates();
             renderEditor();
             alert('源模板已替换并重新解析');
@@ -889,11 +1518,10 @@ function renderEditor() {
     renderTemplateSpecialtyOptions();
     const metadata = currentTemplate.metadata || {};
     document.getElementById('templateSpecialty').value = metadata.specialty_id || '';
-    document.getElementById('templateDocumentKind').value = metadata.document_kind_name || '';
     document.getElementById('templateName').disabled = currentMode === 'view';
     document.getElementById('templateDescription').disabled = currentMode === 'view';
     document.getElementById('templateSpecialty').disabled = currentMode === 'view';
-    document.getElementById('templateDocumentKind').disabled = currentMode === 'view';
+    renderTemplateDocumentKindOptions(metadata.document_kind_name || '');
     addInputBtn.style.display = currentMode === 'view' ? 'none' : '';
     uploadCaseBtn.style.display = currentMode === 'view' || !currentTemplate.id ? 'none' : '';
     renderTemplateAssetMeta();
@@ -908,6 +1536,13 @@ function renderTemplateSpecialtyOptions() {
     const current = select.value || (currentTemplate && currentTemplate.metadata ? currentTemplate.metadata.specialty_id : '');
     select.innerHTML = '<option value="">请选择专业</option>' + renderSpecialtyOptionGroups();
     select.value = specialties.some(item => item.id === current) ? current : '';
+}
+
+function cleanTemplateName(filename) {
+    return String(filename || '模板')
+        .replace(/\.docx$/i, '')
+        .replace(/[（(]?模板[）)]?$/i, '')
+        .trim() || String(filename || '模板').replace(/\.docx$/i, '');
 }
 
 function renderSpecialtyOptionGroups() {
@@ -1152,35 +1787,69 @@ function renderChapterEditor() {
         target.innerHTML = '<div class="empty-state">暂无章节，可点击右上方添加章节</div>';
         return;
     }
-    target.innerHTML = `<ul class="template-editor-list">${chapters.map((ch, idx) => renderChapter(ch, [idx])).join('')}</ul>`;
+    if (!selectedChapterPath || !getChapter(selectedChapterPath)) selectedChapterPath = '0';
+    target.innerHTML = `
+        <div class="chapter-workspace">
+            <div class="chapter-outline">
+                ${chapters.map((chapter, index) => renderChapterOutline(chapter, [index], 0)).join('')}
+            </div>
+            <div class="chapter-detail-pane">
+                ${renderChapterDetail(selectedChapterPath)}
+            </div>
+        </div>
+    `;
 }
 
-function renderChapter(chapter, path) {
-    const disabled = currentMode === 'view' ? 'disabled' : '';
+function renderChapterOutline(chapter, path, level) {
     const pathValue = path.join('.');
+    const childCount = countAssetChapters(chapter.sub_chapters || []);
+    const indent = Math.min(level * 14, 42);
     return `
-        <li class="template-editor-item">
-            <div class="template-editor-row">
-                <input type="text" value="${escapeHtml(chapter.number || '')}" placeholder="编号" ${disabled} oninput="updateChapter('${pathValue}', 'number', this.value)">
-                <input type="text" value="${escapeHtml(chapter.title || '')}" placeholder="章节标题" ${disabled} oninput="updateChapter('${pathValue}', 'title', this.value)">
-                <div class="template-editor-actions">
-                    ${currentMode === 'view' ? '' : `
-                    <button class="btn btn-outline btn-sm" onclick="addChildChapter('${pathValue}')">子章节</button>
-                    <button class="btn btn-outline btn-sm btn-danger-text" onclick="removeChapter('${pathValue}')">删除</button>`}
-                </div>
-            </div>
-            <textarea class="template-editor-guidance" ${disabled} placeholder="章节生成说明（可选）" oninput="updateChapter('${pathValue}', 'guidance_prompt', this.value)">${escapeHtml(chapter.guidance_prompt || chapter.description || '')}</textarea>
-            ${renderTemplateBlocks(chapter)}
-            <div class="template-editor-meta">
-                <select ${disabled} onchange="updateChapter('${pathValue}', 'generation_strategy', this.value)">
-                    ${renderStrategyOptions(chapter.generation_strategy || 'smart_generate')}
-                </select>
-                <input type="text" value="${escapeHtml(chapter.style_name || '')}" placeholder="标题样式，例如 标题 1" ${disabled} oninput="updateChapter('${pathValue}', 'style_name', this.value)">
-                <input type="text" value="${escapeHtml(chapter.body_style_name || '')}" placeholder="正文样式，例如 正文 / Normal" ${disabled} oninput="updateChapter('${pathValue}', 'body_style_name', this.value)">
-            </div>
-            ${(chapter.sub_chapters || []).length ? `<ul>${chapter.sub_chapters.map((child, idx) => renderChapter(child, path.concat(idx))).join('')}</ul>` : ''}
-        </li>
+        <button type="button" class="chapter-outline-item ${selectedChapterPath === pathValue ? 'active' : ''}" style="padding-left:${8 + indent}px;" onclick="selectChapter('${pathValue}')">
+            <span class="chapter-outline-title">${escapeHtml([chapter.number, chapter.title].filter(Boolean).join(' ') || '未命名章节')}</span>
+            <span class="chapter-outline-meta">${childCount ? childCount + ' 子项' : ''}</span>
+        </button>
+        ${(chapter.sub_chapters || []).map((child, index) => renderChapterOutline(child, path.concat(index), level + 1)).join('')}
     `;
+}
+
+function renderChapterDetail(pathValue) {
+    const chapter = getChapter(pathValue);
+    if (!chapter) return '<div class="empty-state">请选择左侧章节</div>';
+    const disabled = currentMode === 'view' ? 'disabled' : '';
+    const title = [chapter.number, chapter.title].filter(Boolean).join(' ') || '未命名章节';
+    return `
+        <div class="chapter-detail-head">
+            <strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+            <div class="template-editor-actions">
+                ${currentMode === 'view' ? '' : `
+                <button class="btn btn-outline btn-sm" onclick="addChildChapter('${pathValue}')">子章节</button>
+                <button class="btn btn-outline btn-sm btn-danger-text" onclick="removeChapter('${pathValue}')">删除</button>`}
+            </div>
+        </div>
+        <div class="chapter-detail-grid">
+            <label>编号</label>
+            <input type="text" value="${escapeHtml(chapter.number || '')}" placeholder="编号" ${disabled} oninput="updateChapter('${pathValue}', 'number', this.value)">
+            <label>标题</label>
+            <input type="text" value="${escapeHtml(chapter.title || '')}" placeholder="章节标题" ${disabled} oninput="updateChapter('${pathValue}', 'title', this.value)">
+            <label>说明</label>
+            <textarea ${disabled} placeholder="章节生成说明（可选）" oninput="updateChapter('${pathValue}', 'guidance_prompt', this.value)">${escapeHtml(chapter.guidance_prompt || chapter.description || '')}</textarea>
+            <label>策略</label>
+            <select ${disabled} onchange="updateChapter('${pathValue}', 'generation_strategy', this.value)">
+                ${renderStrategyOptions(chapter.generation_strategy || 'smart_generate')}
+            </select>
+            <label>标题样式</label>
+            <input type="text" value="${escapeHtml(chapter.style_name || '')}" placeholder="标题样式，例如 标题 1" ${disabled} oninput="updateChapter('${pathValue}', 'style_name', this.value)">
+            <label>正文样式</label>
+            <input type="text" value="${escapeHtml(chapter.body_style_name || '')}" placeholder="正文样式，例如 正文 / Normal" ${disabled} oninput="updateChapter('${pathValue}', 'body_style_name', this.value)">
+        </div>
+        ${renderTemplateBlocks(chapter)}
+    `;
+}
+
+function selectChapter(pathValue) {
+    selectedChapterPath = pathValue;
+    renderChapterEditor();
 }
 
 function renderStrategyOptions(value) {
@@ -1230,6 +1899,7 @@ function addRootChapter() {
     if (section) section.open = true;
     currentTemplate.chapters = currentTemplate.chapters || [];
     currentTemplate.chapters.push(makeChapter(String(currentTemplate.chapters.length + 1), '新章节'));
+    selectedChapterPath = String(currentTemplate.chapters.length - 1);
     renderChapterEditor();
 }
 
@@ -1240,6 +1910,7 @@ function addChildChapter(path) {
     chapter.sub_chapters = chapter.sub_chapters || [];
     const number = chapter.number ? `${chapter.number}.${chapter.sub_chapters.length + 1}` : '';
     chapter.sub_chapters.push(makeChapter(number, '新子章节'));
+    selectedChapterPath = `${path}.${chapter.sub_chapters.length - 1}`;
     renderChapterEditor();
 }
 
@@ -1248,6 +1919,7 @@ function removeChapter(path) {
     const idx = parts.pop();
     const list = parts.length ? getChapter(parts.join('.')).sub_chapters : currentTemplate.chapters;
     list.splice(idx, 1);
+    selectedChapterPath = parts.length ? parts.join('.') : '0';
     renderChapterEditor();
 }
 
@@ -1262,6 +1934,7 @@ function getChapter(path) {
     let list = currentTemplate.chapters;
     let chapter = null;
     for (const idx of parts) {
+        if (!Array.isArray(list) || Number.isNaN(idx) || idx < 0 || idx >= list.length) return null;
         chapter = list[idx];
         list = chapter.sub_chapters || [];
     }
@@ -1280,7 +1953,7 @@ function saveCurrentTemplate() {
     const selectedSpecialty = specialties.find(item => item.id === document.getElementById('templateSpecialty').value);
     currentTemplate.metadata.specialty_id = selectedSpecialty ? selectedSpecialty.id : '';
     currentTemplate.metadata.specialty_name = selectedSpecialty ? selectedSpecialty.name : '';
-    currentTemplate.metadata.document_kind_name = document.getElementById('templateDocumentKind').value.trim();
+    currentTemplate.metadata.document_kind_name = currentDocumentKindValue();
     if (!currentTemplate.name) { alert('模板名称不能为空'); return; }
     if (!currentTemplate.metadata.specialty_id) { alert('请选择模板所属专业'); return; }
     if (!currentTemplate.metadata.document_kind_name) { alert('请填写技术文档类型'); return; }
@@ -1312,6 +1985,7 @@ function copyTemplate(id) {
             if (template.error) { alert(template.error); return; }
             currentTemplate = cloneTemplateForEdit(template);
             currentMode = 'create';
+            selectedChapterPath = '0';
             renderTemplateList();
             renderEditor();
         });
@@ -1321,6 +1995,7 @@ function copyCurrentTemplate() {
     if (!currentTemplate) return;
     currentTemplate = cloneTemplateForEdit(currentTemplate);
     currentMode = 'create';
+    selectedChapterPath = '0';
     renderTemplateList();
     renderEditor();
 }

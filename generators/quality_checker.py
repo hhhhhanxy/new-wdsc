@@ -158,6 +158,32 @@ class GeneratedDocxQualityChecker:
                             "location": f"表格 {table_index} 第 {row_index} 行第 {cell_index} 列",
                             "excerpt": self._excerpt(text),
                         })
+        for section_index, section in enumerate(doc.sections, start=1):
+            containers = [
+                ("页眉", section.header),
+                ("首页页眉", section.first_page_header),
+                ("偶数页页眉", section.even_page_header),
+                ("页脚", section.footer),
+                ("首页页脚", section.first_page_footer),
+                ("偶数页页脚", section.even_page_footer),
+            ]
+            for label, container in containers:
+                for paragraph_index, paragraph in enumerate(container.paragraphs, start=1):
+                    text = paragraph.text.strip()
+                    if text:
+                        locations.append({
+                            "location": f"第 {section_index} 节{label}段落 {paragraph_index}",
+                            "excerpt": self._excerpt(text),
+                        })
+                for table_index, table in enumerate(container.tables, start=1):
+                    for row_index, row in enumerate(table.rows, start=1):
+                        for cell_index, cell in enumerate(row.cells, start=1):
+                            text = cell.text.strip()
+                            if text:
+                                locations.append({
+                                    "location": f"第 {section_index} 节{label}表格 {table_index} 第 {row_index} 行第 {cell_index} 列",
+                                    "excerpt": self._excerpt(text),
+                                })
         return locations
 
     def _matching_locations(self, locations: list[dict[str, str]], pattern: re.Pattern) -> list[dict[str, str]]:

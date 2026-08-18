@@ -141,6 +141,8 @@ class TemplateDocxGenerator(BaseGenerator):
 
         doc = Document(str(template_path))
         replacements = self._build_replacements(title, inputs)
+        pending_meta_fields = self._collect_pending_meta_fields(inputs)
+        self._replace_document_meta_placeholders(doc, replacements)
         self._replace_document_title_candidates(doc, title, replacements)
         chapters = self._flatten_chapters(template.chapters)
         chapter_targets = self._collect_generation_targets(doc, chapters)
@@ -166,6 +168,7 @@ class TemplateDocxGenerator(BaseGenerator):
             "llm_enabled": bool(llm_client),
             "generated_sections": len(generated_sections),
             "sections": list(section_details.values()),
+            "pending_fields": pending_meta_fields,
         }
         for index, chapter in enumerate(chapters, start=1):
             if control_callback:
@@ -488,8 +491,38 @@ class TemplateDocxGenerator(BaseGenerator):
     def _build_replacements(self, title: str, inputs: Dict[str, Any]) -> Dict[str, str]:
         product_name = str(inputs.get("product_name", "")).strip()
         project_name = str(inputs.get("project_name", "")).strip() or str(inputs.get("background", "")).strip() or title
+        product_model = str(inputs.get("product_model", "") or inputs.get("model_number", "")).strip()
+        document_code = str(inputs.get("document_code", "") or inputs.get("file_code", "")).strip()
+        confidentiality = str(inputs.get("confidentiality", "") or inputs.get("secret_level", "")).strip()
+        version = str(inputs.get("version", "") or inputs.get("revision", "")).strip()
+        author = str(inputs.get("author", "") or inputs.get("prepared_by", "")).strip()
+        reviewer = str(inputs.get("reviewer", "") or inputs.get("checked_by", "")).strip()
+        approver = str(inputs.get("approver", "") or inputs.get("approved_by", "")).strip()
+        date = str(inputs.get("date", "") or inputs.get("document_date", "")).strip()
         test_item = str(inputs.get("test_item", "")).strip() or product_name
         replacements = {
+            "(文件名称)": title,
+            "（文件名称）": title,
+            "(文档标题)": title,
+            "（文档标题）": title,
+            "(产品名称)": product_name,
+            "（产品名称）": product_name,
+            "(产品型号)": product_model,
+            "（产品型号）": product_model,
+            "(文件代号)": document_code,
+            "（文件代号）": document_code,
+            "(密级)": confidentiality,
+            "（密级）": confidentiality,
+            "(版次)": version,
+            "（版次）": version,
+            "(编制)": author,
+            "（编制）": author,
+            "(审核)": reviewer,
+            "（审核）": reviewer,
+            "(批准)": approver,
+            "（批准）": approver,
+            "(系统年)年(系统月)月": date,
+            "（系统年）年（系统月）月": date,
             "NNNNN": product_name,
             "NNNN": product_name,
             "NNN": product_name,
@@ -511,6 +544,51 @@ class TemplateDocxGenerator(BaseGenerator):
                 if token:
                     replacements[token] = value
         return {key: value for key, value in replacements.items() if value}
+
+    def _collect_pending_meta_fields(self, inputs: Dict[str, Any]) -> List[dict]:
+        field_defs = [
+            ("confidentiality", "密级"),
+            ("document_code", "文件代号"),
+            ("product_model", "产品型号"),
+            ("version", "版次"),
+            ("author", "编制"),
+            ("reviewer", "审核"),
+            ("approver", "批准"),
+            ("date", "日期"),
+        ]
+        aliases = {
+            "confidentiality": ("confidentiality", "secret_level"),
+            "document_code": ("document_code", "file_code"),
+            "product_model": ("product_model", "model_number"),
+            "version": ("version", "revision"),
+            "author": ("author", "prepared_by"),
+            "reviewer": ("reviewer", "checked_by"),
+            "approver": ("approver", "approved_by"),
+            "date": ("date", "document_date"),
+        }
+        pending = []
+        for key, label in field_defs:
+            if any(str(inputs.get(alias, "") or "").strip() for alias in aliases.get(key, (key,))):
+                continue
+            pending.append({
+                "field": key,
+                "label": label,
+                "message": f"{label}未从生成素材中识别，已保留模板占位，请人工确认。",
+            })
+        return pending
+
+    def _replace_document_meta_placeholders(self, doc: DocumentType, replacements: Dict[str, str]):
+        for paragraph in doc.paragraphs:
+            self._replace_paragraph_runs(paragraph, replacements)
+        for table in doc.tables:
+            self._replace_table_runs(table, replacements, preserve_labels=True)
+        for section in doc.sections:
+            for container in (section.header, section.first_page_header, section.even_page_header,
+                              section.footer, section.first_page_footer, section.even_page_footer):
+                for paragraph in container.paragraphs:
+                    self._replace_paragraph_runs(paragraph, replacements)
+                for table in container.tables:
+                    self._replace_table_runs(table, replacements, preserve_labels=True)
 
     def _replace_paragraph_runs(self, paragraph, replacements: Dict[str, str]):
         for run in paragraph.runs:

@@ -1,4 +1,5 @@
 """Generation template library routes."""
+import json
 import os
 import uuid
 from pathlib import Path
@@ -10,6 +11,79 @@ from templates.template_manager import TemplateManager
 from web.option_registry import build_reference_case_context, get_specialty
 
 bp = Blueprint("template_library", __name__)
+
+DOCUMENT_KINDS_FILE = Path(__file__).parent.parent.parent / "config" / "document_kinds.json"
+DEFAULT_DOCUMENT_KINDS = [
+    "试验大纲",
+    "可靠性分配报告",
+    "技术说明书",
+    "产品规范",
+    "验证报告",
+    "需求文档",
+    "通用特性文档",
+]
+
+
+def _normalize_document_kind(value: str) -> str:
+    return str(value or "").strip()
+
+
+def _load_custom_document_kinds() -> list[str]:
+    if not DOCUMENT_KINDS_FILE.exists():
+        return []
+    try:
+        with open(DOCUMENT_KINDS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+    items = data.get("document_kinds", data if isinstance(data, list) else [])
+    kinds = []
+    for item in items:
+        name = _normalize_document_kind(item.get("name") if isinstance(item, dict) else item)
+        if name and name not in kinds:
+            kinds.append(name)
+    return kinds
+
+
+def _save_custom_document_kinds(kinds: list[str]) -> None:
+    clean = []
+    for item in kinds:
+        name = _normalize_document_kind(item)
+        if name and name not in clean:
+            clean.append(name)
+    DOCUMENT_KINDS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(DOCUMENT_KINDS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"document_kinds": clean}, f, ensure_ascii=False, indent=2)
+
+
+def _template_document_kind_counts(manager: TemplateManager) -> dict[str, int]:
+    counts = {}
+    for template in manager.list_template_dicts():
+        name = _normalize_document_kind((template.get("metadata") or {}).get("document_kind_name"))
+        if not name:
+            continue
+        counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def _serialize_document_kinds(manager: TemplateManager) -> list[dict]:
+    custom_kinds = _load_custom_document_kinds()
+    template_counts = _template_document_kind_counts(manager)
+    ordered = []
+    for name in DEFAULT_DOCUMENT_KINDS + custom_kinds + list(template_counts.keys()):
+        clean = _normalize_document_kind(name)
+        if clean and clean not in ordered:
+            ordered.append(clean)
+    return [
+        {
+            "name": name,
+            "template_count": template_counts.get(name, 0),
+            "is_default": name in DEFAULT_DOCUMENT_KINDS,
+            "is_custom": name in custom_kinds,
+            "can_delete": name not in DEFAULT_DOCUMENT_KINDS and template_counts.get(name, 0) == 0,
+        }
+        for name in ordered
+    ]
 
 
 def _validate_input_fields(items):
@@ -43,6 +117,82 @@ def index():
 def api_templates():
     manager = TemplateManager()
     return jsonify({"templates": manager.list_template_dicts()})
+
+
+@bp.route("/api/document-kinds")
+def api_document_kinds():
+    manager = TemplateManager()
+    return jsonify({"document_kinds": _serialize_document_kinds(manager)})
+
+
+@bp.route("/api/document-kinds", methods=["POST"])
+def api_create_document_kind():
+    data = request.get_json() or {}
+    name = _normalize_document_kind(data.get("name"))
+    if not name:
+        return jsonify({"error": "请填写技术文档类型名称"}), 400
+    manager = TemplateManager()
+    existing = [item["name"] for item in _serialize_document_kinds(manager)]
+    if name in existing:
+        return jsonify({"error": "该技术文档类型已存在"}), 400
+    custom_kinds = _load_custom_document_kinds()
+    custom_kinds.append(name)
+    _save_custom_document_kinds(custom_kinds)
+    return jsonify({"ok": True, "document_kinds": _serialize_document_kinds(manager)})
+
+
+@bp.route("/api/document-kinds/rename", methods=["POST"])
+def api_rename_document_kind():
+    data = request.get_json() or {}
+    old_name = _normalize_document_kind(data.get("old_name"))
+    new_name = _normalize_document_kind(data.get("new_name"))
+    if not old_name or not new_name:
+        return jsonify({"error": "请填写原类型和新类型名称"}), 400
+    if old_name == new_name:
+        return jsonify({"ok": True, "document_kinds": _serialize_document_kinds(TemplateManager())})
+
+    manager = TemplateManager()
+    existing = [item["name"] for item in _serialize_document_kinds(manager)]
+    if old_name not in existing:
+        return jsonify({"error": "原技术文档类型不存在"}), 404
+    if new_name in existing:
+        return jsonify({"error": "新技术文档类型已存在"}), 400
+
+    custom_kinds = _load_custom_document_kinds()
+    if old_name in custom_kinds:
+        custom_kinds = [new_name if item == old_name else item for item in custom_kinds]
+    elif old_name not in DEFAULT_DOCUMENT_KINDS:
+        custom_kinds.append(new_name)
+    else:
+        return jsonify({"error": "默认技术文档类型暂不支持重命名"}), 400
+    _save_custom_document_kinds(custom_kinds)
+
+    for template in manager.list_template_dicts():
+        metadata = dict(template.get("metadata") or {})
+        if _normalize_document_kind(metadata.get("document_kind_name")) != old_name:
+            continue
+        metadata["document_kind_name"] = new_name
+        manager.update_template(template["id"], {"metadata": metadata})
+
+    refreshed = TemplateManager()
+    return jsonify({"ok": True, "document_kinds": _serialize_document_kinds(refreshed)})
+
+
+@bp.route("/api/document-kinds/delete", methods=["POST"])
+def api_delete_document_kind():
+    data = request.get_json() or {}
+    name = _normalize_document_kind(data.get("name"))
+    if not name:
+        return jsonify({"error": "请填写要删除的技术文档类型"}), 400
+    manager = TemplateManager()
+    counts = _template_document_kind_counts(manager)
+    if name in DEFAULT_DOCUMENT_KINDS:
+        return jsonify({"error": "默认技术文档类型不可删除"}), 400
+    if counts.get(name, 0):
+        return jsonify({"error": f"该类型已有 {counts[name]} 个模板使用，请先调整模板类型后再删除"}), 400
+    custom_kinds = [item for item in _load_custom_document_kinds() if item != name]
+    _save_custom_document_kinds(custom_kinds)
+    return jsonify({"ok": True, "document_kinds": _serialize_document_kinds(manager)})
 
 
 @bp.route("/api/templates/<template_id>")

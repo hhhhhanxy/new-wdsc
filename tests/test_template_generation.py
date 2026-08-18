@@ -401,6 +401,62 @@ def test_template_docx_generator_replaces_fixed_template_title(tmp_path, monkeyp
     assert "XX型飞机航电系统国产化升级项目" not in text
 
 
+def test_template_docx_generator_fills_cover_header_footer_placeholders(tmp_path, monkeypatch):
+    from generators.base_generator import GeneratorFactory
+    from templates.template_manager import ChapterTemplate, DocumentTemplate
+
+    template_path = tmp_path / "cover_template.docx"
+    template_doc = Document()
+    template_doc.add_paragraph("(密级)")
+    template_doc.add_paragraph("（产品型号）（产品名称）")
+    template_doc.add_paragraph("(文件名称)")
+    template_doc.sections[0].header.paragraphs[0].text = "页眉：(文件名称)"
+    template_doc.sections[0].footer.paragraphs[0].text = "页脚：（产品型号）（产品名称）"
+    template_doc.add_heading("1 范围", level=1)
+    template_doc.add_paragraph("NNNNN 适用于本文件。")
+    template_doc.save(template_path)
+
+    template = DocumentTemplate(
+        template_id="cover_template",
+        name="封面页眉页脚模板",
+        description="",
+        source_type="uploaded_docx",
+        metadata={"source_path": str(template_path)},
+        chapters=[ChapterTemplate(number="1", title="范围", placeholders=["NNNNN"])],
+    )
+
+    class FakeTemplateManager:
+        def get_template(self, template_id):
+            return template if template_id == "cover_template" else None
+
+    monkeypatch.setattr("templates.template_manager.TemplateManager", FakeTemplateManager)
+
+    params = {
+        "template_id": "cover_template",
+        "inputs": {
+            "product_name": "ADM-200型大气数据模块",
+            "product_model": "ADM-200",
+        },
+    }
+    output_path = tmp_path / "cover_generated.docx"
+    GeneratorFactory.create("template_docx").generate(
+        title="某型飞机大气数据模块可靠性分配报告",
+        params=params,
+        llm_client=None,
+        output_path=str(output_path),
+    )
+
+    generated = Document(output_path)
+    body_text = "\n".join(p.text for p in generated.paragraphs)
+    header_text = "\n".join(p.text for p in generated.sections[0].header.paragraphs)
+    footer_text = "\n".join(p.text for p in generated.sections[0].footer.paragraphs)
+    assert "某型飞机大气数据模块可靠性分配报告" in body_text
+    assert "ADM-200ADM-200型大气数据模块" in body_text
+    assert "某型飞机大气数据模块可靠性分配报告" in header_text
+    assert "ADM-200ADM-200型大气数据模块" in footer_text
+    assert any(item["label"] == "密级" for item in params["_generation_meta"]["pending_fields"])
+
+
 def test_template_docx_generator_uses_llm_for_smart_generation(tmp_path, monkeypatch):
     from generators.base_generator import GeneratorFactory
     from templates.template_manager import ChapterTemplate, DocumentTemplate
@@ -988,6 +1044,56 @@ def test_docx_template_parser_classifies_plain_guidance_markers(tmp_path):
     assert "某型产品鉴定试验大纲" in parsed["chapters"][0]["guidance_prompt"]
 
 
+def test_docx_template_parser_skips_front_matter_toc_and_captions(tmp_path):
+    from docx.enum.style import WD_STYLE_TYPE
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "standard_template.docx"
+    doc = Document()
+    for style_name in ("TOC 1", "TOC 2", "TOC 3"):
+        if style_name not in doc.styles:
+            doc.styles.add_style(style_name, WD_STYLE_TYPE.PARAGRAPH)
+    doc.add_paragraph("(密级)")
+    doc.add_paragraph("更改记录")
+    doc.add_paragraph("目  次")
+    doc.add_paragraph("前言\tII", style="TOC 1")
+    doc.add_paragraph("1 XXXXXXXX（章标题）\t1", style="TOC 2")
+    doc.add_paragraph("2 XXXXXXXX（章标题）\t1", style="TOC 2")
+    doc.add_paragraph("2.1 XXXXXXXX（条标题）\t1", style="TOC 3")
+    doc.add_paragraph("前   言")
+    doc.add_paragraph("前言一般应说明文件编制依据或背景。")
+    doc.add_paragraph("XX可靠性分配报告")
+    doc.add_paragraph("1范围")
+    doc.add_paragraph("【说明】")
+    doc.add_paragraph("本节简单介绍本文件编制目的和适用范围。")
+    doc.add_paragraph("表1-1 引用文件")
+    doc.add_paragraph("图1-1 产品结构图")
+    doc.add_paragraph("2 引用文件")
+    doc.add_paragraph("2.1 标准文件")
+    doc.add_paragraph("附录A")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    flat_titles = []
+
+    def walk(chapters):
+        for chapter in chapters:
+            flat_titles.append((chapter["number"], chapter["title"]))
+            walk(chapter.get("sub_chapters", []))
+
+    walk(parsed["chapters"])
+
+    assert ("", "前言") == flat_titles[0]
+    assert ("1", "范围") in flat_titles
+    assert ("2", "引用文件") in flat_titles
+    assert ("2.1", "标准文件") in flat_titles
+    assert ("附录A", "") in flat_titles
+    appendix = next(chapter for chapter in parsed["chapters"] if chapter["number"] == "附录A")
+    assert appendix["required"] is False
+    assert all("章标题" not in title and "条标题" not in title for _, title in flat_titles)
+    assert all(not title.startswith(("表", "图")) for _, title in flat_titles)
+
+
 def test_chapter_prompt_builder_combines_template_guidance_and_inputs():
     from generators.prompt_builder import ChapterPromptBuilder
     from templates.template_manager import ChapterTemplate
@@ -1427,3 +1533,75 @@ def test_paused_generate_record_cannot_be_deleted_or_rerun():
     assert rerun_response.status_code == 400
     assert db.get_generate_task(task_id)["status"] == "paused"
     db.delete_generate_task(task_id)
+
+
+def test_template_library_document_kind_management(tmp_path, monkeypatch):
+    from templates.template_manager import TemplateManager as RealTemplateManager
+    from web.app import app
+    from web.routes import template_library
+
+    store_path = tmp_path / "generation_templates.json"
+    kinds_path = tmp_path / "document_kinds.json"
+    monkeypatch.setattr(template_library, "DOCUMENT_KINDS_FILE", kinds_path)
+    monkeypatch.setattr(
+        template_library,
+        "TemplateManager",
+        lambda: RealTemplateManager(custom_store_path=str(store_path)),
+    )
+
+    client = app.test_client()
+    created = client.post(
+        "/template-library/api/document-kinds",
+        data=json.dumps({"name": "可靠性分配临时"}),
+        content_type="application/json",
+    )
+    assert created.status_code == 200
+    assert any(item["name"] == "可靠性分配临时" for item in created.get_json()["document_kinds"])
+
+    duplicate = client.post(
+        "/template-library/api/document-kinds",
+        data=json.dumps({"name": "可靠性分配临时"}),
+        content_type="application/json",
+    )
+    assert duplicate.status_code == 400
+
+    manager = RealTemplateManager(custom_store_path=str(store_path))
+    manager.create_template(
+        name="可靠性分配模板",
+        description="",
+        chapters=[{"number": "1", "title": "范围"}],
+        metadata={"document_kind_name": "可靠性分配临时"},
+    )
+
+    protected = client.post(
+        "/template-library/api/document-kinds/delete",
+        data=json.dumps({"name": "可靠性分配临时"}),
+        content_type="application/json",
+    )
+    assert protected.status_code == 400
+    assert "模板使用" in protected.get_json()["error"]
+
+    renamed = client.post(
+        "/template-library/api/document-kinds/rename",
+        data=json.dumps({"old_name": "可靠性分配临时", "new_name": "可靠性分配报告修订"}),
+        content_type="application/json",
+    )
+    assert renamed.status_code == 200
+    templates = client.get("/template-library/api/templates").get_json()["templates"]
+    assert any(
+        template["metadata"].get("document_kind_name") == "可靠性分配报告修订"
+        for template in templates
+    )
+
+    unused = client.post(
+        "/template-library/api/document-kinds",
+        data=json.dumps({"name": "未使用类型"}),
+        content_type="application/json",
+    )
+    assert unused.status_code == 200
+    deleted = client.post(
+        "/template-library/api/document-kinds/delete",
+        data=json.dumps({"name": "未使用类型"}),
+        content_type="application/json",
+    )
+    assert deleted.status_code == 200

@@ -1865,6 +1865,13 @@ textarea.form-control {
     align-items: start;
 }
 
+.external-knowledge-side-panel {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+}
+
 .external-knowledge-nav,
 .external-knowledge-group {
     display: grid;
@@ -2535,6 +2542,11 @@ textarea.form-control {
     .external-knowledge-workspace,
     .knowledge-placeholder-grid {
         grid-template-columns: 1fr;
+    }
+
+    .external-knowledge-side-panel {
+        position: static;
+        max-height: none;
     }
 
     .stats-row {

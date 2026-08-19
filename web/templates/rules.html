@@ -101,6 +101,7 @@
 .import-history-item { border:1px solid var(--border); padding:12px; display:flex; justify-content:space-between; gap:16px; }
 .import-history-meta { color:var(--text-secondary); font-size:13px; margin-top:5px; }
 .rule-workspace { display:grid; grid-template-columns:320px minmax(0, 1fr); gap:14px; align-items:start; }
+.rule-side-panel { position:sticky; top:16px; max-height:calc(100vh - 32px); overflow:auto; }
 .rule-nav-list { display:grid; gap:6px; }
 .rule-nav-section { margin-top:12px; color:var(--text-secondary); font-size:12px; font-weight:700; }
 .rule-nav-item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 10px; border:1px solid transparent; border-radius:6px; cursor:pointer; color:var(--text); }
@@ -143,7 +144,7 @@
 .approval-filter-bar select,
 .approval-filter-bar input { height:34px; border:1px solid var(--border); border-radius:6px; padding:6px 9px; background:#fff; color:var(--text); }
 .approval-reject-note { margin-bottom:12px; padding:10px 12px; border:1px solid #ffd9d5; border-radius:8px; background:#fff7f6; color:#9f1d15; font-size:13px; }
-@media (max-width: 1100px) { .rule-workspace { grid-template-columns:1fr; } }
+@media (max-width: 1100px) { .rule-workspace { grid-template-columns:1fr; } .rule-side-panel { position:static; max-height:none; } }
 </style>
 <div class="page-header">
     <h1>规则管理</h1>
@@ -152,7 +153,7 @@
 
 <div class="rule-workspace">
     <div>
-        <div class="panel">
+        <div class="panel rule-side-panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>规则导航</span>
             </div>

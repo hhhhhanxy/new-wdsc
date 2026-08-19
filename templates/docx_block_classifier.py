@@ -14,7 +14,7 @@ class DocxBlockClassifier:
 
     heading_number_pattern = re.compile(r"^\s*(\d+(?:\.\d+)*)\s*[\.\、．]?\s*(.+?)\s*$")
     heading_style_pattern = re.compile(r"(?:Heading|标题)\s*(\d+)", re.IGNORECASE)
-    numbered_line_pattern = re.compile(r"^\s*(?:\d+[\.\、]|[（(]?\d+[）)]|[a-zA-Z][\).、])\s*")
+    numbered_line_pattern = re.compile(r"^\s*(?:\d+[\.\)、）]|[（(]?\d+[）)]|[a-zA-Z][\)）.、])\s*")
 
     example_marker_pattern = re.compile(
         r"^\s*(?:【\s*)?(?:举例|示例|例|参考示例|样例)(?:\s*】)?\s*[:：]?\s*$"
@@ -27,7 +27,9 @@ class DocxBlockClassifier:
     instruction_text_pattern = re.compile(
         r"(正式(?:文件|文档)中(?:应)?删除|生成(?:正式)?(?:文件|文档)时(?:应)?删除|"
         r"红色字体|斜体字|占位符|按需修改|根据.*(?:修改|填写|补充|确定)|"
-        r"(?:本章|本节|此处|该处|表中|文中).*(?:应|需要|用于|填写|说明|替换|删除))"
+        r"(?:本章|本节|本条|本款|本部分|本章节|前言|概述|范围|术语|引用文件|此处|该处|表中|文中)"
+        r".*(?:应|需要|用于|填写|说明|包括|包含|列出|描述|替换|删除)|"
+        r"(?:一般|通常|宜|可|需|应).*(?:说明|包括|包含|列出|描述).*(?:内容|信息|事项|要素|条目))"
     )
 
     def heading_level(self, paragraph) -> int:
@@ -56,8 +58,14 @@ class DocxBlockClassifier:
             return "example"
         if self.is_instruction_marker(text):
             return "instruction"
+        if current_context == "example_marker":
+            return "example"
+        if current_context == "instruction_marker":
+            return "instruction"
         if current_context in {"example", "instruction"} and self.is_context_continuation(text):
             return current_context
+        if self.looks_like_instruction_text(text):
+            return "instruction"
         if self.is_red_paragraph(paragraph):
             return "example" if current_context == "example" else "instruction"
         return "template_text"
@@ -67,6 +75,8 @@ class DocxBlockClassifier:
             return "example"
         if block_type == "instruction" or self.is_instruction_marker(text):
             return "instruction"
+        if current_context in {"example_marker", "instruction_marker"}:
+            return ""
         return "" if block_type == "template_text" else current_context
 
     def is_context_continuation(self, text: str) -> bool:
@@ -86,6 +96,24 @@ class DocxBlockClassifier:
 
     def looks_like_instruction_text(self, text: str) -> bool:
         return bool(self.instruction_text_pattern.search(text.strip()))
+
+    def looks_like_instruction_or_example_text(self, text: str) -> bool:
+        clean = text.strip()
+        return bool(
+            self.is_instruction_marker(clean)
+            or self.is_example_marker(clean)
+            or self.looks_like_instruction_text(clean)
+        )
+
+    def guidance_display_text(self, block_type: str, text: str) -> str:
+        clean = text.strip()
+        if not clean:
+            return ""
+        if self.is_instruction_marker(clean) or self.is_example_marker(clean) or self.numbered_line_pattern.match(clean):
+            return clean
+        if block_type == "example":
+            return f"举例：{clean}"
+        return f"说明：{clean}"
 
     def is_red_paragraph(self, paragraph) -> bool:
         visible_runs = [run for run in paragraph.runs if run.text.strip()]

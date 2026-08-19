@@ -840,7 +840,7 @@
             <textarea class="form-control" id="generationRequirementInput" placeholder="例如：语言正式、条理清晰；缺失信息写“待补充”；不要编造未提供的数据、编号、结论或标准条款。"></textarea>
         </details>
         <div class="generate-compact-tips">
-            <strong>生成说明：</strong>生成前在此输入素材；生成完成后继续在此输入修改意见。系统会保留 DOCX 模板样式、页眉页脚、标题层级和页面设置，只对正文内容进行生成、补充或修订。
+            <strong>生成说明：</strong>生成前在对话框中输入任务描述、产品信息、关键参数或引用文件；生成完成后继续输入修改意见。系统会保留 DOCX 模板样式、页眉页脚、标题层级和页面设置，只对正文内容进行生成、补充或修订。
         </div>
     </section>
 </div>
@@ -1071,6 +1071,27 @@ function getTemplateKindName(template) {
     return getTemplateMetadata(template).document_kind_name || template.name || '';
 }
 
+function getReferenceCasesForSelectedTemplate() {
+    if (!selectedTemplate) return [];
+    const metadata = getTemplateMetadata(selectedTemplate);
+    const linkedIds = new Set((metadata.reference_case_ids || []).map(item => String(item)).filter(Boolean));
+    const legacyCases = Array.isArray(metadata.reference_cases) ? metadata.reference_cases : [];
+    if (!linkedIds.size && legacyCases.length) {
+        legacyCases.forEach(item => {
+            if (item && item.id) linkedIds.add(String(item.id));
+        });
+    }
+    const specialty = generationSpecialties.find(item => item.id === metadata.specialty_id) || getSelectedSpecialty();
+    const professionalCases = specialty && Array.isArray(specialty.reference_cases) ? specialty.reference_cases : [];
+    const seen = new Set();
+    return professionalCases.concat(legacyCases).filter(item => {
+        const id = String(item && item.id || '');
+        if (!id || !linkedIds.has(id) || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+    });
+}
+
 function getTemplatesForSpecialty() {
     const specialtyId = specialtySelect.value || '';
     return generationTemplates.filter(template => {
@@ -1117,9 +1138,7 @@ function renderTemplateOptions() {
 }
 
 function renderReferenceCases() {
-    const cases = selectedTemplate && selectedTemplate.metadata
-        ? (selectedTemplate.metadata.reference_cases || [])
-        : [];
+    const cases = getReferenceCasesForSelectedTemplate();
     if (!cases.length) {
         referenceCaseList.innerHTML = `
             <div class="asset-summary-card">
@@ -1128,7 +1147,7 @@ function renderReferenceCases() {
                     <span>仍可生成</span>
                     <span>不加入案例写法参考</span>
                 </div>
-                <button type="button" class="btn btn-outline" onclick="openSelectedTemplateInLibrary()">上传案例</button>
+                <button type="button" class="btn btn-outline" onclick="openSelectedTemplateInLibrary()">去模板库关联案例</button>
             </div>
         `;
         return;
@@ -1263,7 +1282,7 @@ function collectTemplateGenerationSignals(template) {
                 const text = String(item || '').trim();
                 if (text) placeholders.add(text);
             });
-            if (String(chapter.guidance_prompt || chapter.description || '').trim()) {
+            if (String(chapter.guidance_prompt || chapter.description || chapter.manual_guidance_prompt || '').trim()) {
                 hasGuidance = true;
             }
             (chapter.template_blocks || []).forEach(block => {
@@ -1474,8 +1493,8 @@ function setSmartDialogMode(mode) {
         return;
     }
     if (dialogTitle) dialogTitle.textContent = '4. 智能对话';
-    if (dialogModeBadge) dialogModeBadge.textContent = '生成素材';
-    generationBriefInput.placeholder = '请输入生成需求、产品信息、参数、引用文件等；生成完成后可继续在这里提出修改意见。';
+        if (dialogModeBadge) dialogModeBadge.textContent = '任务描述';
+    generationBriefInput.placeholder = '请输入本次文档生成任务描述、产品信息、关键参数、引用文件或特殊要求；生成完成后可继续在这里提出修改意见。';
     if (generationRequirementPanel) generationRequirementPanel.classList.remove('hidden');
     if (btn) btn.textContent = '发送';
 }

@@ -22,6 +22,10 @@ class DocxTemplateParser:
     appendix_pattern = re.compile(r"^\s*附录\s*([A-ZＡ-Ｚ])(?:\s+|[（(]|$)(.*)$", re.IGNORECASE)
     figure_table_caption_pattern = re.compile(r"^\s*(?:表|图)\s*\d+(?:[-－—]\d+)?\s*")
     document_title_pattern = re.compile(r"(?:规范|报告|大纲|说明书|计划|方案|规程|手册|细则|要求)$")
+    list_item_pattern = re.compile(
+        r"^\s*(?P<marker>(?:[a-zA-Z]|[一二三四五六七八九十]+|\d+)[\)）\.、]|[（(]\d+[）)])\s*(?P<text>.+?)\s*$"
+    )
+    expandable_marker_pattern = re.compile(r"^\s*(?:…{2,}|\.{3,}|……+)\s*[。；;]?\s*$")
 
     def __init__(self):
         self.classifier = DocxBlockClassifier()
@@ -65,11 +69,16 @@ class DocxTemplateParser:
 
                 if current_heading:
                     block = self._paragraph_block(block_item, current_context)
-                    current_heading["template_blocks"].append(block)
+                    if self._is_empty_marker_block(block):
+                        current_context = f"{block['type']}_marker"
+                        continue
+                    block = self._append_paragraph_block(current_heading, block)
                     current_heading["placeholders"].extend(block.get("placeholders", []))
                     if block["type"] in ("instruction", "example"):
-                        current_heading["_guidance_parts"].append(f"{block['label']}：{text}")
-                    if not current_heading.get("body_style_name") and block["type"] == "template_text":
+                        current_heading["_guidance_parts"].append(
+                            self.classifier.guidance_display_text(block["type"], text)
+                        )
+                    if not current_heading.get("body_style_name") and block["type"] in {"template_text", "template_list"}:
                         current_heading["body_style_name"] = style_name
                     current_context = self._next_context(block, current_context)
             elif isinstance(block_item, Table) and current_heading:
@@ -262,6 +271,20 @@ class DocxTemplateParser:
         placeholders = self.placeholder_pattern.findall(text)
         placeholders.extend(italic_texts)
         block_type = self._paragraph_block_type(paragraph, current_context)
+        list_item = self._parse_template_list_item(text) if block_type == "template_text" else None
+        if list_item:
+            return {
+                "type": "template_list",
+                "label": self._block_label("template_list"),
+                "text": text,
+                "style_name": paragraph.style.name if paragraph.style else "",
+                "list_style": list_item["list_style"],
+                "can_expand": list_item["can_expand"],
+                "items": [list_item],
+                "has_italic": bool(italic_texts),
+                "italic_texts": italic_texts,
+                "placeholders": sorted(set(placeholders)),
+            }
         return {
             "type": block_type,
             "label": self._block_label(block_type),
@@ -275,6 +298,64 @@ class DocxTemplateParser:
     def _paragraph_block_type(self, paragraph, current_context: str = "") -> str:
         return self.classifier.classify_paragraph(paragraph, current_context)
 
+    def _is_empty_marker_block(self, block: dict) -> bool:
+        text = str(block.get("text") or "").strip()
+        if block.get("type") == "instruction" and self.classifier.is_instruction_marker(text):
+            return bool(re.fullmatch(r"【?\s*(?:说明|注|注意|填写说明|编写说明|编制说明|生成说明|要求|填写要求|编写要求|表格填写要求)\s*】?\s*[:：]?", text))
+        if block.get("type") == "example" and self.classifier.is_example_marker(text):
+            return bool(re.fullmatch(r"【?\s*(?:举例|示例|例|参考示例|样例)\s*】?\s*[:：]?", text))
+        return False
+
+    def _append_paragraph_block(self, heading: dict, block: dict) -> dict:
+        blocks = heading["template_blocks"]
+        if block.get("type") == "template_list":
+            previous = blocks[-1] if blocks else None
+            if previous and previous.get("type") == "template_list" and (
+                previous.get("list_style") == block.get("list_style") or block.get("list_style") == "expandable"
+            ):
+                previous.setdefault("items", []).extend(block.get("items") or [])
+                previous["text"] = self._list_block_text(previous)
+                previous["can_expand"] = bool(previous.get("can_expand") or block.get("can_expand"))
+                previous["placeholders"] = sorted(set((previous.get("placeholders") or []) + (block.get("placeholders") or [])))
+                return previous
+            block["text"] = self._list_block_text(block)
+        blocks.append(block)
+        return block
+
+    def _parse_template_list_item(self, text: str) -> dict | None:
+        if self.expandable_marker_pattern.match(text or ""):
+            return {"marker": "……", "text": "", "list_style": "expandable", "can_expand": True}
+        match = self.list_item_pattern.match(text or "")
+        if not match:
+            return None
+        marker = match.group("marker").strip()
+        value = match.group("text").strip()
+        if not value:
+            return None
+        return {
+            "marker": marker,
+            "text": value,
+            "list_style": self._list_style(marker),
+            "can_expand": False,
+        }
+
+    def _list_style(self, marker: str) -> str:
+        if re.match(r"^[a-zA-Z][\)）\.、]$", marker or ""):
+            return "lower_alpha_cn" if "）" in marker or "、" in marker else "lower_alpha"
+        if re.match(r"^[（(]\d+[）)]$", marker or ""):
+            return "number_parentheses"
+        if re.match(r"^\d+[\)）\.、]$", marker or ""):
+            return "number_cn" if "）" in marker or "、" in marker else "number_dot"
+        return "cn_number"
+
+    def _list_block_text(self, block: dict) -> str:
+        lines = []
+        for item in block.get("items") or []:
+            marker = item.get("marker") or ""
+            text = item.get("text") or ""
+            lines.append(f"{marker}{text}" if text else marker)
+        return "\n".join(lines)
+
     def _table_block(self, table, current_context: str = "") -> dict[str, Any]:
         rows = []
         placeholders = []
@@ -285,9 +366,9 @@ class DocxTemplateParser:
                 row_values.append(text)
                 placeholders.extend(self.placeholder_pattern.findall(text))
             rows.append(row_values)
-        if current_context == "example":
+        if current_context in {"example", "example_marker"}:
             block_type = "example_table"
-        elif current_context == "instruction":
+        elif current_context in {"instruction", "instruction_marker"}:
             block_type = "instruction_table"
         else:
             block_type = "template_table"
@@ -308,6 +389,7 @@ class DocxTemplateParser:
     def _block_label(self, block_type: str) -> str:
         return {
             "template_text": "模板文字",
+            "template_list": "模板列表",
             "template_table": "模板表格",
             "instruction": "说明",
             "instruction_table": "说明表格",

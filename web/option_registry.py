@@ -134,6 +134,31 @@ def get_reference_cases(specialty_id: str | None) -> list[dict[str, Any]]:
     return [item for item in specialty.get("reference_cases", []) if isinstance(item, dict)]
 
 
+def add_reference_case(specialty_id: str, case: dict[str, Any]) -> dict[str, Any]:
+    config = _load_professional_cases()
+    specialty = _find_specialty_in_config(config, specialty_id)
+    if not specialty:
+        raise ValueError("专业不存在")
+    cases = [item for item in specialty.get("reference_cases", []) if isinstance(item, dict)]
+    case = dict(case)
+    cases.append(case)
+    specialty["reference_cases"] = cases
+    _save_professional_cases(config)
+    return case
+
+
+def delete_reference_case(specialty_id: str, case_id: str) -> dict[str, Any] | None:
+    config = _load_professional_cases()
+    specialty = _find_specialty_in_config(config, specialty_id)
+    if not specialty:
+        return None
+    cases = [item for item in specialty.get("reference_cases", []) if isinstance(item, dict)]
+    target = next((item for item in cases if str(item.get("id")) == str(case_id)), None)
+    specialty["reference_cases"] = [item for item in cases if str(item.get("id")) != str(case_id)]
+    _save_professional_cases(config)
+    return target
+
+
 def resolve_reference_cases(specialty_id: str | None, case_ids: list[str] | None) -> list[dict[str, Any]]:
     selected = set(str(item) for item in (case_ids or []) if item)
     if not selected:
@@ -213,6 +238,25 @@ def _load_professional_cases() -> dict[str, Any]:
         raise ValueError(f"专业案例配置格式错误: {PROFESSIONAL_CASES_PATH}")
     data.setdefault("specialties", [])
     return data
+
+
+def _save_professional_cases(data: dict[str, Any]) -> None:
+    PROFESSIONAL_CASES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with PROFESSIONAL_CASES_PATH.open("w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+
+
+def _find_specialty_in_config(config: dict[str, Any], specialty_id: str | None) -> dict[str, Any] | None:
+    target = str(specialty_id or "").strip()
+    if not target:
+        return None
+    return next(
+        (
+            item for item in config.get("specialties", [])
+            if isinstance(item, dict) and str(item.get("id") or "").strip() == target
+        ),
+        None,
+    )
 
 
 def _normalize_usage(value: Any) -> set[str]:

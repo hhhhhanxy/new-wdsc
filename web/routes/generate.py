@@ -613,6 +613,7 @@ def _create_generation_task(data: dict):
         return jsonify({'error': '所选模板不属于当前专业，请重新选择模板'}), 400
     selected_cases = _resolve_template_reference_cases(
         template_dict,
+        specialty_id,
         data.get('reference_case_ids') if isinstance(data.get('reference_case_ids'), list) else [],
     )
     document_kind_name = str(
@@ -1541,12 +1542,21 @@ def run_generate_task(task_id, data, upload_folder, db):
         )
 
 
-def _resolve_template_reference_cases(template: dict, case_ids: list[str]) -> list[dict]:
+def _resolve_template_reference_cases(template: dict, specialty_id: str, case_ids: list[str]) -> list[dict]:
+    from web.option_registry import get_reference_cases
+
     selected = set(str(item) for item in (case_ids or []) if item)
     if not selected:
         return []
     metadata = template.get('metadata') or {}
-    cases = metadata.get('reference_cases') or []
+    linked = {str(item) for item in metadata.get('reference_case_ids', []) if item}
+    professional_cases = get_reference_cases(specialty_id)
+    cases = [case for case in professional_cases if str(case.get('id')) in linked]
+    legacy_cases = [
+        case for case in (metadata.get('reference_cases') or [])
+        if isinstance(case, dict) and str(case.get('id')) in (linked | selected)
+    ]
+    cases.extend(legacy_cases)
     return [
         case for case in cases
         if isinstance(case, dict) and str(case.get('id')) in selected

@@ -1,6 +1,7 @@
 """Generation template library routes."""
 import json
 import os
+import shutil
 import uuid
 from pathlib import Path
 
@@ -8,7 +9,13 @@ from flask import Blueprint, current_app, jsonify, render_template, request
 
 from templates.docx_template_parser import DocxTemplateParser
 from templates.template_manager import TemplateManager
-from web.option_registry import build_reference_case_context, get_specialty
+from web.option_registry import (
+    add_reference_case,
+    build_reference_case_context,
+    delete_reference_case,
+    get_reference_cases,
+    get_specialty,
+)
 
 bp = Blueprint("template_library", __name__)
 
@@ -233,6 +240,23 @@ def api_parse_template():
     return jsonify(parsed)
 
 
+@bp.route("/api/parse/<template_id>", methods=["DELETE"])
+def api_discard_parsed_template(template_id: str):
+    manager = TemplateManager()
+    if manager.get_template(template_id):
+        return jsonify({"error": "已保存模板不能作为临时解析结果删除"}), 400
+    template_dir = Path(current_app.config["UPLOAD_FOLDER"]) / "templates" / template_id
+    upload_root = (Path(current_app.config["UPLOAD_FOLDER"]) / "templates").resolve()
+    resolved_dir = template_dir.resolve()
+    try:
+        resolved_dir.relative_to(upload_root)
+    except ValueError:
+        return jsonify({"error": "模板临时目录无效"}), 400
+    if template_dir.exists():
+        shutil.rmtree(template_dir)
+    return jsonify({"ok": True})
+
+
 def _validate_template_asset_metadata(metadata: dict) -> str:
     specialty_id = str((metadata or {}).get("specialty_id") or "").strip()
     document_kind_name = str((metadata or {}).get("document_kind_name") or "").strip()
@@ -363,6 +387,86 @@ def api_upload_reference_case(template_id: str):
     return jsonify({"ok": True, "case": case, "template": manager.serialize_template(updated)})
 
 
+@bp.route("/api/specialties/<specialty_id>/reference-cases", methods=["GET"])
+def api_specialty_reference_cases(specialty_id: str):
+    specialty = get_specialty(specialty_id)
+    if not specialty:
+        return jsonify({"error": "专业不存在"}), 404
+    return jsonify({
+        "specialty": specialty,
+        "cases": get_reference_cases(specialty_id),
+    })
+
+
+@bp.route("/api/specialties/<specialty_id>/reference-cases", methods=["POST"])
+def api_upload_specialty_reference_case(specialty_id: str):
+    specialty = get_specialty(specialty_id)
+    if not specialty:
+        return jsonify({"error": "专业不存在"}), 404
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"error": "请上传优秀案例 DOCX 文件"}), 400
+    if not file.filename.lower().endswith(".docx"):
+        return jsonify({"error": "仅支持 DOCX 案例文件"}), 400
+
+    case_id = f"case_{uuid.uuid4().hex[:8]}"
+    case_dir = Path(current_app.config["UPLOAD_FOLDER"]) / "reference_cases" / specialty_id
+    case_dir.mkdir(parents=True, exist_ok=True)
+    path = case_dir / f"{case_id}.docx"
+    file.save(path)
+
+    relative_path = os.path.relpath(path, Path(current_app.root_path).parent)
+    case = {
+        "id": case_id,
+        "name": str(request.form.get("name") or file.filename.rsplit(".", 1)[0]).strip(),
+        "doc_type": str(request.form.get("doc_type") or "").strip(),
+        "scenario": str(request.form.get("scenario") or "").strip(),
+        "file_name": file.filename,
+        "file_path": relative_path,
+        "features": _extract_reference_case_features(path),
+    }
+    return jsonify({"ok": True, "case": add_reference_case(specialty_id, case)})
+
+
+@bp.route("/api/specialties/<specialty_id>/reference-cases/<case_id>", methods=["DELETE"])
+def api_delete_specialty_reference_case(specialty_id: str, case_id: str):
+    target = delete_reference_case(specialty_id, case_id)
+    if not target:
+        return jsonify({"error": "优秀案例不存在"}), 404
+    if target.get("file_path"):
+        try:
+            (Path(current_app.root_path).parent / target["file_path"]).unlink(missing_ok=True)
+        except OSError:
+            pass
+    _unlink_case_from_templates(case_id)
+    return jsonify({"ok": True})
+
+
+@bp.route("/api/templates/<template_id>/reference-case-links", methods=["PUT"])
+def api_update_template_reference_case_links(template_id: str):
+    data = request.get_json() or {}
+    case_ids = [
+        str(item).strip()
+        for item in data.get("reference_case_ids", [])
+        if str(item).strip()
+    ]
+    manager = TemplateManager()
+    template = manager.get_template(template_id)
+    if not template or template.source_type == "built_in":
+        return jsonify({"error": "模板不存在或不可编辑"}), 404
+    metadata = dict(template.metadata or {})
+    specialty_id = str(metadata.get("specialty_id") or "").strip()
+    available = {str(case.get("id")) for case in get_reference_cases(specialty_id)}
+    available.update(
+        str(case.get("id"))
+        for case in metadata.get("reference_cases", [])
+        if isinstance(case, dict) and case.get("id")
+    )
+    metadata["reference_case_ids"] = [case_id for case_id in case_ids if case_id in available]
+    updated = manager.update_template(template_id, {"metadata": metadata})
+    return jsonify({"ok": True, "template": manager.serialize_template(updated)})
+
+
 @bp.route("/api/templates/<template_id>/reference-cases/<case_id>", methods=["DELETE"])
 def api_delete_reference_case(template_id: str, case_id: str):
     manager = TemplateManager()
@@ -380,6 +484,20 @@ def api_delete_reference_case(template_id: str, case_id: str):
         except OSError:
             pass
     return jsonify({"ok": True, "template": manager.serialize_template(updated)})
+
+
+def _unlink_case_from_templates(case_id: str) -> None:
+    manager = TemplateManager()
+    for item in manager.list_template_dicts():
+        template_id = item.get("id")
+        if not template_id:
+            continue
+        metadata = dict((item.get("metadata") or {}))
+        ids = [str(value) for value in metadata.get("reference_case_ids", []) if value]
+        if str(case_id) not in ids:
+            continue
+        metadata["reference_case_ids"] = [value for value in ids if value != str(case_id)]
+        manager.update_template(template_id, {"metadata": metadata})
 
 
 @bp.route("/api/templates/<template_id>", methods=["DELETE"])

@@ -29,6 +29,7 @@ class ChapterTemplate:
     required: bool = True
     sub_chapters: List['ChapterTemplate'] = field(default_factory=list)
     guidance_prompt: str = ""       # LLM 生成该章节的提示片段
+    manual_guidance_prompt: str = ""  # 用户手工补充的本章节生成要求
     style_name: str = ""            # 模板中识别到的标题样式名称
     body_style_name: str = ""       # 模板中识别到的正文样式名称
     template_blocks: List[dict] = field(default_factory=list)  # 章节内模板正文/说明块
@@ -275,6 +276,7 @@ class TemplateManager:
             required=data.get("required", True),
             sub_chapters=sub,
             guidance_prompt=data.get("guidance_prompt", ""),
+            manual_guidance_prompt=data.get("manual_guidance_prompt", ""),
             style_name=data.get("style_name", ""),
             body_style_name=data.get("body_style_name", ""),
             template_blocks=data.get("template_blocks", []),
@@ -401,6 +403,7 @@ class TemplateManager:
             "description": chapter.description,
             "required": chapter.required,
             "guidance_prompt": chapter.guidance_prompt,
+            "manual_guidance_prompt": chapter.manual_guidance_prompt,
             "style_name": chapter.style_name,
             "body_style_name": chapter.body_style_name,
             "template_blocks": chapter.template_blocks,

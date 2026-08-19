@@ -981,9 +981,9 @@ def test_docx_template_parser_extracts_guidance_and_styles(tmp_path):
 
     first = parsed["chapters"][0]
     assert first["style_name"] in ("Heading 1", "标题 1")
-    assert first["body_style_name"] == "TemplateBody"
+    assert first["body_style_name"] == ""
+    assert first["template_blocks"][0]["type"] == "instruction"
     assert "红色字体" in first["guidance_prompt"]
-    assert first["template_blocks"][0]["type"] == "template_text"
     assert any(block["type"] == "instruction" for block in first["template_blocks"])
 
 
@@ -1042,6 +1042,98 @@ def test_docx_template_parser_classifies_plain_guidance_markers(tmp_path):
     ]
     assert "正式文档中删除" in parsed["chapters"][0]["guidance_prompt"]
     assert "某型产品鉴定试验大纲" in parsed["chapters"][0]["guidance_prompt"]
+
+
+def test_docx_template_parser_groups_template_list_items(tmp_path):
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "template_list.docx"
+    doc = Document()
+    doc.add_heading("4.1 产品主要功能", level=2)
+    doc.add_paragraph("XXX产品用于……。")
+    doc.add_paragraph("XXX产品具有以下功能：")
+    doc.add_paragraph("a）XXXXXX；")
+    doc.add_paragraph("b）XXXXXX；")
+    doc.add_paragraph("c）XXXXXX；")
+    doc.add_paragraph("……")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    blocks = parsed["chapters"][0]["template_blocks"]
+    list_block = next(block for block in blocks if block["type"] == "template_list")
+
+    assert list_block["label"] == "模板列表"
+    assert list_block["list_style"] == "lower_alpha_cn"
+    assert list_block["can_expand"] is True
+    assert [item["marker"] for item in list_block["items"]] == ["a）", "b）", "c）", "……"]
+    assert [item["text"] for item in list_block["items"][:3]] == ["XXXXXX；", "XXXXXX；", "XXXXXX；"]
+
+
+def test_docx_template_parser_treats_preface_writing_notes_as_guidance(tmp_path):
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "preface_guidance.docx"
+    doc = Document()
+    doc.add_paragraph("前言")
+    doc.add_paragraph("XXXXXXXXXXXXXXXXXXXXXXXXXXXX。")
+    doc.add_paragraph("前言一般应说明下列内容：")
+    doc.add_paragraph("a）说明文件编制依据或背景；")
+    doc.add_paragraph("b）说明文件废止或代替其它文件的情况；")
+    doc.add_paragraph("注：前言属概述要素，可根据需要作适当剪裁。")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    blocks = parsed["chapters"][0]["template_blocks"]
+    guidance = parsed["chapters"][0]["guidance_prompt"]
+
+    assert blocks[0]["type"] == "template_text"
+    assert all(block["type"] == "instruction" for block in blocks[1:])
+    assert "前言一般应说明下列内容" in guidance
+    assert "说明文件编制依据或背景" in guidance
+    assert "适当剪裁" in guidance
+    assert "说明：注：" not in guidance
+    assert "注：前言属概述要素" in guidance
+
+
+def test_docx_template_parser_drops_empty_guidance_markers(tmp_path):
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "empty_markers.docx"
+    doc = Document()
+    doc.add_heading("1 范围", level=1)
+    doc.add_paragraph("【说明】")
+    doc.add_paragraph("本章应说明文件适用范围。")
+    doc.add_paragraph("【示例】")
+    doc.add_paragraph("某型产品适用于试验阶段。")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    blocks = parsed["chapters"][0]["template_blocks"]
+    texts = [block["text"] for block in blocks]
+
+    assert "【说明】" not in texts
+    assert "【示例】" not in texts
+    assert [block["type"] for block in blocks] == ["instruction", "example"]
+
+
+def test_docx_template_parser_classifies_content_after_guidance_markers(tmp_path):
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "guidance_marker_content.docx"
+    doc = Document()
+    doc.add_heading("1 范围", level=1)
+    doc.add_paragraph("【说明】")
+    doc.add_paragraph("本节简单介绍本文件编制的目的和适用范围。")
+    doc.add_paragraph("【示例】")
+    doc.add_paragraph("本文件描述了 XXX 产品的可靠性分配。")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    blocks = parsed["chapters"][0]["template_blocks"]
+
+    assert [block["type"] for block in blocks] == ["instruction", "example"]
+    assert blocks[0]["text"] == "本节简单介绍本文件编制的目的和适用范围。"
+    assert blocks[1]["text"] == "本文件描述了 XXX 产品的可靠性分配。"
 
 
 def test_docx_template_parser_skips_front_matter_toc_and_captions(tmp_path):
@@ -1104,6 +1196,16 @@ def test_chapter_prompt_builder_combines_template_guidance_and_inputs():
         guidance_prompt="说明文档适用边界。",
         template_blocks=[
             {"type": "template_text", "label": "模板文字", "text": "NNNNN 适用于待补充。"},
+            {
+                "type": "template_list",
+                "label": "模板列表",
+                "can_expand": True,
+                "items": [
+                    {"marker": "a）", "text": "XXXXXX；"},
+                    {"marker": "b）", "text": "XXXXXX；"},
+                    {"marker": "……", "text": ""},
+                ],
+            },
             {"type": "example", "label": "举例", "text": "示例内容仅作参考。"},
         ],
     )
@@ -1126,6 +1228,9 @@ def test_chapter_prompt_builder_combines_template_guidance_and_inputs():
     assert "补充约束：按A类任务处理" in prompt_with_extra
     assert "说明文档适用边界" in prompt
     assert "只输出当前章节" in prompt
+    assert "模板列表" in prompt
+    assert "a）XXXXXX；" in prompt
+    assert "保留原列表编号形式" in prompt
 
     prompt_with_doc = ChapterPromptBuilder().build(
         title="测试文档",
@@ -1153,6 +1258,38 @@ def test_chapter_prompt_builder_combines_template_guidance_and_inputs():
     )
     assert "适用限制：仅用于鉴定试验" in prompt_with_dynamic
     assert "不应出现在本章" not in prompt_with_dynamic
+
+
+def test_chapter_prompt_builder_treats_saved_instruction_like_text_as_guidance():
+    from generators.prompt_builder import ChapterPromptBuilder
+    from templates.template_manager import ChapterTemplate
+
+    chapter = ChapterTemplate(
+        number="",
+        title="前言",
+        template_blocks=[
+            {"type": "template_text", "label": "模板文字", "text": "XXXXXXXXXXXXXXXXXXXXXXXX。"},
+            {"type": "template_text", "label": "模板文字", "text": "前言一般应说明下列内容："},
+            {"type": "template_list", "label": "模板列表", "text": "a）说明文件编制依据或背景；"},
+            {"type": "template_text", "label": "模板文字", "text": "注：前言属概述要素，可根据需要剪裁。"},
+        ],
+    )
+
+    prompt = ChapterPromptBuilder().build(
+        title="可靠性分配报告",
+        template_name="可靠性分配报告模板",
+        chapter=chapter,
+        inputs={},
+    )
+
+    template_part = prompt.split("【模板正文/结构参考】", 1)[1].split("【模板说明和示例】", 1)[0]
+    guidance_part = prompt.split("【模板说明和示例】", 1)[1].split("【本次回填位置】", 1)[0]
+    assert "XXXXXXXXXXXXXXXXXXXXXXXX" in template_part
+    assert "前言一般应说明下列内容" not in template_part
+    assert "前言一般应说明下列内容" in guidance_part
+    assert "a）说明文件编制依据或背景" in guidance_part
+    assert "注：前言属概述要素" in guidance_part
+    assert "说明：注：" not in guidance_part
 
 
 def test_generate_template_api_returns_templates():

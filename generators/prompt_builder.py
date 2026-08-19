@@ -3,9 +3,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from templates.docx_block_classifier import DocxBlockClassifier
+
 
 class ChapterPromptBuilder:
     """Build per-chapter prompts from template metadata and user inputs."""
+
+    classifier = DocxBlockClassifier()
 
     system_prompt = (
         "你是航空技术文档编写助手。请严格依据用户素材、模板正文、章节说明和示例编写正式工程技术文档。"
@@ -25,7 +29,7 @@ class ChapterPromptBuilder:
         target_total: int = 0,
     ) -> str:
         chapter_name = self._chapter_name(chapter)
-        template_text = self._blocks_text(chapter, {"template_text", "template_table"})
+        template_text = self._blocks_text(chapter, {"template_text", "template_list", "template_table"})
         guidance_text = self._blocks_text(chapter, {"instruction", "instruction_table", "example", "example_table"})
         user_material = self._user_material(inputs, chapter)
         requirements = str(inputs.get("generation_requirements", "")).strip()
@@ -51,6 +55,9 @@ class ChapterPromptBuilder:
             "【模板说明和示例】",
             (getattr(chapter, "guidance_prompt", "") or guidance_text or "无"),
             "",
+            "【本章节人工补充要求】",
+            str(getattr(chapter, "manual_guidance_prompt", "") or "").strip() or "无",
+            "",
             "【本次回填位置】",
             (
                 f"第 {target_index}/{target_total} 处：{target_text}"
@@ -67,6 +74,7 @@ class ChapterPromptBuilder:
             "6. 事实内容优先级为：用户输入素材 > 上传补充材料 > 当前模板占位要求 > 参考案例写法；参考案例只影响表达方式，不改变事实内容。",
             "7. 当用户素材与参考案例不一致时，必须采用用户素材；当用户素材未提供时，不得从参考案例补造事实数据。",
             "8. 保持模板既有章节编号、标题层级、表格结构和版式意图，不自行新增不属于当前回填位置的章节。",
+            "9. 模板中如包含“模板列表”，应保留原列表编号形式；用户素材条目多于模板示例时，可按同一编号规则继续扩展。",
         ] if part is not None)
 
     def _chapter_name(self, chapter: Any) -> str:
@@ -76,15 +84,62 @@ class ChapterPromptBuilder:
 
     def _blocks_text(self, chapter: Any, types: set[str]) -> str:
         lines = []
+        previous_effective_type = ""
         for block in getattr(chapter, "template_blocks", []) or []:
-            if block.get("type") not in types:
+            effective_type = self._effective_block_type(block, previous_effective_type)
+            previous_effective_type = effective_type
+            if effective_type not in types:
+                continue
+            if self._is_empty_marker_block(block):
                 continue
             text = str(block.get("text") or "").strip()
+            if effective_type == "template_list":
+                items = block.get("items") or []
+                text = "\n".join(
+                    f"{str(item.get('marker') or '').strip()}{str(item.get('text') or '').strip()}"
+                    if str(item.get("text") or "").strip()
+                    else str(item.get("marker") or "").strip()
+                    for item in items
+                    if str(item.get("marker") or item.get("text") or "").strip()
+                ) or text
+                if block.get("can_expand"):
+                    text = f"{text}\n可按相同列表格式继续扩展。".strip()
             if not text and block.get("rows"):
                 text = "\n".join(" | ".join(str(cell) for cell in row) for row in block.get("rows") or [])
             if text:
-                lines.append(f"{block.get('label') or block.get('type')}：{text}")
+                label = self._effective_block_label(effective_type, block)
+                lines.append(self._format_block_text(effective_type, label, text))
         return "\n".join(lines[:12])
+
+    def _effective_block_type(self, block: dict, previous_effective_type: str = "") -> str:
+        block_type = str(block.get("type") or "")
+        text = str(block.get("text") or "").strip()
+        if block_type == "template_text" and self.classifier.looks_like_instruction_or_example_text(text):
+            return "example" if self.classifier.is_example_marker(text) else "instruction"
+        if block_type == "template_list" and previous_effective_type in {"instruction", "example"}:
+            return previous_effective_type
+        return block_type
+
+    def _effective_block_label(self, block_type: str, block: dict) -> str:
+        if block_type == "instruction":
+            return "说明"
+        if block_type == "example":
+            return "举例"
+        return str(block.get("label") or block_type)
+
+    def _format_block_text(self, block_type: str, label: str, text: str) -> str:
+        if block_type in {"instruction", "example"}:
+            return self.classifier.guidance_display_text(block_type, text)
+        return f"{label}：{text}"
+
+    def _is_empty_marker_block(self, block: dict) -> bool:
+        block_type = str(block.get("type") or "")
+        text = str(block.get("text") or "").strip()
+        if block_type == "instruction":
+            return text in {"【说明】", "说明", "说明：", "【要求】", "要求", "要求："}
+        if block_type == "example":
+            return text in {"【示例】", "示例", "示例：", "【举例】", "举例", "举例："}
+        return False
 
     def _user_material(self, inputs: dict[str, Any], chapter: Any = None) -> str:
         labels = [

@@ -33,13 +33,10 @@ def _build_company_overview(db) -> dict:
     from templates.template_manager import TemplateManager
     from rules.loaders.rule_loader import RuleLoader
     from web.routes.rules import _rule_set_meta
-    from web.option_registry import get_specialty_groups
+    from web.option_registry import get_reference_cases, get_specialty_groups
 
     templates = TemplateManager().list_template_dicts()
-    reference_case_count = sum(
-        len((template.get("metadata") or {}).get("reference_cases") or [])
-        for template in templates
-    )
+    reference_case_count = 0
     rules = RuleLoader.load_all_rules("default", include_extensions=False)
     template_counts = {}
     case_counts = {}
@@ -49,7 +46,6 @@ def _build_company_overview(db) -> dict:
         if not specialty_id:
             continue
         template_counts[specialty_id] = template_counts.get(specialty_id, 0) + 1
-        case_counts[specialty_id] = case_counts.get(specialty_id, 0) + len(metadata.get("reference_cases") or [])
     rule_counts = {}
     for rule in rules:
         source_meta = _rule_set_meta(getattr(rule, "source", "") or "")
@@ -88,6 +84,9 @@ def _build_company_overview(db) -> dict:
         items = []
         for specialty in group.get("specialties") or []:
             key = str(specialty.get("id") or "").strip()
+            specialty_cases = get_reference_cases(key)
+            reference_case_count += len(specialty_cases)
+            case_counts[key] = len(specialty_cases)
             if not key:
                 continue
             item = issues_by_specialty.get(key) or {

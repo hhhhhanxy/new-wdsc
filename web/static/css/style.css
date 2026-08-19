@@ -1865,11 +1865,31 @@ textarea.form-control {
     align-items: start;
 }
 
-.external-knowledge-side-panel {
+.external-knowledge-side-column {
     position: sticky;
     top: 16px;
     max-height: calc(100vh - 32px);
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(33, 168, 243, 0.34) transparent;
+}
+
+.external-knowledge-side-column::-webkit-scrollbar {
+    width: 6px;
+}
+
+.external-knowledge-side-column::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.external-knowledge-side-column::-webkit-scrollbar-thumb {
+    background: rgba(33, 168, 243, 0.28);
+    border-radius: 999px;
+}
+
+.external-knowledge-side-column::-webkit-scrollbar-thumb:hover {
+    background: rgba(33, 168, 243, 0.46);
 }
 
 .external-knowledge-nav,
@@ -2544,7 +2564,7 @@ textarea.form-control {
         grid-template-columns: 1fr;
     }
 
-    .external-knowledge-side-panel {
+    .external-knowledge-side-column {
         position: static;
         max-height: none;
     }

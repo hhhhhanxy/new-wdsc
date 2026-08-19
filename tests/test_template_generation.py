@@ -1136,6 +1136,32 @@ def test_docx_template_parser_classifies_content_after_guidance_markers(tmp_path
     assert blocks[1]["text"] == "本文件描述了 XXX 产品的可靠性分配。"
 
 
+def test_docx_template_parser_keeps_word_formula_blocks(tmp_path):
+    from docx.oxml import parse_xml
+    from docx.oxml.ns import nsdecls
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "formula_template.docx"
+    doc = Document()
+    doc.add_heading("5.1 可靠性数学模型", level=2)
+    doc.add_paragraph("其数学模型为：")
+    formula_paragraph = doc.add_paragraph()
+    formula_paragraph._p.append(parse_xml(
+        f'<m:oMath {nsdecls("m")}>'
+        '<m:r><m:t>λs=Σniλi</m:t></m:r>'
+        '</m:oMath>'
+    ))
+    doc.add_paragraph("式中：λs为系统故障率（1/h）；")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    blocks = parsed["chapters"][0]["template_blocks"]
+    formula = next(block for block in blocks if block["type"] == "formula")
+
+    assert formula["label"] == "模板公式"
+    assert formula["text"] == "λs=Σniλi"
+
+
 def test_docx_template_parser_skips_front_matter_toc_and_captions(tmp_path):
     from docx.enum.style import WD_STYLE_TYPE
     from templates.docx_template_parser import DocxTemplateParser
@@ -1206,6 +1232,7 @@ def test_chapter_prompt_builder_combines_template_guidance_and_inputs():
                     {"marker": "……", "text": ""},
                 ],
             },
+            {"type": "formula", "label": "模板公式", "text": "λs=Σniλi"},
             {"type": "example", "label": "举例", "text": "示例内容仅作参考。"},
         ],
     )
@@ -1231,6 +1258,8 @@ def test_chapter_prompt_builder_combines_template_guidance_and_inputs():
     assert "模板列表" in prompt
     assert "a）XXXXXX；" in prompt
     assert "保留原列表编号形式" in prompt
+    assert "模板公式：λs=Σniλi" in prompt
+    assert "公式、变量定义、单位或符号关系" in prompt
 
     prompt_with_doc = ChapterPromptBuilder().build(
         title="测试文档",

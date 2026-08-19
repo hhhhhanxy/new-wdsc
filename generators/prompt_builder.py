@@ -29,7 +29,7 @@ class ChapterPromptBuilder:
         target_total: int = 0,
     ) -> str:
         chapter_name = self._chapter_name(chapter)
-        template_text = self._blocks_text(chapter, {"template_text", "template_list", "template_table"})
+        template_text = self._blocks_text(chapter, {"template_text", "template_list", "template_table", "formula", "embedded_object"})
         guidance_text = self._blocks_text(chapter, {"instruction", "instruction_table", "example", "example_table"})
         user_material = self._user_material(inputs, chapter)
         requirements = str(inputs.get("generation_requirements", "")).strip()
@@ -75,6 +75,7 @@ class ChapterPromptBuilder:
             "7. 当用户素材与参考案例不一致时，必须采用用户素材；当用户素材未提供时，不得从参考案例补造事实数据。",
             "8. 保持模板既有章节编号、标题层级、表格结构和版式意图，不自行新增不属于当前回填位置的章节。",
             "9. 模板中如包含“模板列表”，应保留原列表编号形式；用户素材条目多于模板示例时，可按同一编号规则继续扩展。",
+            "10. 模板中如包含公式、变量定义、单位或符号关系，必须作为强约束保留其含义；除非用户明确要求，不得删除、改写公式或改变变量对应关系。",
         ] if part is not None)
 
     def _chapter_name(self, chapter: Any) -> str:
@@ -125,6 +126,10 @@ class ChapterPromptBuilder:
             return "说明"
         if block_type == "example":
             return "举例"
+        if block_type == "formula":
+            return "模板公式"
+        if block_type == "embedded_object":
+            return "模板对象"
         return str(block.get("label") or block_type)
 
     def _format_block_text(self, block_type: str, label: str, text: str) -> str:

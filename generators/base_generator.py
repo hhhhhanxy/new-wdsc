@@ -210,6 +210,10 @@ class TemplateDocxGenerator(BaseGenerator):
                 if chapter_strategies.get(current_chapter_key) == "fixed_keep":
                     delete_context = ""
                     continue
+                if self._paragraph_has_preserved_object(block):
+                    self._replace_paragraph_runs(block, replacements)
+                    delete_context = ""
+                    continue
                 should_apply_generated = (
                     current_chapter_key
                     and current_chapter_key in generated_sections
@@ -386,7 +390,7 @@ class TemplateDocxGenerator(BaseGenerator):
                 delete_context = self.classifier.next_context(block_type, text, delete_context)
                 continue
             delete_context = ""
-            if current_chapter_key and self._is_replacement_target(block):
+            if current_chapter_key and not self._paragraph_has_preserved_object(block) and self._is_replacement_target(block):
                 targets.setdefault(current_chapter_key, []).append(text)
         return targets
 
@@ -417,6 +421,8 @@ class TemplateDocxGenerator(BaseGenerator):
         return bool(getattr(chapter, "placeholders", []) or self._chapter_strategy(chapter) == "placeholder_replace")
 
     def _is_replacement_target(self, paragraph) -> bool:
+        if self._paragraph_has_preserved_object(paragraph):
+            return False
         text = paragraph.text.strip()
         if not text:
             return True
@@ -631,6 +637,15 @@ class TemplateDocxGenerator(BaseGenerator):
 
     def _is_example_paragraph(self, paragraph) -> bool:
         return self.classifier.is_example_marker(paragraph.text)
+
+    def _paragraph_has_preserved_object(self, paragraph) -> bool:
+        return any(
+            self._xml_local_name(element.tag) in {"oMath", "oMathPara", "drawing", "pict", "object"}
+            for element in paragraph._element.iter()
+        )
+
+    def _xml_local_name(self, tag: str) -> str:
+        return str(tag or "").rsplit("}", 1)[-1]
 
     def _is_red_table(self, table) -> bool:
         paragraphs = [

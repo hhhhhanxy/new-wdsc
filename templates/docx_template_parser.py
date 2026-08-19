@@ -40,7 +40,9 @@ class DocxTemplateParser:
         for block_item in self._iter_block_items(doc):
             if isinstance(block_item, Paragraph):
                 text = block_item.text.strip()
-                if not text:
+                formula_texts = self._formula_texts(block_item)
+                has_embedded_object = self._paragraph_has_embedded_object(block_item)
+                if not text and not formula_texts and not has_embedded_object:
                     continue
                 style_name = block_item.style.name if block_item.style else ""
 
@@ -267,9 +269,33 @@ class DocxTemplateParser:
 
     def _paragraph_block(self, paragraph, current_context: str = "") -> dict[str, Any]:
         text = paragraph.text.strip()
+        formula_texts = self._formula_texts(paragraph)
         italic_texts = [run.text.strip() for run in paragraph.runs if run.italic and run.text.strip()]
         placeholders = self.placeholder_pattern.findall(text)
         placeholders.extend(italic_texts)
+        if formula_texts:
+            formula_text = "\n".join(formula_texts)
+            block_text = "\n".join(part for part in [text, formula_text] if part).strip()
+            return {
+                "type": "formula",
+                "label": self._block_label("formula"),
+                "text": block_text or "包含 Word 公式",
+                "formula_texts": formula_texts,
+                "style_name": paragraph.style.name if paragraph.style else "",
+                "has_italic": bool(italic_texts),
+                "italic_texts": italic_texts,
+                "placeholders": sorted(set(placeholders)),
+            }
+        if self._paragraph_has_embedded_object(paragraph):
+            return {
+                "type": "embedded_object",
+                "label": self._block_label("embedded_object"),
+                "text": text or "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                "style_name": paragraph.style.name if paragraph.style else "",
+                "has_italic": bool(italic_texts),
+                "italic_texts": italic_texts,
+                "placeholders": sorted(set(placeholders)),
+            }
         block_type = self._paragraph_block_type(paragraph, current_context)
         list_item = self._parse_template_list_item(text) if block_type == "template_text" else None
         if list_item:
@@ -386,11 +412,44 @@ class DocxTemplateParser:
     def _next_context(self, block: dict, current_context: str = "") -> str:
         return self.classifier.next_context(block["type"], block.get("text", ""), current_context)
 
+    def _formula_texts(self, paragraph) -> list[str]:
+        root = paragraph._element
+        formula_elements = [
+            element for element in root.iter()
+            if self._xml_local_name(element.tag) == "oMathPara"
+        ]
+        if not formula_elements:
+            formula_elements = [
+                element for element in root.iter()
+                if self._xml_local_name(element.tag) == "oMath"
+            ]
+        texts = []
+        for element in formula_elements:
+            parts = [
+                node.text.strip()
+                for node in element.iter()
+                if self._xml_local_name(node.tag) == "t" and node.text and node.text.strip()
+            ]
+            if parts:
+                texts.append("".join(parts))
+        return texts
+
+    def _paragraph_has_embedded_object(self, paragraph) -> bool:
+        return any(
+            self._xml_local_name(element.tag) in {"drawing", "pict", "object"}
+            for element in paragraph._element.iter()
+        )
+
+    def _xml_local_name(self, tag: str) -> str:
+        return str(tag or "").rsplit("}", 1)[-1]
+
     def _block_label(self, block_type: str) -> str:
         return {
             "template_text": "模板文字",
             "template_list": "模板列表",
             "template_table": "模板表格",
+            "formula": "模板公式",
+            "embedded_object": "模板对象",
             "instruction": "说明",
             "instruction_table": "说明表格",
             "example": "举例",

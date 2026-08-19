@@ -171,6 +171,16 @@
 .template-block-template_table {
     background: #ffffff;
 }
+.template-block-formula {
+    border-color: #cddff3;
+    background: #f8fbff;
+    color: #24496e;
+}
+.template-block-embedded_object {
+    border-color: #d8e5f0;
+    background: #fbfdff;
+    color: #3d5f78;
+}
 .template-block-label {
     display: inline-flex;
     align-items: center;
@@ -2335,6 +2345,8 @@ function getEffectiveTemplateBlockLabel(block, effectiveType) {
     if (effectiveType === 'template_text') return '固定模板文字';
     if (effectiveType === 'template_list') return '固定列表';
     if (effectiveType === 'template_table') return '固定表格';
+    if (effectiveType === 'formula') return '固定公式';
+    if (effectiveType === 'embedded_object') return '固定对象';
     if (effectiveType === 'instruction_table') return '说明表格';
     if (effectiveType === 'example_table') return '示例表格';
     if (effectiveType === 'instruction') return '说明';
@@ -2404,6 +2416,8 @@ function getBlockLabel(type) {
         template_text: '模板文字',
         template_list: '模板列表',
         template_table: '模板表格',
+        formula: '模板公式',
+        embedded_object: '模板对象',
         instruction: '说明',
         example: '举例',
         example_table: '举例表格',

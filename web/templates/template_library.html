@@ -68,11 +68,6 @@
     background: #fff;
     white-space: nowrap;
 }
-.template-header-meta .template-header-name {
-    max-width: 280px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 .template-header-meta details {
     position: relative;
 }
@@ -129,7 +124,9 @@
     font-size: 13px;
     line-height: 1.5;
 }
-.template-block-instruction {
+.template-block-instruction,
+.template-block-instruction_table_caption,
+.template-block-instruction_figure_caption {
     border-color: #ffd9bd;
     background: #fff9f4;
     color: #8a4a12;
@@ -140,7 +137,10 @@
     color: #b42323;
 }
 .template-block-example,
-.template-block-example_table {
+.template-block-example_table,
+.template-block-example_table_caption,
+.template-block-example_figure_caption,
+.template-block-example_list {
     border-color: #d7e7ff;
     background: #f7fbff;
     color: #225f9a;
@@ -544,19 +544,22 @@
     display: grid;
     grid-template-columns: minmax(260px, 0.45fr) minmax(0, 1.55fr);
     gap: 12px;
-    height: clamp(360px, 46vh, 460px);
-    max-height: 460px;
+    align-items: start;
     min-height: 360px;
 }
 .chapter-outline,
 .chapter-detail-pane {
     min-height: 0;
+    max-height: calc(100vh - 128px);
     overflow: auto;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: #fff;
 }
 .chapter-outline {
+    position: sticky;
+    top: 12px;
+    align-self: start;
     padding: 8px;
 }
 .chapter-outline-item {
@@ -636,6 +639,10 @@
     grid-template-columns: 320px minmax(0, 1fr);
     gap: 14px;
     align-items: start;
+    transition: grid-template-columns 0.18s ease;
+}
+.asset-workspace.asset-nav-collapsed {
+    grid-template-columns: 34px minmax(0, 1fr);
 }
 .asset-side-column {
     position: sticky;
@@ -645,6 +652,46 @@
     overflow-x: hidden;
     scrollbar-width: thin;
     scrollbar-color: rgba(33, 168, 243, 0.34) transparent;
+}
+.asset-side-column .panel {
+    transition: padding 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.asset-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid #cfe5f7;
+    border-radius: 6px;
+    background: #f7fcff;
+    color: var(--primary-dark);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+.asset-nav-toggle:hover {
+    background: #edf9ff;
+    border-color: #9bd5f4;
+}
+.asset-nav-rail {
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: calc(100vh - 32px);
+    padding-top: 10px;
+    border: 1px solid #dcebf7;
+    border-radius: 8px;
+    background: #f7fcff;
+}
+.asset-workspace.asset-nav-collapsed .asset-side-column {
+    overflow: visible;
+}
+.asset-workspace.asset-nav-collapsed .asset-side-column .panel {
+    display: none;
+}
+.asset-workspace.asset-nav-collapsed .asset-nav-rail {
+    display: flex;
 }
 .asset-side-column::-webkit-scrollbar {
     width: 6px;
@@ -912,23 +959,33 @@
     .asset-workspace {
         grid-template-columns: 1fr;
     }
+    .asset-workspace.asset-nav-collapsed {
+        grid-template-columns: 1fr;
+    }
     .asset-side-column {
         position: static;
         max-height: none;
     }
-    .chapter-workspace {
-        grid-template-columns: 1fr;
-        height: auto;
-        max-height: none;
-    }
-    .chapter-outline {
-        max-height: 240px;
+    .asset-nav-rail {
+        min-height: auto;
     }
     .asset-distribution-row {
         grid-template-columns: minmax(120px, 1fr) 72px 72px;
     }
     .asset-distribution-track {
         grid-column: 1 / -1;
+    }
+}
+@media (max-width: 760px) {
+    .chapter-workspace {
+        grid-template-columns: 1fr;
+    }
+    .chapter-outline {
+        position: static;
+        max-height: 240px;
+    }
+    .chapter-detail-pane {
+        max-height: none;
     }
 }
 </style>
@@ -938,11 +995,15 @@
     <p>按专业管理技术文档模板与优秀案例库，生成时自动带出对应模板和参考案例</p>
 </div>
 
-<div class="asset-workspace">
+<div class="asset-workspace" id="assetWorkspace">
     <div class="asset-side-column">
+        <div class="asset-nav-rail">
+            <button class="asset-nav-toggle" type="button" onclick="toggleAssetNav()" title="展开专业导航" aria-label="展开专业导航">›</button>
+        </div>
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>专业导航</span>
+                <button class="asset-nav-toggle" type="button" onclick="toggleAssetNav()" title="收起专业导航" aria-label="收起专业导航">‹</button>
                 <input type="file" id="templateFile" accept=".docx" style="display:none">
             </div>
             <div class="asset-nav-list" id="assetNavList"></div>
@@ -1299,6 +1360,12 @@ function currentDocumentKindValue() {
     if (!select) return '';
     if (select.value === '__custom__') return (customInput ? customInput.value : '').trim();
     return select.value.trim();
+}
+
+function toggleAssetNav() {
+    const workspace = document.getElementById('assetWorkspace');
+    if (!workspace) return;
+    workspace.classList.toggle('asset-nav-collapsed');
 }
 
 function openDocumentKindManager() {
@@ -1928,7 +1995,6 @@ function renderTemplateHeaderMeta() {
     const fieldCount = (currentTemplate.input_fields || []).length;
     const chapterCount = countAssetChapters(currentTemplate.chapters || []);
     target.innerHTML = `
-        <span class="template-header-name" title="${escapeHtml(getTemplateSpecialtyName(currentTemplate))} / ${escapeHtml(getTemplateKindName(currentTemplate))} / ${escapeHtml(currentTemplate.name || '未命名模板')}">${escapeHtml(getTemplateSpecialtyName(currentTemplate))} / ${escapeHtml(getTemplateKindName(currentTemplate))}</span>
         <span>案例 ${caseCount}</span>
         <span>字段 ${fieldCount}</span>
         <span>章节 ${chapterCount}</span>
@@ -1936,7 +2002,6 @@ function renderTemplateHeaderMeta() {
         <details>
             <summary>详情</summary>
             <div class="template-source-popover">
-                <div>模板名称：${escapeHtml(currentTemplate.name || '未命名模板')}</div>
                 <div>原始模板文件：${escapeHtml(sourceName)}</div>
                 <div>格式来源：${sourcePath ? escapeHtml(sourcePath) : '内置模板或复制模板，暂无原始格式文件'}</div>
                 <div>更新时间：${metadata.updated_at ? escapeHtml(metadata.updated_at) : '未记录'}</div>
@@ -2297,22 +2362,33 @@ function toggleTemplateBlocks(pathValue) {
 function renderTemplateBlockContent(block, effectiveType) {
     const type = effectiveType || getEffectiveTemplateBlockType(block);
     if ((block.type || '') === 'template_list' && type === 'template_list') {
-        const items = block.items || [];
-        const lines = items.length ? items.map(item => {
-            const marker = escapeHtml(item.marker || '');
-            const text = escapeHtml(item.text || '');
-            if (!text && marker) {
-                return `<div class="template-block-list-line template-block-list-expand"><span>${marker}</span><span>可继续扩展</span></div>`;
-            }
-            return `<div class="template-block-list-line"><span class="template-block-list-marker">${marker}</span><span>${text}</span></div>`;
-        }).join('') : `<div>${escapeHtml(block.text || '')}</div>`;
-        return renderTypedTemplateBlock('固定列表', `<div class="template-block-list">${lines}</div>`);
+        return renderListTemplateBlock(block, '固定列表');
+    }
+    if ((block.type || '') === 'example_list' && type === 'example_list') {
+        return renderListTemplateBlock(block, '示例列表');
+    }
+    if ((block.type || '') === 'instruction_list' && type === 'instruction_list') {
+        return renderListTemplateBlock(block, '说明列表');
     }
     const text = String(block.text || renderBlockRows(block) || '').trim();
     if (type === 'instruction' || type === 'example') {
         return formatGuidanceBlockText(type, text);
     }
     return renderTypedTemplateBlock(getEffectiveTemplateBlockLabel(block, type), escapeHtml(text));
+}
+
+function renderListTemplateBlock(block, label) {
+        const items = block.items || [];
+        const lines = items.length ? items.map(item => {
+            const marker = escapeHtml(item.marker || '');
+            const text = escapeHtml(item.text || '');
+            if (!text && marker) {
+                const hint = escapeHtml(block.expansion_hint || '可继续扩展');
+                return `<div class="template-block-list-line template-block-list-expand"><span>${marker}</span><span>${hint}</span></div>`;
+            }
+            return `<div class="template-block-list-line"><span class="template-block-list-marker">${marker}</span><span>${text}</span></div>`;
+        }).join('') : `<div>${escapeHtml(block.text || '')}</div>`;
+        return renderTypedTemplateBlock(label, `<div class="template-block-list">${lines}</div>`);
 }
 
 function renderTypedTemplateBlock(label, contentHtml) {
@@ -2345,6 +2421,14 @@ function getEffectiveTemplateBlockLabel(block, effectiveType) {
     if (effectiveType === 'template_text') return '固定模板文字';
     if (effectiveType === 'template_list') return '固定列表';
     if (effectiveType === 'template_table') return '固定表格';
+    if (effectiveType === 'instruction_list') return '说明列表';
+    if (effectiveType === 'example_list') return '示例列表';
+    if (effectiveType === 'template_table_caption') return '固定表题';
+    if (effectiveType === 'template_figure_caption') return '固定图题';
+    if (effectiveType === 'instruction_table_caption') return '说明表题';
+    if (effectiveType === 'instruction_figure_caption') return '说明图题';
+    if (effectiveType === 'example_table_caption') return '示例表题';
+    if (effectiveType === 'example_figure_caption') return '示例图题';
     if (effectiveType === 'formula') return '固定公式';
     if (effectiveType === 'embedded_object') return '固定对象';
     if (effectiveType === 'instruction_table') return '说明表格';
@@ -2372,7 +2456,7 @@ function stripGuidancePrefix(text, label) {
         return clean.replace(/^【?\s*(注|注意)\s*】?\s*[:：]?\s*/, '');
     }
     if (label === '示例') {
-        return clean.replace(/^【?\s*(举例|示例|例|参考示例|样例)\s*】?\s*[:：]?\s*/, '');
+        return clean.replace(/^【?\s*(举例|示例|例|参考示例|样例)\s*(?:[一二三四五六七八九十\d]+)?\s*】?\s*[:：]?\s*/, '');
     }
     return clean.replace(/^【?\s*(说明|填写说明|编写说明|编制说明|生成说明|要求|填写要求|编写要求|表格填写要求)\s*】?\s*[:：]?\s*/, '');
 }
@@ -2384,11 +2468,11 @@ function looksLikeGuidanceText(text) {
 }
 
 function looksLikeGuidanceMarker(text) {
-    return /^【?\s*(说明|注|注意|填写说明|编写说明|编制说明|生成说明|要求|填写要求|编写要求|表格填写要求|举例|示例|例|参考示例|样例)\s*】?\s*[:：]?/.test(String(text || '').trim());
+    return /^【?\s*(说明|注|注意|填写说明|编写说明|编制说明|生成说明|要求|填写要求|编写要求|表格填写要求|举例|示例|例|参考示例|样例)\s*(?:[一二三四五六七八九十\d]+)?\s*】?\s*[:：]?/.test(String(text || '').trim());
 }
 
 function looksLikeExampleText(text) {
-    return /^【?\s*(举例|示例|例|参考示例|样例)\s*】?\s*[:：]?/.test(String(text || '').trim());
+    return /^【?\s*(举例|示例|例|参考示例|样例)\s*(?:[一二三四五六七八九十\d]+)?\s*】?\s*[:：]?/.test(String(text || '').trim());
 }
 
 function looksLikeNoteText(text) {
@@ -2406,7 +2490,7 @@ function isEmptyMarkerBlock(block) {
         return /^【?\s*(说明|注|注意|填写说明|编写说明|编制说明|生成说明|要求|填写要求|编写要求|表格填写要求)\s*】?\s*[:：]?$/.test(text);
     }
     if (type === 'example') {
-        return /^【?\s*(举例|示例|例|参考示例|样例)\s*】?\s*[:：]?$/.test(text);
+        return /^【?\s*(举例|示例|例|参考示例|样例)\s*(?:[一二三四五六七八九十\d]+)?\s*】?\s*[:：]?$/.test(text);
     }
     return false;
 }
@@ -2416,6 +2500,14 @@ function getBlockLabel(type) {
         template_text: '模板文字',
         template_list: '模板列表',
         template_table: '模板表格',
+        template_table_caption: '模板表题',
+        template_figure_caption: '模板图题',
+        instruction_list: '说明列表',
+        example_list: '举例列表',
+        instruction_table_caption: '说明表题',
+        instruction_figure_caption: '说明图题',
+        example_table_caption: '举例表题',
+        example_figure_caption: '举例图题',
         formula: '模板公式',
         embedded_object: '模板对象',
         instruction: '说明',

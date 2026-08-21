@@ -1136,6 +1136,82 @@ def test_docx_template_parser_classifies_content_after_guidance_markers(tmp_path
     assert blocks[1]["text"] == "本文件描述了 XXX 产品的可靠性分配。"
 
 
+def test_docx_template_parser_keeps_numbered_examples_as_example_context(tmp_path):
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "numbered_examples.docx"
+    doc = Document()
+    doc.add_heading("2 引用文件", level=1)
+    doc.add_paragraph("【说明】")
+    doc.add_paragraph("本节应列出文件引用的文献或资料。")
+    doc.add_paragraph("应给出文件的编号、名称、版本等信息。")
+    doc.add_paragraph("【示例1】")
+    doc.add_paragraph("下列文件对于本文件的应用是必不可少的。")
+    doc.add_paragraph("表2-1 引用文件")
+    table = doc.add_table(rows=2, cols=4)
+    table.rows[0].cells[0].text = "序号"
+    table.rows[0].cells[1].text = "文件编号"
+    table.rows[0].cells[2].text = "文件名"
+    table.rows[0].cells[3].text = "备注"
+    table.rows[1].cells[0].text = "1"
+    table.rows[1].cells[1].text = "GJB 450"
+    table.rows[1].cells[2].text = "装备可靠性工作通用要求"
+    doc.add_paragraph("【示例2】")
+    doc.add_paragraph("GJB 451 可靠性维修性保障性术语")
+    doc.add_paragraph("GJB 813 可靠性模型的建立与可靠性预计")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    blocks = parsed["chapters"][0]["template_blocks"]
+    types = [block["type"] for block in blocks]
+    texts = [block.get("text", "") for block in blocks]
+
+    assert "【示例1】" not in texts
+    assert "【示例2】" not in texts
+    assert types == [
+        "instruction",
+        "instruction",
+        "example",
+        "example_table_caption",
+        "example_table",
+        "example",
+        "example",
+    ]
+    assert "表2-1 引用文件" in texts
+    assert "GJB 813" in texts[-1]
+
+
+def test_docx_template_parser_marks_example_table_captions_and_expandable_lists(tmp_path):
+    from templates.docx_template_parser import DocxTemplateParser
+
+    path = tmp_path / "abbreviations.docx"
+    doc = Document()
+    doc.add_heading("3.2 缩略语", level=2)
+    doc.add_paragraph("【说明】")
+    doc.add_paragraph("本节应列出文中引用的缩略语及全称。")
+    doc.add_paragraph("【示例】")
+    doc.add_paragraph("下列缩略语适用于本文件。")
+    doc.add_paragraph("表3-2 缩略语及定义表")
+    table = doc.add_table(rows=2, cols=3)
+    table.rows[0].cells[0].text = "缩略语"
+    table.rows[0].cells[1].text = "英文全称"
+    table.rows[0].cells[2].text = "中文全称"
+    table.rows[1].cells[0].text = "MTBF"
+    table.rows[1].cells[1].text = "Mean Time Between Failures"
+    table.rows[1].cells[2].text = "平均失效间隔时间"
+    doc.add_paragraph("……")
+    doc.save(path)
+
+    parsed = DocxTemplateParser().parse(str(path))
+    blocks = parsed["chapters"][0]["template_blocks"]
+    types = [block["type"] for block in blocks]
+
+    assert types == ["instruction", "example", "example_table_caption", "example_table", "example_list"]
+    assert blocks[2]["label"] == "举例表题"
+    assert blocks[-1]["can_expand"] is True
+    assert "分类层级" in blocks[-1]["expansion_hint"]
+
+
 def test_docx_template_parser_keeps_word_formula_blocks(tmp_path):
     from docx.oxml import parse_xml
     from docx.oxml.ns import nsdecls

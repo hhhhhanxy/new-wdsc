@@ -89,6 +89,7 @@ class DocxTemplateParser:
                 current_heading["placeholders"].extend(block.get("placeholders", []))
                 if block["type"] in ("instruction_table", "example_table"):
                     current_heading["_guidance_parts"].append(f"{block['label']}：{self._table_text(block)}")
+                current_context = self._next_context(block, current_context)
 
         if not headings:
             headings = self._fallback_headings(doc)
@@ -297,15 +298,31 @@ class DocxTemplateParser:
                 "placeholders": sorted(set(placeholders)),
             }
         block_type = self._paragraph_block_type(paragraph, current_context)
-        list_item = self._parse_template_list_item(text) if block_type == "template_text" else None
-        if list_item:
+        caption_type = self._caption_block_type(text, block_type)
+        if caption_type:
             return {
-                "type": "template_list",
-                "label": self._block_label("template_list"),
+                "type": caption_type,
+                "label": self._block_label(caption_type),
+                "text": text,
+                "style_name": paragraph.style.name if paragraph.style else "",
+                "has_italic": bool(italic_texts),
+                "italic_texts": italic_texts,
+                "placeholders": sorted(set(placeholders)),
+            }
+        list_item = self._parse_template_list_item(text) if block_type in {"template_text", "example", "instruction"} else None
+        if list_item:
+            list_type = {
+                "example": "example_list",
+                "instruction": "instruction_list",
+            }.get(block_type, "template_list")
+            return {
+                "type": list_type,
+                "label": self._block_label(list_type),
                 "text": text,
                 "style_name": paragraph.style.name if paragraph.style else "",
                 "list_style": list_item["list_style"],
                 "can_expand": list_item["can_expand"],
+                "expansion_hint": self._list_expansion_hint(list_type, list_item),
                 "items": [list_item],
                 "has_italic": bool(italic_texts),
                 "italic_texts": italic_texts,
@@ -329,19 +346,20 @@ class DocxTemplateParser:
         if block.get("type") == "instruction" and self.classifier.is_instruction_marker(text):
             return bool(re.fullmatch(r"【?\s*(?:说明|注|注意|填写说明|编写说明|编制说明|生成说明|要求|填写要求|编写要求|表格填写要求)\s*】?\s*[:：]?", text))
         if block.get("type") == "example" and self.classifier.is_example_marker(text):
-            return bool(re.fullmatch(r"【?\s*(?:举例|示例|例|参考示例|样例)\s*】?\s*[:：]?", text))
+            return bool(re.fullmatch(r"【?\s*(?:举例|示例|例|参考示例|样例)\s*(?:[一二三四五六七八九十\d]+)?\s*】?\s*[:：]?", text))
         return False
 
     def _append_paragraph_block(self, heading: dict, block: dict) -> dict:
         blocks = heading["template_blocks"]
-        if block.get("type") == "template_list":
+        if block.get("type") in {"template_list", "example_list", "instruction_list"}:
             previous = blocks[-1] if blocks else None
-            if previous and previous.get("type") == "template_list" and (
+            if previous and previous.get("type") == block.get("type") and (
                 previous.get("list_style") == block.get("list_style") or block.get("list_style") == "expandable"
             ):
                 previous.setdefault("items", []).extend(block.get("items") or [])
                 previous["text"] = self._list_block_text(previous)
                 previous["can_expand"] = bool(previous.get("can_expand") or block.get("can_expand"))
+                previous["expansion_hint"] = previous.get("expansion_hint") or block.get("expansion_hint", "")
                 previous["placeholders"] = sorted(set((previous.get("placeholders") or []) + (block.get("placeholders") or [])))
                 return previous
             block["text"] = self._list_block_text(block)
@@ -364,6 +382,26 @@ class DocxTemplateParser:
             "list_style": self._list_style(marker),
             "can_expand": False,
         }
+
+    def _caption_block_type(self, text: str, block_type: str) -> str:
+        match = re.match(r"^\s*(表|图)\s*\d+(?:[-－—]\d+)?", text or "")
+        if not match:
+            return ""
+        prefix = "table" if match.group(1) == "表" else "figure"
+        if block_type == "example":
+            return f"example_{prefix}_caption"
+        if block_type == "instruction":
+            return f"instruction_{prefix}_caption"
+        return f"template_{prefix}_caption"
+
+    def _list_expansion_hint(self, list_type: str, item: dict) -> str:
+        if not item.get("can_expand"):
+            return ""
+        if list_type == "example_list":
+            return "可根据实际文件内容继续增加条目；必要时可按类别或来源增加下级标题后展开描述。"
+        if list_type == "instruction_list":
+            return "可根据编写要求继续补充说明条目。"
+        return "可按模板列表格式继续扩展。"
 
     def _list_style(self, marker: str) -> str:
         if re.match(r"^[a-zA-Z][\)）\.、]$", marker or ""):
@@ -448,6 +486,14 @@ class DocxTemplateParser:
             "template_text": "模板文字",
             "template_list": "模板列表",
             "template_table": "模板表格",
+            "template_table_caption": "模板表题",
+            "template_figure_caption": "模板图题",
+            "example_list": "举例列表",
+            "instruction_list": "说明列表",
+            "example_table_caption": "举例表题",
+            "example_figure_caption": "举例图题",
+            "instruction_table_caption": "说明表题",
+            "instruction_figure_caption": "说明图题",
             "formula": "模板公式",
             "embedded_object": "模板对象",
             "instruction": "说明",

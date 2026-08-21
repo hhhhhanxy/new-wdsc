@@ -100,8 +100,15 @@
 .import-history-list { display:flex; flex-direction:column; gap:10px; }
 .import-history-item { border:1px solid var(--border); padding:12px; display:flex; justify-content:space-between; gap:16px; }
 .import-history-meta { color:var(--text-secondary); font-size:13px; margin-top:5px; }
-.rule-workspace { display:grid; grid-template-columns:320px minmax(0, 1fr); gap:14px; align-items:start; }
+.rule-workspace { display:grid; grid-template-columns:320px minmax(0, 1fr); gap:14px; align-items:start; transition:grid-template-columns .18s ease; }
+.rule-workspace.rule-nav-collapsed { grid-template-columns:34px minmax(0, 1fr); }
 .rule-side-column { position:sticky; top:16px; max-height:calc(100vh - 32px); overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:rgba(111, 125, 242, .34) transparent; }
+.rule-nav-toggle { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border:1px solid #d8dcff; border-radius:6px; background:#f8f9ff; color:var(--primary-dark); cursor:pointer; font-size:18px; line-height:1; }
+.rule-nav-toggle:hover { background:#f1f3ff; border-color:#c4caff; }
+.rule-nav-rail { display:none; align-items:flex-start; justify-content:center; min-height:calc(100vh - 32px); padding-top:10px; border:1px solid #dfe4ff; border-radius:8px; background:#fafbff; }
+.rule-workspace.rule-nav-collapsed .rule-side-column { overflow:visible; }
+.rule-workspace.rule-nav-collapsed .rule-side-column .panel { display:none; }
+.rule-workspace.rule-nav-collapsed .rule-nav-rail { display:flex; }
 .rule-side-column::-webkit-scrollbar { width:6px; }
 .rule-side-column::-webkit-scrollbar-track { background:transparent; }
 .rule-side-column::-webkit-scrollbar-thumb { background:rgba(111, 125, 242, .28); border-radius:999px; }
@@ -148,18 +155,22 @@
 .approval-filter-bar select,
 .approval-filter-bar input { height:34px; border:1px solid var(--border); border-radius:6px; padding:6px 9px; background:#fff; color:var(--text); }
 .approval-reject-note { margin-bottom:12px; padding:10px 12px; border:1px solid #ffd9d5; border-radius:8px; background:#fff7f6; color:#9f1d15; font-size:13px; }
-@media (max-width: 1100px) { .rule-workspace { grid-template-columns:1fr; } .rule-side-column { position:static; max-height:none; } }
+@media (max-width: 1100px) { .rule-workspace, .rule-workspace.rule-nav-collapsed { grid-template-columns:1fr; } .rule-side-column { position:static; max-height:none; } .rule-nav-rail { min-height:auto; } }
 </style>
 <div class="page-header">
     <h1>规则管理</h1>
     <p>查看和管理审查规则集，编辑规则属性和参数</p>
 </div>
 
-<div class="rule-workspace">
+<div class="rule-workspace" id="ruleWorkspace">
     <div class="rule-side-column">
+        <div class="rule-nav-rail">
+            <button class="rule-nav-toggle" type="button" onclick="toggleRuleNav()" title="展开规则导航" aria-label="展开规则导航">›</button>
+        </div>
         <div class="panel">
             <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
                 <span>规则导航</span>
+                <button class="rule-nav-toggle" type="button" onclick="toggleRuleNav()" title="收起规则导航" aria-label="收起规则导航">‹</button>
             </div>
             <div class="rule-nav-list" id="ruleNavList"></div>
             <div class="rule-stats" id="ruleStats"></div>
@@ -472,6 +483,12 @@ const severityBadges = {
     warning: 'badge-warning',
     info: 'badge-info',
 };
+
+function toggleRuleNav() {
+    const workspace = document.getElementById('ruleWorkspace');
+    if (!workspace) return;
+    workspace.classList.toggle('rule-nav-collapsed');
+}
 
 const reviewTypeLabels = {};
 reviewTypes.forEach(t => reviewTypeLabels[t.value] = t.label);

@@ -17,8 +17,8 @@ class DocxBlockClassifier:
     numbered_line_pattern = re.compile(r"^\s*(?:\d+[\.\)、）]|[（(]?\d+[）)]|[a-zA-Z][\)）.、])\s*")
 
     example_marker_pattern = re.compile(
-        r"^\s*(?:【\s*)?(?:举例|示例|例|参考示例|样例)(?:\s*】)?\s*[:：]?\s*$"
-        r"|^\s*(?:举例|示例|例|参考示例|样例)\s*[:：]"
+        r"^\s*(?:【\s*)?(?:举例|示例|例|参考示例|样例)\s*(?:[一二三四五六七八九十\d]+)?(?:\s*】)?\s*[:：]?\s*$"
+        r"|^\s*(?:举例|示例|例|参考示例|样例)\s*(?:[一二三四五六七八九十\d]+)?\s*[:：]"
     )
     instruction_marker_pattern = re.compile(
         r"^\s*(?:【\s*)?(?:说明|注|注意|填写说明|编写说明|编制说明|生成说明|要求|填写要求|编写要求|表格填写要求)"
@@ -62,6 +62,10 @@ class DocxBlockClassifier:
             return "example"
         if current_context == "instruction_marker":
             return "instruction"
+        if current_context == "example":
+            return "example"
+        if current_context == "instruction":
+            return "instruction"
         if current_context in {"example", "instruction"} and self.is_context_continuation(text):
             return current_context
         if self.looks_like_instruction_text(text):
@@ -83,6 +87,8 @@ class DocxBlockClassifier:
         if not text:
             return False
         if self.is_example_marker(text) or self.is_instruction_marker(text):
+            return True
+        if re.match(r"^\s*(?:表|图)\s*\d+(?:[-－—]\d+)?", text):
             return True
         if self.numbered_line_pattern.match(text):
             return True

@@ -30,7 +30,10 @@ class ChapterPromptBuilder:
     ) -> str:
         chapter_name = self._chapter_name(chapter)
         template_text = self._blocks_text(chapter, {"template_text", "template_list", "template_table", "formula", "embedded_object"})
-        guidance_text = self._blocks_text(chapter, {"instruction", "instruction_table", "example", "example_table"})
+        guidance_text = self._blocks_text(chapter, {
+            "instruction", "instruction_list", "instruction_table", "instruction_table_caption", "instruction_figure_caption",
+            "example", "example_list", "example_table", "example_table_caption", "example_figure_caption",
+        })
         user_material = self._user_material(inputs, chapter)
         requirements = str(inputs.get("generation_requirements", "")).strip()
         reference_case_context = str(inputs.get("reference_case_context", "") or "").strip()
@@ -94,7 +97,7 @@ class ChapterPromptBuilder:
             if self._is_empty_marker_block(block):
                 continue
             text = str(block.get("text") or "").strip()
-            if effective_type == "template_list":
+            if effective_type in {"template_list", "instruction_list", "example_list"}:
                 items = block.get("items") or []
                 text = "\n".join(
                     f"{str(item.get('marker') or '').strip()}{str(item.get('text') or '').strip()}"
@@ -104,7 +107,8 @@ class ChapterPromptBuilder:
                     if str(item.get("marker") or item.get("text") or "").strip()
                 ) or text
                 if block.get("can_expand"):
-                    text = f"{text}\n可按相同列表格式继续扩展。".strip()
+                    hint = str(block.get("expansion_hint") or "可按相同列表格式继续扩展。").strip()
+                    text = f"{text}\n{hint}".strip()
             if not text and block.get("rows"):
                 text = "\n".join(" | ".join(str(cell) for cell in row) for row in block.get("rows") or [])
             if text:
@@ -126,6 +130,22 @@ class ChapterPromptBuilder:
             return "说明"
         if block_type == "example":
             return "举例"
+        if block_type == "instruction_list":
+            return "说明列表"
+        if block_type == "example_list":
+            return "举例列表"
+        if block_type == "instruction_table_caption":
+            return "说明表题"
+        if block_type == "instruction_figure_caption":
+            return "说明图题"
+        if block_type == "example_table_caption":
+            return "举例表题"
+        if block_type == "example_figure_caption":
+            return "举例图题"
+        if block_type == "template_table_caption":
+            return "模板表题"
+        if block_type == "template_figure_caption":
+            return "模板图题"
         if block_type == "formula":
             return "模板公式"
         if block_type == "embedded_object":

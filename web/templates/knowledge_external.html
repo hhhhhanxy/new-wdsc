@@ -7,10 +7,16 @@
     <p>预留用于接入审查与生成流程可引用的领域知识、标准依据和项目资料</p>
 </div>
 
-<div class="external-knowledge-workspace">
+<div class="external-knowledge-workspace" id="externalKnowledgeWorkspace">
     <div class="external-knowledge-side-column">
+        <div class="external-knowledge-nav-rail">
+            <button class="external-knowledge-nav-toggle" type="button" onclick="toggleExternalKnowledgeNav()" title="展开专业导航" aria-label="展开专业导航">›</button>
+        </div>
         <div class="panel">
-            <div class="panel-title">专业导航</div>
+            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+                <span>专业导航</span>
+                <button class="external-knowledge-nav-toggle" type="button" onclick="toggleExternalKnowledgeNav()" title="收起专业导航" aria-label="收起专业导航">‹</button>
+            </div>
             <div class="external-knowledge-nav">
                 <button type="button" class="external-knowledge-node active" onclick="selectExternalKnowledgeScope('all', '全部专业')">
                     <span>全部专业</span>
@@ -79,6 +85,12 @@ window.toggleExternalKnowledgeGroup = function(groupId) {
     const group = document.querySelector('[data-external-knowledge-group="' + groupId + '"]');
     if (!group) return;
     group.classList.toggle('collapsed');
+};
+
+window.toggleExternalKnowledgeNav = function() {
+    const workspace = document.getElementById('externalKnowledgeWorkspace');
+    if (!workspace) return;
+    workspace.classList.toggle('external-knowledge-nav-collapsed');
 };
 
 document.addEventListener('DOMContentLoaded', () => {

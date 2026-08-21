@@ -24,6 +24,7 @@
           "description": "",
           "required": true,
           "guidance_prompt": "",
+          "manual_guidance_prompt": "",
           "style_name": "Heading 1",
           "body_style_name": "",
           "template_blocks": [],
@@ -37,6 +38,7 @@
           "description": "",
           "required": true,
           "guidance_prompt": "说明：【说明】\n说明：文中设备名称均用NNNNN进行替代\n说明：红色字体、说明、举例在形成正式文件时应删除。\n说明：模版中斜体应按需修改，修改后设置为正体，文中正体字不需要修改。",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
           "body_style_name": "Normal",
           "template_blocks": [
@@ -117,6 +119,7 @@
           "description": "",
           "required": true,
           "guidance_prompt": "说明：【说明】\n说明：试验项目范围根据受试设备所需进行修改，写出具体试验项目；根据此处确定的试验项目确定后续试验项目章节（可删减）。",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
           "body_style_name": "Normal",
           "template_blocks": [
@@ -162,6 +165,7 @@
           "description": "",
           "required": true,
           "guidance_prompt": "说明：【说明】\n说明：给出构成本大纲的试验依据文件，根据需求形成表格即可，通常必须包括的文件有适航标准、试验标准、产品性能测试大纲等。\n举例：【举例】\n举例：表3-1：依据文件\n举例表格：文件编号 | 文件名 | 发布日期\nABCC-12-R2 | XXX标准\nQWSD/FG-123 | 环境条件和实验程序\nD121-XXXX | 常见设备厂商文件，如设备研制需求文件",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
           "body_style_name": "Normal",
           "template_blocks": [
@@ -301,16 +305,17 @@
       "name": "可靠性分配报告模板",
       "description": "由 DOCX 模板自动解析生成",
       "metadata": {
-        "version": 1,
+        "version": 2,
         "created_at": "2026-08-19T11:08:12",
-        "updated_at": "2026-08-19T11:08:12",
+        "updated_at": "2026-08-21T09:35:54",
         "source_docx_path": "uploads\\templates\\template_8850b122\\source.docx",
         "source_filename": "公开附件1-可靠性分配报告模板_1784873820153.docx",
         "source_path": "uploads\\templates\\template_8850b122\\source.docx",
         "specialty_id": "electric_actuation",
         "specialty_name": "电作动",
         "template_asset_id": "template_8850b122",
-        "document_kind_name": "可靠性分配报告"
+        "document_kind_name": "可靠性分配报告",
+        "previous_source_docx_path": "uploads\\templates\\template_8850b122\\source.docx"
       },
       "source_type": "uploaded_docx",
       "input_fields": [],
@@ -320,7 +325,8 @@
           "title": "前言",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：注：前言属概述要素，可根据需要作适当剪裁；对分析计算报告、总结等没有需要说明的内容时，可以不设前言。",
+          "guidance_prompt": "说明：前言一般应说明下列内容：\n注：前言属概述要素，可根据需要作适当剪裁；对分析计算报告、总结等没有需要说明的内容时，可以不设前言。",
+          "manual_guidance_prompt": "",
           "style_name": "前言、引言标题",
           "body_style_name": "Normal",
           "template_blocks": [
@@ -360,11 +366,11 @@
             {
               "has_italic": false,
               "italic_texts": [],
-              "label": "模板文字",
+              "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
               "text": "前言一般应说明下列内容：",
-              "type": "template_text"
+              "type": "instruction"
             },
             {
               "can_expand": false,
@@ -420,12 +426,12 @@
                   "text": "说明对前一版文件的处置意见。"
                 }
               ],
-              "label": "模板列表",
+              "label": "说明列表",
               "list_style": "lower_alpha",
               "placeholders": [],
               "style_name": "Normal",
               "text": "a)说明文件编制依据或背景；\nb)说明文件废止或代替其它文件的情况；\nc)注明本次更改单号并说明与前一版文件相比的重大变化；\nd)说明产品的技术沿革、继承性关系、与同类产品在结构上的主要差异及互换情况；\ne)说明与相关文件的关系；\nf)说明文件的用途；\ng)说明附录的性质；\nh)说明对前一版文件的处置意见。",
-              "type": "template_list"
+              "type": "instruction_list"
             },
             {
               "has_italic": false,
@@ -448,9 +454,10 @@
           "title": "范围",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：【说明】\n举例：【示例】",
+          "guidance_prompt": "说明：本节简单介绍本文件编制的目的和适用范围。\n举例：本文件描述了XXX产品的可靠性分配，将XXX产品可靠性定量要求分配到指定等级的产品，其结果将作为产品设计的依据，以确保产品可靠性需求和目标得到满足。",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
-          "body_style_name": "Normal",
+          "body_style_name": "",
           "template_blocks": [
             {
               "has_italic": false,
@@ -458,30 +465,8 @@
               "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
-              "text": "【说明】",
-              "type": "instruction"
-            },
-            {
-              "has_italic": false,
-              "italic_texts": [],
-              "label": "模板文字",
-              "placeholders": [],
-              "style_name": "Normal",
               "text": "本节简单介绍本文件编制的目的和适用范围。",
-              "type": "template_text"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例】"
-              ],
-              "label": "举例",
-              "placeholders": [
-                "【示例】"
-              ],
-              "style_name": "段",
-              "text": "【示例】",
-              "type": "example"
+              "type": "instruction"
             },
             {
               "has_italic": true,
@@ -490,7 +475,7 @@
                 "产品",
                 "的可靠性分配，将XXX产品可靠性定量要求分配到指定等级的产品，其结果将作为产品设计的依据，以确保产品可靠性需求和目标得到满足。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "XXX",
                 "产品",
@@ -499,12 +484,11 @@
               ],
               "style_name": "Normal",
               "text": "本文件描述了XXX产品的可靠性分配，将XXX产品可靠性定量要求分配到指定等级的产品，其结果将作为产品设计的依据，以确保产品可靠性需求和目标得到满足。",
-              "type": "template_text"
+              "type": "example"
             }
           ],
           "placeholders": [
             "XXX",
-            "【示例】",
             "产品",
             "本文件描述了XXX",
             "的可靠性分配，将XXX产品可靠性定量要求分配到指定等级的产品，其结果将作为产品设计的依据，以确保产品可靠性需求和目标得到满足。"
@@ -517,19 +501,11 @@
           "title": "引用文件",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：【说明】\n说明：本节应列出文件引用的文献或资料，按照官方文件、非官方文件的顺序分类列出。",
+          "guidance_prompt": "说明：本节应列出文件引用的文献或资料，按照官方文件、非官方文件的顺序分类列出。\n说明：应给出文件的编号、名称、版本等信息。凡是不注明日期的引用文件，其最新版本（包括所有的更改单）适用于本文件。\n举例：下列文件对于本文件的应用是必不可少的。凡是注日期或（和）版次的引用文件，仅注日期或（和）版次的版本适用于本文件。凡是不注日期或（和）版次的引用文件，其最新版本（包括所有的修改单）适用于本文件。\n举例：表2-1 引用文件\n举例表格：序号 | 文件编号 | 文件名 | 备注\n1 | GJB 450 | 装备可靠性工作通用要求\n…… | …… | …… | ……\n举例：GJB 451    可靠性维修性保障性术语\n举例：GJB 813    可靠性模型的建立与可靠性预计\n举例：XXXXXXX    技术协议书(任务书/合同)",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
-          "body_style_name": "段",
+          "body_style_name": "",
           "template_blocks": [
-            {
-              "has_italic": false,
-              "italic_texts": [],
-              "label": "说明",
-              "placeholders": [],
-              "style_name": "段",
-              "text": "【说明】",
-              "type": "instruction"
-            },
             {
               "has_italic": false,
               "italic_texts": [],
@@ -542,24 +518,11 @@
             {
               "has_italic": false,
               "italic_texts": [],
-              "label": "模板文字",
+              "label": "说明",
               "placeholders": [],
               "style_name": "段",
               "text": "应给出文件的编号、名称、版本等信息。凡是不注明日期的引用文件，其最新版本（包括所有的更改单）适用于本文件。",
-              "type": "template_text"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例1】"
-              ],
-              "label": "模板文字",
-              "placeholders": [
-                "【示例1】"
-              ],
-              "style_name": "段",
-              "text": "【示例1】",
-              "type": "template_text"
+              "type": "instruction"
             },
             {
               "has_italic": true,
@@ -567,30 +530,30 @@
                 "下列文件对于本文件的应用是必不可少的。凡是注日期或（和）版次的引用文件，仅注日期或（和）版次的版本适用于本文件。凡是不注日期或（和）版次的引用文件，其最新版本（包括所有的修改单）适用于本文件",
                 "。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "。",
                 "下列文件对于本文件的应用是必不可少的。凡是注日期或（和）版次的引用文件，仅注日期或（和）版次的版本适用于本文件。凡是不注日期或（和）版次的引用文件，其最新版本（包括所有的修改单）适用于本文件"
               ],
               "style_name": "Normal",
               "text": "下列文件对于本文件的应用是必不可少的。凡是注日期或（和）版次的引用文件，仅注日期或（和）版次的版本适用于本文件。凡是不注日期或（和）版次的引用文件，其最新版本（包括所有的修改单）适用于本文件。",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "表2-1 引用文件"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "表2-1 引用文件"
               ],
               "style_name": "段",
               "text": "表2-1 引用文件",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -613,46 +576,33 @@
                 ]
               ],
               "text": "序号 | 文件编号 | 文件名 | 备注\n1 | GJB 450 | 装备可靠性工作通用要求\n…… | …… | …… | ……",
-              "type": "template_table"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例2】"
-              ],
-              "label": "模板文字",
-              "placeholders": [
-                "【示例2】"
-              ],
-              "style_name": "Normal",
-              "text": "【示例2】",
-              "type": "template_text"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "GJB 451    可靠性维修性保障性术语"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "GJB 451    可靠性维修性保障性术语"
               ],
               "style_name": "标准文件_段",
               "text": "GJB 451    可靠性维修性保障性术语",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "GJB 813    可靠性模型的建立与可靠性预计"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "GJB 813    可靠性模型的建立与可靠性预计"
               ],
               "style_name": "标准文件_段",
               "text": "GJB 813    可靠性模型的建立与可靠性预计",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "can_expand": true,
@@ -668,28 +618,28 @@
                   "text": ""
                 }
               ],
-              "label": "模板列表",
+              "label": "举例列表",
               "list_style": "expandable",
               "placeholders": [
                 "……"
               ],
               "style_name": "标准文件_段",
               "text": "……",
-              "type": "template_list"
+              "type": "example_list"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "XXXXXXX    技术协议书(任务书/合同)"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "XXXXXXX",
                 "XXXXXXX    技术协议书(任务书/合同)"
               ],
               "style_name": "标准文件_段",
               "text": "XXXXXXX    技术协议书(任务书/合同)",
-              "type": "template_text"
+              "type": "example"
             }
           ],
           "placeholders": [
@@ -699,8 +649,6 @@
             "XXXXXXX    技术协议书(任务书/合同)",
             "……",
             "。",
-            "【示例1】",
-            "【示例2】",
             "下列文件对于本文件的应用是必不可少的。凡是注日期或（和）版次的引用文件，仅注日期或（和）版次的版本适用于本文件。凡是不注日期或（和）版次的引用文件，其最新版本（包括所有的修改单）适用于本文件",
             "表2-1 引用文件"
           ],
@@ -713,6 +661,7 @@
           "description": "",
           "required": true,
           "guidance_prompt": "",
+          "manual_guidance_prompt": "",
           "style_name": "标准文件_段",
           "body_style_name": "",
           "template_blocks": [],
@@ -724,19 +673,11 @@
               "title": "术语",
               "description": "",
               "required": true,
-              "guidance_prompt": "说明：【说明】\n说明：本节应列出文中可能会引起混淆的专门术语和权威定义。",
+              "guidance_prompt": "说明：本节应列出文中可能会引起混淆的专门术语和权威定义。\n举例：表3-1 术语及定义表\n举例表格：术语 | 定义\n可靠性 | 系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。\n失效率（λ） | 系统/产品可靠性的一种基本参数。其度量方法为：在规定的条件下和规定的时间内，产生的故障率总数与寿命单位总数之比。亦称故障率。\n基本可靠性 | 产品在规定的条件下，规定的时间内，无故障工作的能力。基本可靠性反映产品对维修资源的要求。确定基本可靠性值时，应统计产品的所有寿命单位和所有关联故障。\n任务可靠性 | 产品在规定的任务剖面中完成规定功能的能力。\n平均失效间隔时间 | 可修复产品可靠性的一种基本参数。其度量方法为：在规定的条件下和规定的时间内，产品累积的总工作时间除以同一时间内的失效总数。工作时间可为飞行小时或起落次数等。如果工作时间为飞行小时，那么该指标与平均失效间隔飞行小时相同。\n签派可靠度 | 签派可靠度是指没有延误（技术原因）或撤销航班（技术原因）而营运离站的百分数。在数值上，签派可靠度=1—出勤延误率。其中，出勤延误率是在规定的日历时间内（或规定的累计商务离站次数内），因技术原因的延误及航班撤销总次数除以商务离站总次数。\n航班可靠度 | 飞机开始完成一次定期营运飞行而不发生由于飞机系统或部件故障造成航班中断的概率。航班中断包括大于15分钟的机械延误、取消航班、空中返航和换场着陆等事件。",
+              "manual_guidance_prompt": "",
               "style_name": "标准文件_段",
-              "body_style_name": "Normal",
+              "body_style_name": "GJB5000模板正文",
               "template_blocks": [
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "说明",
-                  "placeholders": [],
-                  "style_name": "标准文件_段",
-                  "text": "【说明】",
-                  "type": "instruction"
-                },
                 {
                   "has_italic": false,
                   "italic_texts": [],
@@ -749,31 +690,18 @@
                 {
                   "has_italic": true,
                   "italic_texts": [
-                    "【示例1】"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "【示例1】"
-                  ],
-                  "style_name": "Normal",
-                  "text": "【示例1】",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
                     "表3-1 术语及定义表"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "表3-1 术语及定义表"
                   ],
                   "style_name": "图表标题",
                   "text": "表3-1 术语及定义表",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
-                  "label": "模板表格",
+                  "label": "举例表格",
                   "placeholders": [],
                   "rows": [
                     [
@@ -810,102 +738,87 @@
                     ]
                   ],
                   "text": "术语 | 定义\n可靠性 | 系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。\n失效率（λ） | 系统/产品可靠性的一种基本参数。其度量方法为：在规定的条件下和规定的时间内，产生的故障率总数与寿命单位总数之比。亦称故障率。\n基本可靠性 | 产品在规定的条件下，规定的时间内，无故障工作的能力。基本可靠性反映产品对维修资源的要求。确定基本可靠性值时，应统计产品的所有寿命单位和所有关联故障。\n任务可靠性 | 产品在规定的任务剖面中完成规定功能的能力。\n平均失效间隔时间 | 可修复产品可靠性的一种基本参数。其度量方法为：在规定的条件下和规定的时间内，产品累积的总工作时间除以同一时间内的失效总数。工作时间可为飞行小时或起落次数等。如果工作时间为飞行小时，那么该指标与平均失效间隔飞行小时相同。\n签派可靠度 | 签派可靠度是指没有延误（技术原因）或撤销航班（技术原因）而营运离站的百分数。在数值上，签派可靠度=1—出勤延误率。其中，出勤延误率是在规定的日历时间内（或规定的累计商务离站次数内），因技术原因的延误及航班撤销总次数除以商务离站总次数。\n航班可靠度 | 飞机开始完成一次定期营运飞行而不发生由于飞机系统或部件故障造成航班中断的概率。航班中断包括大于15分钟的机械延误、取消航班、空中返航和换场着陆等事件。",
-                  "type": "template_table"
+                  "type": "example_table"
+                },
+                {
+                  "can_expand": false,
+                  "has_italic": true,
+                  "italic_texts": [
+                    "3.1.1可靠性"
+                  ],
+                  "items": [
+                    {
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "3.",
+                      "text": "1.1可靠性"
+                    }
+                  ],
+                  "label": "举例列表",
+                  "list_style": "number_dot",
+                  "placeholders": [
+                    "3.1.1可靠性"
+                  ],
+                  "style_name": "标准文件_一级条标题",
+                  "text": "3.1.1可靠性",
+                  "type": "example_list"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
-                    "【示例2】"
+                    "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。"
                   ],
                   "label": "模板文字",
                   "placeholders": [
-                    "【示例2】"
+                    "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。"
                   ],
-                  "style_name": "Normal",
-                  "text": "【示例2】",
+                  "style_name": "GJB5000模板正文",
+                  "text": "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。",
                   "type": "template_text"
+                },
+                {
+                  "can_expand": true,
+                  "has_italic": true,
+                  "italic_texts": [
+                    "……"
+                  ],
+                  "items": [
+                    {
+                      "can_expand": true,
+                      "list_style": "expandable",
+                      "marker": "……",
+                      "text": ""
+                    }
+                  ],
+                  "label": "模板列表",
+                  "list_style": "expandable",
+                  "placeholders": [
+                    "……"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "……",
+                  "type": "template_list"
                 }
               ],
               "placeholders": [
-                "【示例1】",
-                "【示例2】",
+                "3.1.1可靠性",
+                "……",
+                "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。",
                 "表3-1 术语及定义表"
               ],
               "generation_strategy": "smart_generate",
-              "sub_chapters": [
-                {
-                  "number": "3.1.1",
-                  "title": "可靠性",
-                  "description": "",
-                  "required": true,
-                  "guidance_prompt": "",
-                  "style_name": "标准文件_一级条标题",
-                  "body_style_name": "GJB5000模板正文",
-                  "template_blocks": [
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。"
-                      ],
-                      "style_name": "GJB5000模板正文",
-                      "text": "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。",
-                      "type": "template_text"
-                    },
-                    {
-                      "can_expand": true,
-                      "has_italic": true,
-                      "italic_texts": [
-                        "……"
-                      ],
-                      "items": [
-                        {
-                          "can_expand": true,
-                          "list_style": "expandable",
-                          "marker": "……",
-                          "text": ""
-                        }
-                      ],
-                      "label": "模板列表",
-                      "list_style": "expandable",
-                      "placeholders": [
-                        "……"
-                      ],
-                      "style_name": "标准文件_段",
-                      "text": "……",
-                      "type": "template_list"
-                    }
-                  ],
-                  "placeholders": [
-                    "……",
-                    "系统/产品在规定的条件下和规定的时间内，完成规定功能的能力。"
-                  ],
-                  "generation_strategy": "smart_generate",
-                  "sub_chapters": []
-                }
-              ]
+              "sub_chapters": []
             },
             {
               "number": "3.2",
               "title": "缩略语",
               "description": "",
               "required": true,
-              "guidance_prompt": "说明：【说明】\n说明：本节应列出文中引用的缩略语及全称。\n举例：【示例】",
+              "guidance_prompt": "说明：本节应列出文中引用的缩略语及全称。\n举例：下列缩略语适用于本文件。\n举例：表3-2 缩略语及定义表\n举例表格：缩略语 | 英文全称 | 中文全称\nMTBF | Mean Time Between Failures | 平均失效间隔时间\n…",
+              "manual_guidance_prompt": "",
               "style_name": "Normal",
-              "body_style_name": "Normal",
+              "body_style_name": "",
               "template_blocks": [
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "说明",
-                  "placeholders": [],
-                  "style_name": "标准文件_段",
-                  "text": "【说明】",
-                  "type": "instruction"
-                },
                 {
                   "has_italic": false,
                   "italic_texts": [],
@@ -918,28 +831,15 @@
                 {
                   "has_italic": true,
                   "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "Caption",
-                  "text": "【示例】",
-                  "type": "example"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
                     "下列缩略语适用于本文件。"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "下列缩略语适用于本文件。"
                   ],
                   "style_name": "Normal",
                   "text": "下列缩略语适用于本文件。",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
@@ -948,7 +848,7 @@
                     "3-2",
                     "缩略语及定义表"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "3-2",
                     "缩略语及定义表",
@@ -956,10 +856,10 @@
                   ],
                   "style_name": "Caption",
                   "text": "表3-2 缩略语及定义表",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
-                  "label": "模板表格",
+                  "label": "举例表格",
                   "placeholders": [],
                   "rows": [
                     [
@@ -979,12 +879,11 @@
                     ]
                   ],
                   "text": "缩略语 | 英文全称 | 中文全称\nMTBF | Mean Time Between Failures | 平均失效间隔时间\n…",
-                  "type": "template_table"
+                  "type": "example_table"
                 }
               ],
               "placeholders": [
                 "3-2",
-                "【示例】",
                 "下列缩略语适用于本文件。",
                 "缩略语及定义表",
                 "表"
@@ -999,328 +898,336 @@
           "title": "产品概述",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：【说明】\n举例：【示例】",
+          "guidance_prompt": "说明：本节对可靠性分配实施的对象进行描述，包括产品的功能、组成以及工作原理等。\n举例：以下章节为【示例】内容。\n举例：XXX产品用于……。\n举例：XXX产品具有以下功能：\n举例：XXXXXX；\n举例：XXXXXX；\n举例：XXXXXX；\n举例：XXX产品由XXXX、XXXX、XXXX和XXXX……组成。如表4-1所示。\n举例：表4-1 XXX产品的组成清单\n举例表格：序号 | 名称 | 单套数量 | 备注\n1 | XXXX | 1\n2 | XXXX | 1\n3 | XXXX | 1\n… | … | …\n举例：XXX产品随载机执行任务时……。\n举例：图4-1 XX产品工作原理图",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
-          "body_style_name": "Normal",
+          "body_style_name": "",
           "template_blocks": [
             {
               "has_italic": false,
               "italic_texts": [],
               "label": "说明",
               "placeholders": [],
-              "style_name": "段",
-              "text": "【说明】",
-              "type": "instruction"
-            },
-            {
-              "has_italic": false,
-              "italic_texts": [],
-              "label": "模板文字",
-              "placeholders": [],
               "style_name": "Normal",
               "text": "本节对可靠性分配实施的对象进行描述，包括产品的功能、组成以及工作原理等。",
-              "type": "template_text"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例】"
-              ],
-              "label": "举例",
-              "placeholders": [
-                "【示例】"
-              ],
-              "style_name": "Normal",
-              "text": "【示例】",
-              "type": "example"
+              "type": "instruction"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "以下章节为【示例】内容。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "以下章节为【示例】内容。"
               ],
               "style_name": "Normal",
               "text": "以下章节为【示例】内容。",
-              "type": "template_text"
-            }
-          ],
-          "placeholders": [
-            "【示例】",
-            "以下章节为【示例】内容。"
-          ],
-          "generation_strategy": "smart_generate",
-          "sub_chapters": [
+              "type": "example"
+            },
             {
-              "number": "4.1",
-              "title": "产品主要功能",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "",
-              "style_name": "Normal",
-              "body_style_name": "标准文件_段",
-              "template_blocks": [
+              "can_expand": false,
+              "has_italic": true,
+              "italic_texts": [
+                "4.1 产品主要功能"
+              ],
+              "items": [
                 {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXX产品用于",
-                    "……",
-                    "。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXX",
-                    "XXX产品用于",
-                    "……",
-                    "。"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "XXX产品用于……。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXX产品具有以下功能："
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXX",
-                    "XXX产品具有以下功能："
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "XXX产品具有以下功能：",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXXXXX；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXXXXX",
-                    "XXXXXX；"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "XXXXXX；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXXXXX；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXXXXX",
-                    "XXXXXX；"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "XXXXXX；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXXXXX；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXXXXX",
-                    "XXXXXX；"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "XXXXXX；",
-                  "type": "template_text"
-                },
-                {
-                  "can_expand": true,
-                  "has_italic": true,
-                  "italic_texts": [
-                    "……"
-                  ],
-                  "items": [
-                    {
-                      "can_expand": true,
-                      "list_style": "expandable",
-                      "marker": "……",
-                      "text": ""
-                    }
-                  ],
-                  "label": "模板列表",
-                  "list_style": "expandable",
-                  "placeholders": [
-                    "……"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "……",
-                  "type": "template_list"
+                  "can_expand": false,
+                  "list_style": "number_dot",
+                  "marker": "4.",
+                  "text": "1 产品主要功能"
                 }
               ],
+              "label": "举例列表",
+              "list_style": "number_dot",
               "placeholders": [
-                "XXX",
-                "XXXXXX",
-                "XXXXXX；",
-                "XXX产品具有以下功能：",
+                "4.1 产品主要功能"
+              ],
+              "style_name": "Normal",
+              "text": "4.1 产品主要功能",
+              "type": "example_list"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
                 "XXX产品用于",
                 "……",
                 "。"
               ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
+              "label": "举例",
+              "placeholders": [
+                "XXX",
+                "XXX产品用于",
+                "……",
+                "。"
+              ],
+              "style_name": "标准文件_段",
+              "text": "XXX产品用于……。",
+              "type": "example"
             },
             {
-              "number": "4.2",
-              "title": "产品组成",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "",
+              "has_italic": true,
+              "italic_texts": [
+                "XXX产品具有以下功能："
+              ],
+              "label": "举例",
+              "placeholders": [
+                "XXX",
+                "XXX产品具有以下功能："
+              ],
               "style_name": "标准文件_段",
-              "body_style_name": "标准文件_段",
-              "template_blocks": [
+              "text": "XXX产品具有以下功能：",
+              "type": "example"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "XXXXXX；"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "XXXXXX",
+                "XXXXXX；"
+              ],
+              "style_name": "标准文件_段",
+              "text": "XXXXXX；",
+              "type": "example"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "XXXXXX；"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "XXXXXX",
+                "XXXXXX；"
+              ],
+              "style_name": "标准文件_段",
+              "text": "XXXXXX；",
+              "type": "example"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "XXXXXX；"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "XXXXXX",
+                "XXXXXX；"
+              ],
+              "style_name": "标准文件_段",
+              "text": "XXXXXX；",
+              "type": "example"
+            },
+            {
+              "can_expand": true,
+              "has_italic": true,
+              "italic_texts": [
+                "……"
+              ],
+              "items": [
                 {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXX产品由XXXX、XXXX、XXXX和XXXX",
-                    "……",
-                    "组成。如表4-1所示。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXX",
-                    "XXXX",
-                    "XXX产品由XXXX、XXXX、XXXX和XXXX",
-                    "……",
-                    "组成。如表4-1所示。"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "XXX产品由XXXX、XXXX、XXXX和XXXX……组成。如表4-1所示。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "表4-1 XXX产品的组成清单"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXX",
-                    "表4-1 XXX产品的组成清单"
-                  ],
-                  "style_name": "Caption",
-                  "text": "表4-1 XXX产品的组成清单",
-                  "type": "template_text"
-                },
-                {
-                  "label": "模板表格",
-                  "placeholders": [
-                    "XXXX"
-                  ],
-                  "rows": [
-                    [
-                      "序号",
-                      "名称",
-                      "单套数量",
-                      "备注"
-                    ],
-                    [
-                      "1",
-                      "XXXX",
-                      "1",
-                      ""
-                    ],
-                    [
-                      "2",
-                      "XXXX",
-                      "1",
-                      ""
-                    ],
-                    [
-                      "3",
-                      "XXXX",
-                      "1",
-                      ""
-                    ],
-                    [
-                      "…",
-                      "…",
-                      "…",
-                      ""
-                    ]
-                  ],
-                  "text": "序号 | 名称 | 单套数量 | 备注\n1 | XXXX | 1\n2 | XXXX | 1\n3 | XXXX | 1\n… | … | …",
-                  "type": "template_table"
+                  "can_expand": true,
+                  "list_style": "expandable",
+                  "marker": "……",
+                  "text": ""
                 }
               ],
+              "label": "举例列表",
+              "list_style": "expandable",
+              "placeholders": [
+                "……"
+              ],
+              "style_name": "标准文件_段",
+              "text": "……",
+              "type": "example_list"
+            },
+            {
+              "can_expand": false,
+              "has_italic": true,
+              "italic_texts": [
+                "4.2 产品组成"
+              ],
+              "items": [
+                {
+                  "can_expand": false,
+                  "list_style": "number_dot",
+                  "marker": "4.",
+                  "text": "2 产品组成"
+                }
+              ],
+              "label": "举例列表",
+              "list_style": "number_dot",
+              "placeholders": [
+                "4.2 产品组成"
+              ],
+              "style_name": "标准文件_段",
+              "text": "4.2 产品组成",
+              "type": "example_list"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "XXX产品由XXXX、XXXX、XXXX和XXXX",
+                "……",
+                "组成。如表4-1所示。"
+              ],
+              "label": "举例",
               "placeholders": [
                 "XXX",
                 "XXXX",
                 "XXX产品由XXXX、XXXX、XXXX和XXXX",
                 "……",
-                "组成。如表4-1所示。",
-                "表4-1 XXX产品的组成清单"
+                "组成。如表4-1所示。"
               ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
+              "style_name": "标准文件_段",
+              "text": "XXX产品由XXXX、XXXX、XXXX和XXXX……组成。如表4-1所示。",
+              "type": "example"
             },
             {
-              "number": "4.3",
-              "title": "产品工作原理",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "",
-              "style_name": "标准文件_段",
-              "body_style_name": "标准文件_段",
-              "template_blocks": [
+              "has_italic": true,
+              "italic_texts": [
+                "表4-1 XXX产品的组成清单"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "XXX",
+                "表4-1 XXX产品的组成清单"
+              ],
+              "style_name": "Caption",
+              "text": "表4-1 XXX产品的组成清单",
+              "type": "example"
+            },
+            {
+              "label": "举例表格",
+              "placeholders": [
+                "XXXX"
+              ],
+              "rows": [
+                [
+                  "序号",
+                  "名称",
+                  "单套数量",
+                  "备注"
+                ],
+                [
+                  "1",
+                  "XXXX",
+                  "1",
+                  ""
+                ],
+                [
+                  "2",
+                  "XXXX",
+                  "1",
+                  ""
+                ],
+                [
+                  "3",
+                  "XXXX",
+                  "1",
+                  ""
+                ],
+                [
+                  "…",
+                  "…",
+                  "…",
+                  ""
+                ]
+              ],
+              "text": "序号 | 名称 | 单套数量 | 备注\n1 | XXXX | 1\n2 | XXXX | 1\n3 | XXXX | 1\n… | … | …",
+              "type": "example_table"
+            },
+            {
+              "can_expand": false,
+              "has_italic": true,
+              "italic_texts": [
+                "4.3 产品工作原理"
+              ],
+              "items": [
                 {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXX产品随载机执行任务时",
-                    "……",
-                    "。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXX",
-                    "XXX产品随载机执行任务时",
-                    "……",
-                    "。"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "XXX产品随载机执行任务时……。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "图4-1 XX产品工作原理图"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XX",
-                    "图4-1 XX产品工作原理图"
-                  ],
-                  "style_name": "标准文件_段",
-                  "text": "图4-1 XX产品工作原理图",
-                  "type": "template_text"
+                  "can_expand": false,
+                  "list_style": "number_dot",
+                  "marker": "4.",
+                  "text": "3 产品工作原理"
                 }
               ],
+              "label": "举例列表",
+              "list_style": "number_dot",
               "placeholders": [
-                "XX",
+                "4.3 产品工作原理"
+              ],
+              "style_name": "标准文件_段",
+              "text": "4.3 产品工作原理",
+              "type": "example_list"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "XXX产品随载机执行任务时",
+                "……",
+                "。"
+              ],
+              "label": "举例",
+              "placeholders": [
                 "XXX",
                 "XXX产品随载机执行任务时",
                 "……",
-                "。",
+                "。"
+              ],
+              "style_name": "标准文件_段",
+              "text": "XXX产品随载机执行任务时……。",
+              "type": "example"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板对象",
+              "placeholders": [],
+              "style_name": "标准文件_段",
+              "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+              "type": "embedded_object"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
                 "图4-1 XX产品工作原理图"
               ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
+              "label": "举例",
+              "placeholders": [
+                "XX",
+                "图4-1 XX产品工作原理图"
+              ],
+              "style_name": "标准文件_段",
+              "text": "图4-1 XX产品工作原理图",
+              "type": "example"
             }
-          ]
+          ],
+          "placeholders": [
+            "4.1 产品主要功能",
+            "4.2 产品组成",
+            "4.3 产品工作原理",
+            "XX",
+            "XXX",
+            "XXXX",
+            "XXXXXX",
+            "XXXXXX；",
+            "XXX产品具有以下功能：",
+            "XXX产品用于",
+            "XXX产品由XXXX、XXXX、XXXX和XXXX",
+            "XXX产品随载机执行任务时",
+            "……",
+            "。",
+            "以下章节为【示例】内容。",
+            "图4-1 XX产品工作原理图",
+            "组成。如表4-1所示。",
+            "表4-1 XXX产品的组成清单"
+          ],
+          "generation_strategy": "smart_generate",
+          "sub_chapters": []
         },
         {
           "number": "5",
@@ -1328,6 +1235,7 @@
           "description": "",
           "required": true,
           "guidance_prompt": "",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
           "body_style_name": "",
           "template_blocks": [],
@@ -1340,6 +1248,7 @@
               "description": "",
               "required": true,
               "guidance_prompt": "",
+              "manual_guidance_prompt": "",
               "style_name": "Normal",
               "body_style_name": "",
               "template_blocks": [],
@@ -1351,9 +1260,10 @@
                   "title": "可靠性定性指标要求",
                   "description": "",
                   "required": true,
-                  "guidance_prompt": "说明：【说明】\n举例：【示例】",
+                  "guidance_prompt": "说明：按照协议(任务书/合同)内容，列出产品的可靠性定性指标要求。\n举例：按照HB XXX《XXXX飞机可靠性设计准则》进行可靠性设计和分析。\n说明：本节对产品要求的基本可靠性和任务可靠性指标参数数值、单位进行说明。\n举例：XXX产品平均故障间隔时间为：\n举例：MTBF规定值 ：XXX飞行小时；\n举例：MTBF最低可接受值 ：XXX飞行小时。\n说明：本节根据指标要求和产品的特点，可按需进行可靠性指标转化，确定待分配的可靠性指标。\n举例：为便于进行内场可靠性指标的验证，按照GJB XXXXX的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。\n举例：转化公式如下：\n举例：式中：\n举例：其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。",
+                  "manual_guidance_prompt": "",
                   "style_name": "段",
-                  "body_style_name": "Normal",
+                  "body_style_name": "",
                   "template_blocks": [
                     {
                       "has_italic": false,
@@ -1361,37 +1271,15 @@
                       "label": "说明",
                       "placeholders": [],
                       "style_name": "Normal",
-                      "text": "【说明】",
-                      "type": "instruction"
-                    },
-                    {
-                      "has_italic": false,
-                      "italic_texts": [],
-                      "label": "模板文字",
-                      "placeholders": [],
-                      "style_name": "Normal",
                       "text": "按照协议(任务书/合同)内容，列出产品的可靠性定性指标要求。",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "【示例】"
-                      ],
-                      "label": "举例",
-                      "placeholders": [
-                        "【示例】"
-                      ],
-                      "style_name": "段",
-                      "text": "【示例】",
-                      "type": "example"
+                      "type": "instruction"
                     },
                     {
                       "has_italic": true,
                       "italic_texts": [
                         "按照HB XXX《XXXX飞机可靠性设计准则》进行可靠性设计和分析。"
                       ],
-                      "label": "模板文字",
+                      "label": "举例",
                       "placeholders": [
                         "XXX",
                         "XXXX",
@@ -1399,7 +1287,7 @@
                       ],
                       "style_name": "Normal",
                       "text": "按照HB XXX《XXXX飞机可靠性设计准则》进行可靠性设计和分析。",
-                      "type": "template_text"
+                      "type": "example"
                     },
                     {
                       "can_expand": true,
@@ -1415,43 +1303,33 @@
                           "text": ""
                         }
                       ],
-                      "label": "模板列表",
+                      "label": "举例列表",
                       "list_style": "expandable",
                       "placeholders": [
                         "……"
                       ],
                       "style_name": "段",
                       "text": "……",
-                      "type": "template_list"
-                    }
-                  ],
-                  "placeholders": [
-                    "XXX",
-                    "XXXX",
-                    "……",
-                    "【示例】",
-                    "按照HB XXX《XXXX飞机可靠性设计准则》进行可靠性设计和分析。"
-                  ],
-                  "generation_strategy": "smart_generate",
-                  "sub_chapters": []
-                },
-                {
-                  "number": "5.1.2",
-                  "title": "可靠性定量指标要求",
-                  "description": "",
-                  "required": true,
-                  "guidance_prompt": "说明：【说明】\n说明：本节对产品要求的基本可靠性和任务可靠性指标参数数值、单位进行说明。\n举例：【示例】",
-                  "style_name": "段",
-                  "body_style_name": "Normal",
-                  "template_blocks": [
+                      "type": "example_list"
+                    },
                     {
+                      "can_expand": false,
                       "has_italic": false,
                       "italic_texts": [],
-                      "label": "说明",
+                      "items": [
+                        {
+                          "can_expand": false,
+                          "list_style": "number_dot",
+                          "marker": "5.",
+                          "text": "1.2 可靠性定量指标要求"
+                        }
+                      ],
+                      "label": "举例列表",
+                      "list_style": "number_dot",
                       "placeholders": [],
-                      "style_name": "Normal",
-                      "text": "【说明】",
-                      "type": "instruction"
+                      "style_name": "段",
+                      "text": "5.1.2 可靠性定量指标要求",
+                      "type": "example_list"
                     },
                     {
                       "has_italic": false,
@@ -1465,38 +1343,25 @@
                     {
                       "has_italic": false,
                       "italic_texts": [],
-                      "label": "模板文字",
+                      "label": "模板对象",
                       "placeholders": [],
                       "style_name": "Normal",
                       "text": "（描述产品基本可靠性的参数，常用的有故障率、平均故障间隔时间MTBF、平均故障间隔飞行时间MFHBF；描述产品任务可靠性的参数，常用的有：可靠度R(t)、平均严重故障间隔时间MTBCF。）",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "【示例】"
-                      ],
-                      "label": "举例",
-                      "placeholders": [
-                        "【示例】"
-                      ],
-                      "style_name": "段",
-                      "text": "【示例】",
-                      "type": "example"
+                      "type": "embedded_object"
                     },
                     {
                       "has_italic": true,
                       "italic_texts": [
                         "XXX产品平均故障间隔时间为："
                       ],
-                      "label": "模板文字",
+                      "label": "举例",
                       "placeholders": [
                         "XXX",
                         "XXX产品平均故障间隔时间为："
                       ],
                       "style_name": "Normal",
                       "text": "XXX产品平均故障间隔时间为：",
-                      "type": "template_text"
+                      "type": "example"
                     },
                     {
                       "has_italic": true,
@@ -1505,7 +1370,7 @@
                         "规定值",
                         "：XXX飞行小时；"
                       ],
-                      "label": "模板文字",
+                      "label": "举例",
                       "placeholders": [
                         "MTBF",
                         "XXX",
@@ -1514,7 +1379,7 @@
                       ],
                       "style_name": "Normal",
                       "text": "MTBF规定值 ：XXX飞行小时；",
-                      "type": "template_text"
+                      "type": "example"
                     },
                     {
                       "has_italic": true,
@@ -1523,7 +1388,7 @@
                         "最低可接受值",
                         "：XXX飞行小时。"
                       ],
-                      "label": "模板文字",
+                      "label": "举例",
                       "placeholders": [
                         "MTBF",
                         "XXX",
@@ -1532,16 +1397,241 @@
                       ],
                       "style_name": "Normal",
                       "text": "MTBF最低可接受值 ：XXX飞行小时。",
-                      "type": "template_text"
+                      "type": "example"
+                    },
+                    {
+                      "can_expand": false,
+                      "has_italic": false,
+                      "italic_texts": [],
+                      "items": [
+                        {
+                          "can_expand": false,
+                          "list_style": "number_dot",
+                          "marker": "5.",
+                          "text": "2 可靠性指标转化"
+                        }
+                      ],
+                      "label": "举例列表",
+                      "list_style": "number_dot",
+                      "placeholders": [],
+                      "style_name": "Normal",
+                      "text": "5.2 可靠性指标转化",
+                      "type": "example_list"
+                    },
+                    {
+                      "has_italic": false,
+                      "italic_texts": [],
+                      "label": "说明",
+                      "placeholders": [],
+                      "style_name": "Normal",
+                      "text": "本节根据指标要求和产品的特点，可按需进行可靠性指标转化，确定待分配的可靠性指标。",
+                      "type": "instruction"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "为便于进行内场可靠性指标的验证，按照",
+                        "GJB XXXXX",
+                        "的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。"
+                      ],
+                      "label": "举例",
+                      "placeholders": [
+                        "GJB XXXXX",
+                        "XXX",
+                        "XXXXX",
+                        "为便于进行内场可靠性指标的验证，按照",
+                        "的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。"
+                      ],
+                      "style_name": "Normal",
+                      "text": "为便于进行内场可靠性指标的验证，按照GJB XXXXX的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。",
+                      "type": "example"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "转化公式如下："
+                      ],
+                      "label": "举例",
+                      "placeholders": [
+                        "转化公式如下："
+                      ],
+                      "style_name": "Normal",
+                      "text": "转化公式如下：",
+                      "type": "example"
+                    },
+                    {
+                      "has_italic": false,
+                      "italic_texts": [],
+                      "label": "模板对象",
+                      "placeholders": [],
+                      "style_name": "Normal",
+                      "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": false,
+                      "italic_texts": [],
+                      "label": "模板对象",
+                      "placeholders": [],
+                      "style_name": "Normal",
+                      "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "式中："
+                      ],
+                      "label": "举例",
+                      "placeholders": [
+                        "式中："
+                      ],
+                      "style_name": "Normal",
+                      "text": "式中：",
+                      "type": "example"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "——平均故障间隔时间，h；"
+                      ],
+                      "label": "模板对象",
+                      "placeholders": [
+                        "——平均故障间隔时间，h；"
+                      ],
+                      "style_name": "Normal",
+                      "text": "——平均故障间隔时间，h；",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "——运行比；"
+                      ],
+                      "label": "模板对象",
+                      "placeholders": [
+                        "——运行比；"
+                      ],
+                      "style_name": "Normal",
+                      "text": "——运行比；",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "——环境因子",
+                        "，一般取1.05（参考《",
+                        "重点型号可靠性维修性保障性培训教材》下册，100页",
+                        "）。"
+                      ],
+                      "label": "模板对象",
+                      "placeholders": [
+                        "——环境因子",
+                        "重点型号可靠性维修性保障性培训教材》下册，100页",
+                        "）。",
+                        "，一般取1.05（参考《"
+                      ],
+                      "style_name": "Normal",
+                      "text": "——环境因子，一般取1.05（参考《重点型号可靠性维修性保障性培训教材》下册，100页）。",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "——平均故障间隔飞行小时；"
+                      ],
+                      "label": "模板对象",
+                      "placeholders": [
+                        "——平均故障间隔飞行小时；"
+                      ],
+                      "style_name": "Normal",
+                      "text": "——平均故障间隔飞行小时；",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "——产品工作时间（空中+地面），h；"
+                      ],
+                      "label": "模板对象",
+                      "placeholders": [
+                        "——产品工作时间（空中+地面），h；"
+                      ],
+                      "style_name": "Normal",
+                      "text": "——产品工作时间（空中+地面），h；",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "——飞行时间，飞行小时。"
+                      ],
+                      "label": "模板对象",
+                      "placeholders": [
+                        "——飞行时间，飞行小时。"
+                      ],
+                      "style_name": "Normal",
+                      "text": "——飞行时间，飞行小时。",
+                      "type": "embedded_object"
+                    },
+                    {
+                      "has_italic": true,
+                      "italic_texts": [
+                        "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。"
+                      ],
+                      "label": "举例",
+                      "placeholders": [
+                        "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。"
+                      ],
+                      "style_name": "Normal",
+                      "text": "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。",
+                      "type": "example"
+                    },
+                    {
+                      "can_expand": true,
+                      "has_italic": false,
+                      "italic_texts": [],
+                      "items": [
+                        {
+                          "can_expand": true,
+                          "list_style": "expandable",
+                          "marker": "……",
+                          "text": ""
+                        }
+                      ],
+                      "label": "举例列表",
+                      "list_style": "expandable",
+                      "placeholders": [],
+                      "style_name": "段",
+                      "text": "……",
+                      "type": "example_list"
                     }
                   ],
                   "placeholders": [
+                    "GJB XXXXX",
                     "MTBF",
                     "XXX",
+                    "XXXX",
+                    "XXXXX",
                     "XXX产品平均故障间隔时间为：",
-                    "【示例】",
+                    "——产品工作时间（空中+地面），h；",
+                    "——平均故障间隔时间，h；",
+                    "——平均故障间隔飞行小时；",
+                    "——环境因子",
+                    "——运行比；",
+                    "——飞行时间，飞行小时。",
+                    "……",
+                    "为便于进行内场可靠性指标的验证，按照",
+                    "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。",
+                    "式中：",
+                    "按照HB XXX《XXXX飞机可靠性设计准则》进行可靠性设计和分析。",
                     "最低可接受值",
+                    "的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。",
                     "规定值",
+                    "转化公式如下：",
+                    "重点型号可靠性维修性保障性培训教材》下册，100页",
+                    "）。",
+                    "，一般取1.05（参考《",
                     "：XXX飞行小时。",
                     "：XXX飞行小时；"
                   ],
@@ -1549,231 +1639,6 @@
                   "sub_chapters": []
                 }
               ]
-            },
-            {
-              "number": "5.2",
-              "title": "可靠性指标转化",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "说明：【说明】\n说明：本节根据指标要求和产品的特点，可按需进行可靠性指标转化，确定待分配的可靠性指标。\n举例：【示例】",
-              "style_name": "Normal",
-              "body_style_name": "Normal",
-              "template_blocks": [
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "说明",
-                  "placeholders": [],
-                  "style_name": "Normal",
-                  "text": "【说明】",
-                  "type": "instruction"
-                },
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "说明",
-                  "placeholders": [],
-                  "style_name": "Normal",
-                  "text": "本节根据指标要求和产品的特点，可按需进行可靠性指标转化，确定待分配的可靠性指标。",
-                  "type": "instruction"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "段",
-                  "text": "【示例】",
-                  "type": "example"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "为便于进行内场可靠性指标的验证，按照",
-                    "GJB XXXXX",
-                    "的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "GJB XXXXX",
-                    "XXX",
-                    "XXXXX",
-                    "为便于进行内场可靠性指标的验证，按照",
-                    "的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。"
-                  ],
-                  "style_name": "Normal",
-                  "text": "为便于进行内场可靠性指标的验证，按照GJB XXXXX的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "转化公式如下："
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "转化公式如下："
-                  ],
-                  "style_name": "Normal",
-                  "text": "转化公式如下：",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "式中："
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "式中："
-                  ],
-                  "style_name": "Normal",
-                  "text": "式中：",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "——平均故障间隔时间，h；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "——平均故障间隔时间，h；"
-                  ],
-                  "style_name": "Normal",
-                  "text": "——平均故障间隔时间，h；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "——运行比；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "——运行比；"
-                  ],
-                  "style_name": "Normal",
-                  "text": "——运行比；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "——环境因子",
-                    "，一般取1.05（参考《",
-                    "重点型号可靠性维修性保障性培训教材》下册，100页",
-                    "）。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "——环境因子",
-                    "重点型号可靠性维修性保障性培训教材》下册，100页",
-                    "）。",
-                    "，一般取1.05（参考《"
-                  ],
-                  "style_name": "Normal",
-                  "text": "——环境因子，一般取1.05（参考《重点型号可靠性维修性保障性培训教材》下册，100页）。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "——平均故障间隔飞行小时；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "——平均故障间隔飞行小时；"
-                  ],
-                  "style_name": "Normal",
-                  "text": "——平均故障间隔飞行小时；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "——产品工作时间（空中+地面），h；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "——产品工作时间（空中+地面），h；"
-                  ],
-                  "style_name": "Normal",
-                  "text": "——产品工作时间（空中+地面），h；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "——飞行时间，飞行小时。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "——飞行时间，飞行小时。"
-                  ],
-                  "style_name": "Normal",
-                  "text": "——飞行时间，飞行小时。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。"
-                  ],
-                  "style_name": "Normal",
-                  "text": "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。",
-                  "type": "template_text"
-                },
-                {
-                  "can_expand": true,
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "items": [
-                    {
-                      "can_expand": true,
-                      "list_style": "expandable",
-                      "marker": "……",
-                      "text": ""
-                    }
-                  ],
-                  "label": "模板列表",
-                  "list_style": "expandable",
-                  "placeholders": [],
-                  "style_name": "段",
-                  "text": "……",
-                  "type": "template_list"
-                }
-              ],
-              "placeholders": [
-                "GJB XXXXX",
-                "XXX",
-                "XXXXX",
-                "——产品工作时间（空中+地面），h；",
-                "——平均故障间隔时间，h；",
-                "——平均故障间隔飞行小时；",
-                "——环境因子",
-                "——运行比；",
-                "——飞行时间，飞行小时。",
-                "【示例】",
-                "为便于进行内场可靠性指标的验证，按照",
-                "其中产品的工作时间包括地面时间和空中时间两部分，地面时间主要考虑：地面维护时间、飞行前检查时间、机务时间、机械日、定时维护、换季以及其他维护工作的时间，需要将这些时间平均到一次飞行中去。飞行时间主要考虑飞机一次飞行的时间，即飞机从地面滑跑到完成飞行任务降落为止。",
-                "式中：",
-                "的方法，将XXX产品平均故障间隔飞行小时转化为平均故障间隔小时。",
-                "转化公式如下：",
-                "重点型号可靠性维修性保障性培训教材》下册，100页",
-                "）。",
-                "，一般取1.05（参考《"
-              ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
             }
           ]
         },
@@ -1782,328 +1647,293 @@
           "title": "可靠性建模",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：【说明】\n举例：【示例】",
+          "guidance_prompt": "说明：本节描述建立可靠性模型的过程，包括建立可靠性模型的基本假设，并以基本可靠性框图的形式建立基本可靠性模型。\n举例：参考GJB 813《可靠性模型的建立与可靠性预计》和GJB 450《装备可靠性工作通用要求》，根据XXX产品的设计，建立了XXX产品基本可靠性模型。\n说明：本节描述建立可靠性模型的基本假设。\n举例：假设产品各组成部分的寿命均服从指数分布；\n举例：系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；\n举例：系统各组成部分的故障相互独立，不存在关联故障；\n举例：系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。\n说明：本节描述通过确定可靠性单元，以基本可靠性框图的形式建立基本可靠性模型。\n举例：基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。\n举例：图6-1 某产品基本可靠性框图\n举例：XXX产品的基本可靠性数学模型由串联模型组成，假设产品各组成部分的寿命均服从指数分布，其数学模型为：\n举例：MTBF—系统平均故障间隔时间。",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
-          "body_style_name": "Normal",
+          "body_style_name": "",
           "template_blocks": [
             {
               "has_italic": false,
               "italic_texts": [],
               "label": "说明",
               "placeholders": [],
-              "style_name": "段",
-              "text": "【说明】",
-              "type": "instruction"
-            },
-            {
-              "has_italic": false,
-              "italic_texts": [],
-              "label": "模板文字",
-              "placeholders": [],
               "style_name": "Normal",
               "text": "本节描述建立可靠性模型的过程，包括建立可靠性模型的基本假设，并以基本可靠性框图的形式建立基本可靠性模型。",
-              "type": "template_text"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例】"
-              ],
-              "label": "举例",
-              "placeholders": [
-                "【示例】"
-              ],
-              "style_name": "Normal",
-              "text": "【示例】",
-              "type": "example"
+              "type": "instruction"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "参考GJB 813《可靠性模型的建立与可靠性预计》和GJB 450《装备可靠性工作通用要求》，根据XXX产品的设计，建立了XXX产品基本可靠性模型。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "XXX",
                 "参考GJB 813《可靠性模型的建立与可靠性预计》和GJB 450《装备可靠性工作通用要求》，根据XXX产品的设计，建立了XXX产品基本可靠性模型。"
               ],
               "style_name": "段",
               "text": "参考GJB 813《可靠性模型的建立与可靠性预计》和GJB 450《装备可靠性工作通用要求》，根据XXX产品的设计，建立了XXX产品基本可靠性模型。",
-              "type": "template_text"
-            }
-          ],
-          "placeholders": [
-            "XXX",
-            "【示例】",
-            "参考GJB 813《可靠性模型的建立与可靠性预计》和GJB 450《装备可靠性工作通用要求》，根据XXX产品的设计，建立了XXX产品基本可靠性模型。"
-          ],
-          "generation_strategy": "smart_generate",
-          "sub_chapters": [
-            {
-              "number": "6.1",
-              "title": "基本规则和假设",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "说明：【说明】\n举例：【示例】",
-              "style_name": "Normal",
-              "body_style_name": "Normal",
-              "template_blocks": [
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "说明",
-                  "placeholders": [],
-                  "style_name": "Normal",
-                  "text": "【说明】",
-                  "type": "instruction"
-                },
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "模板文字",
-                  "placeholders": [],
-                  "style_name": "Normal",
-                  "text": "本节描述建立可靠性模型的基本假设。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "Normal",
-                  "text": "【示例】",
-                  "type": "example"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "假设产品各组成部分的寿命均服从指数分布；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "假设产品各组成部分的寿命均服从指数分布；"
-                  ],
-                  "style_name": "List Paragraph",
-                  "text": "假设产品各组成部分的寿命均服从指数分布；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；"
-                  ],
-                  "style_name": "List Paragraph",
-                  "text": "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "系统各组成部分的故障相互独立，不存在关联故障；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "系统各组成部分的故障相互独立，不存在关联故障；"
-                  ],
-                  "style_name": "List Paragraph",
-                  "text": "系统各组成部分的故障相互独立，不存在关联故障；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。"
-                  ],
-                  "style_name": "List Paragraph",
-                  "text": "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。",
-                  "type": "template_text"
-                }
-              ],
-              "placeholders": [
-                "【示例】",
-                "假设产品各组成部分的寿命均服从指数分布；",
-                "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；",
-                "系统各组成部分的故障相互独立，不存在关联故障；",
-                "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。"
-              ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
+              "type": "example"
             },
             {
-              "number": "6.2",
-              "title": "建立基本可靠性模型",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "说明：【说明】\n举例：【示例】",
-              "style_name": "Normal",
-              "body_style_name": "Normal",
-              "template_blocks": [
+              "can_expand": false,
+              "has_italic": false,
+              "italic_texts": [],
+              "items": [
                 {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "说明",
-                  "placeholders": [],
-                  "style_name": "Normal",
-                  "text": "【说明】",
-                  "type": "instruction"
-                },
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "模板文字",
-                  "placeholders": [],
-                  "style_name": "Normal",
-                  "text": "本节描述通过确定可靠性单元，以基本可靠性框图的形式建立基本可靠性模型。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "段",
-                  "text": "【示例】",
-                  "type": "example"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXX",
-                    "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。"
-                  ],
-                  "style_name": "Normal",
-                  "text": "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "图6-1 某产品基本可靠性框图"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "图6-1 某产品基本可靠性框图"
-                  ],
-                  "style_name": "Normal",
-                  "text": "图6-1 某产品基本可靠性框图",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "XXX",
-                    "产品",
-                    "的基本可靠性数学模型由串联模型组成，",
-                    "假设产品各组成部分的寿命均服从指数分布",
-                    "，其数学模型为："
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "XXX",
-                    "产品",
-                    "假设产品各组成部分的寿命均服从指数分布",
-                    "的基本可靠性数学模型由串联模型组成，",
-                    "，其数学模型为："
-                  ],
-                  "style_name": "Normal",
-                  "text": "XXX产品的基本可靠性数学模型由串联模型组成，假设产品各组成部分的寿命均服从指数分布，其数学模型为：",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "式中：",
-                    "—系统故障率（1/h）；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "—系统故障率（1/h）；",
-                    "式中："
-                  ],
-                  "style_name": "Normal",
-                  "text": "式中：—系统故障率（1/h）；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "—系统中第i个组成单元的套数；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "—系统中第i个组成单元的套数；"
-                  ],
-                  "style_name": "Normal",
-                  "text": "—系统中第i个组成单元的套数；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "—系统中第i个组成单元的故障率；"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "—系统中第i个组成单元的故障率；"
-                  ],
-                  "style_name": "Normal",
-                  "text": "—系统中第i个组成单元的故障率；",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "MTBF—系统平均故障间隔时间。"
-                  ],
-                  "label": "模板文字",
-                  "placeholders": [
-                    "MTBF—系统平均故障间隔时间。"
-                  ],
-                  "style_name": "段",
-                  "text": "MTBF—系统平均故障间隔时间。",
-                  "type": "template_text"
+                  "can_expand": false,
+                  "list_style": "number_dot",
+                  "marker": "6.",
+                  "text": "1 基本规则和假设"
                 }
               ],
+              "label": "举例列表",
+              "list_style": "number_dot",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "6.1 基本规则和假设",
+              "type": "example_list"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "本节描述建立可靠性模型的基本假设。",
+              "type": "instruction"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "假设产品各组成部分的寿命均服从指数分布；"
+              ],
+              "label": "举例",
               "placeholders": [
-                "MTBF—系统平均故障间隔时间。",
+                "假设产品各组成部分的寿命均服从指数分布；"
+              ],
+              "style_name": "List Paragraph",
+              "text": "假设产品各组成部分的寿命均服从指数分布；",
+              "type": "example"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；"
+              ],
+              "style_name": "List Paragraph",
+              "text": "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；",
+              "type": "example"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "系统各组成部分的故障相互独立，不存在关联故障；"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "系统各组成部分的故障相互独立，不存在关联故障；"
+              ],
+              "style_name": "List Paragraph",
+              "text": "系统各组成部分的故障相互独立，不存在关联故障；",
+              "type": "example"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。"
+              ],
+              "style_name": "List Paragraph",
+              "text": "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。",
+              "type": "example"
+            },
+            {
+              "can_expand": false,
+              "has_italic": false,
+              "italic_texts": [],
+              "items": [
+                {
+                  "can_expand": false,
+                  "list_style": "number_dot",
+                  "marker": "6.",
+                  "text": "2 建立基本可靠性模型"
+                }
+              ],
+              "label": "举例列表",
+              "list_style": "number_dot",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "6.2 建立基本可靠性模型",
+              "type": "example_list"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "说明",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "本节描述通过确定可靠性单元，以基本可靠性框图的形式建立基本可靠性模型。",
+              "type": "instruction"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。"
+              ],
+              "label": "举例",
+              "placeholders": [
                 "XXX",
-                "—系统中第i个组成单元的套数；",
-                "—系统中第i个组成单元的故障率；",
-                "—系统故障率（1/h）；",
-                "【示例】",
+                "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。"
+              ],
+              "style_name": "Normal",
+              "text": "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。",
+              "type": "example"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板对象",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+              "type": "embedded_object"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "图6-1 某产品基本可靠性框图"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "图6-1 某产品基本可靠性框图"
+              ],
+              "style_name": "Normal",
+              "text": "图6-1 某产品基本可靠性框图",
+              "type": "example"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "XXX",
+                "产品",
+                "的基本可靠性数学模型由串联模型组成，",
+                "假设产品各组成部分的寿命均服从指数分布",
+                "，其数学模型为："
+              ],
+              "label": "举例",
+              "placeholders": [
+                "XXX",
                 "产品",
                 "假设产品各组成部分的寿命均服从指数分布",
-                "图6-1 某产品基本可靠性框图",
-                "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。",
-                "式中：",
                 "的基本可靠性数学模型由串联模型组成，",
                 "，其数学模型为："
               ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
+              "style_name": "Normal",
+              "text": "XXX产品的基本可靠性数学模型由串联模型组成，假设产品各组成部分的寿命均服从指数分布，其数学模型为：",
+              "type": "example"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板对象",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+              "type": "embedded_object"
+            },
+            {
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板对象",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+              "type": "embedded_object"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "式中：",
+                "—系统故障率（1/h）；"
+              ],
+              "label": "模板对象",
+              "placeholders": [
+                "—系统故障率（1/h）；",
+                "式中："
+              ],
+              "style_name": "Normal",
+              "text": "式中：—系统故障率（1/h）；",
+              "type": "embedded_object"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "—系统中第i个组成单元的套数；"
+              ],
+              "label": "模板对象",
+              "placeholders": [
+                "—系统中第i个组成单元的套数；"
+              ],
+              "style_name": "Normal",
+              "text": "—系统中第i个组成单元的套数；",
+              "type": "embedded_object"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "—系统中第i个组成单元的故障率；"
+              ],
+              "label": "模板对象",
+              "placeholders": [
+                "—系统中第i个组成单元的故障率；"
+              ],
+              "style_name": "Normal",
+              "text": "—系统中第i个组成单元的故障率；",
+              "type": "embedded_object"
+            },
+            {
+              "has_italic": true,
+              "italic_texts": [
+                "MTBF—系统平均故障间隔时间。"
+              ],
+              "label": "举例",
+              "placeholders": [
+                "MTBF—系统平均故障间隔时间。"
+              ],
+              "style_name": "段",
+              "text": "MTBF—系统平均故障间隔时间。",
+              "type": "example"
             }
-          ]
+          ],
+          "placeholders": [
+            "MTBF—系统平均故障间隔时间。",
+            "XXX",
+            "—系统中第i个组成单元的套数；",
+            "—系统中第i个组成单元的故障率；",
+            "—系统故障率（1/h）；",
+            "产品",
+            "假设产品各组成部分的寿命均服从指数分布",
+            "假设产品各组成部分的寿命均服从指数分布；",
+            "参考GJB 813《可靠性模型的建立与可靠性预计》和GJB 450《装备可靠性工作通用要求》，根据XXX产品的设计，建立了XXX产品基本可靠性模型。",
+            "图6-1 某产品基本可靠性框图",
+            "基本可靠性模型用以估计系统及其组成单元故障所引起的维修和保障要求，可以作为度量维修保障人力与费用的一种模型。XXX产品的基本可靠性模型是一个全串联模型，构成产品的所有单元都应包括在模型内。根据产品的功能和结构，XXX产品的基本可靠性模型框图如图6-1所示。",
+            "式中：",
+            "的基本可靠性数学模型由串联模型组成，",
+            "系统及其组成单元只有故障与正常两种状态，不考虑第三种状态；",
+            "系统各组成部分的故障相互独立，不存在关联故障；",
+            "系统的所有输入在规定极限之内，即不考虑由于输入错误而引起故障的情况。",
+            "，其数学模型为："
+          ],
+          "generation_strategy": "smart_generate",
+          "sub_chapters": []
         },
         {
           "number": "7",
@@ -2111,6 +1941,7 @@
           "description": "",
           "required": true,
           "guidance_prompt": "",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
           "body_style_name": "",
           "template_blocks": [],
@@ -2122,9 +1953,10 @@
               "title": "分配原则",
               "description": "",
               "required": true,
-              "guidance_prompt": "说明：【说明】\n举例：【示例】",
+              "guidance_prompt": "说明：本节介绍产品可靠性分配的原则。\n举例：可靠性分配一般应遵循以下原则：\n举例：分配到同一层次产品的划分规模应尽可能适当，以便于权衡和比较；\n举例：分配时适当留有余地；\n举例：分配应反复迭代，且要尽早实施；\n举例：分配给具有下述特点产品的可靠性指标应该相对低一些：\n举例：复杂程度高的产品；\n举例：技术上不成熟的和技术难度大的产品；\n举例：处于恶劣环境条件下工作的产品；\n举例：需要长期工作的产品。\n举例：对于重要度高的产品，应分配较高的可靠性指标；\n举例：对于已有可靠性指标的货架产品，不再进行可靠性分配。\n说明：本节根据产品组成结构，系统中哪些是新研产品或改进产品、哪些是货架产品、哪些是外协配套产品来确定可靠性分配的层次。\n举例：对XXX产品的基本可靠性指标进行分配……。\n说明：本节描述可靠性分配采用的方法，考虑产品在设计、生产、制造、使用的实际情况，参考可靠性分配指南，选择适用的分配方法。常用的分配方法见表7-1所示。\n说明：表7-1 可靠性分配方法及应用研制阶段分析表\n说明表格：方法名称 | 特点 | 应用条件 | 适用阶段\n评分分配法 | 主观因素大，方法成熟，应用广泛 | 需要有经验的技术人员和专家参与可靠性设计工作 | 论证、方案、初步(初样)设计\n比例组合分配法 | 方法简单，需老系统可靠性信息 | 新、老系统具有相似性，并且老系统可靠性数据充分 | 论证、方案\n层次分析分配法 | 主观因素相对较少，但是计算量较大 | 影响可靠性分配的因素可知，单元产品相对这些因素的重要程度可知 | 论证、方案、初步(初样)设计\n举例：以下章节为【示例】内容。\n举例：专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数Ci，再根据分配系数给每个单元产品的可靠性指标进行分配。\n举例：根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配：\n举例：j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。\n举例：MTBF值计算如下：\n举例：复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。\n举例：复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；\n举例：技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；\n举例：重要度——根据组成部件的组件重要度（即故障后果）来评定；\n举例：环境条件——根据组成部件的组件所处的工作环境来评定；\n举例：工作时间——根据组成部件的组件工作时间来评定。\n举例：专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。\n举例：表7-2复杂程度因素评分准则\n举例表格：等级 | 分数 | 说明\n1 | 9～10 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的100%～80%\n2 | 7～8 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的80%～60%\n3 | 5～6 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的60%～40%\n4 | 3～4 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的40%～20%\n5 | 1～2 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的20%以下\n举例：表7-3技术发展水平因素评分准则\n举例表格：等级 | 分数 | 说明\n1 | 9～10 | 掌握技术的基本原理或明确技术概念及如何应用\n2 | 7～8 | 已进行概念验证，主要功能的分析和验证或已在实验室环境中验证主要功能模块\n3 | 5～6 | 已在相似环境中验证主要功能模块或已在相似环境中验证系统或原型\n4 | 3～4 | 已在运行环境中验证原型或实际系统已通过试验和验证\n5 | 1～2 | 实际系统已成功应用\n举例：表7-4重要度因素评分准则\n举例表格：等级 | 分数 | 说明\n1 | 9～10 | 该设备故障不会影响人身安全、任务完成或产品损坏\n2 | 7～8 | 该设备故障不会影响人身安全、产品损坏，但可能对任务顺利完成有轻微影响\n3 | 5～6 | 该设备故障可能造成人身安全隐患、任务完成或产品损坏。\n4 | 3～4 | 该设备故障对人身安全有威胁，影响任务完成或产品损坏\n5 | 1～2 | 该设备故障会引起产品毁坏、人身安全或任务完成\n举例：表7-5 环境条件因素评分准则\n举例表格：等级 | 分数 | 说明\n1 | 9～10 | 该单元产品处于系统中最恶劣的工作环境中（如工作温度最高、振动加速度最大、湿度最大等）\n2 | 7～8 | 该单元产品处于系统中较恶劣的工作环境中（如工作温度较高、振动加速度较大、湿度较大等）\n3 | 5～6 |",
+              "manual_guidance_prompt": "",
               "style_name": "Normal",
-              "body_style_name": "Normal",
+              "body_style_name": "",
               "template_blocks": [
                 {
                   "has_italic": false,
@@ -2132,209 +1964,170 @@
                   "label": "说明",
                   "placeholders": [],
                   "style_name": "Normal",
-                  "text": "【说明】",
-                  "type": "instruction"
-                },
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "模板文字",
-                  "placeholders": [],
-                  "style_name": "Normal",
                   "text": "本节介绍产品可靠性分配的原则。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "Normal",
-                  "text": "【示例】",
-                  "type": "example"
+                  "type": "instruction"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "可靠性分配一般应遵循以下原则："
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "可靠性分配一般应遵循以下原则："
                   ],
                   "style_name": "Normal",
                   "text": "可靠性分配一般应遵循以下原则：",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "分配到同一层次产品的划分规模应尽可能适当，以便于权衡和比较；"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "分配到同一层次产品的划分规模应尽可能适当，以便于权衡和比较；"
                   ],
                   "style_name": "List Paragraph",
                   "text": "分配到同一层次产品的划分规模应尽可能适当，以便于权衡和比较；",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "分配时适当留有余地；"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "分配时适当留有余地；"
                   ],
                   "style_name": "List Paragraph",
                   "text": "分配时适当留有余地；",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "分配应反复迭代，且要尽早实施；"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "分配应反复迭代，且要尽早实施；"
                   ],
                   "style_name": "List Paragraph",
                   "text": "分配应反复迭代，且要尽早实施；",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "分配给具有下述特点产品的可靠性指标应该相对低一些："
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "分配给具有下述特点产品的可靠性指标应该相对低一些："
                   ],
                   "style_name": "List Paragraph",
                   "text": "分配给具有下述特点产品的可靠性指标应该相对低一些：",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "复杂程度高的产品；"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "复杂程度高的产品；"
                   ],
                   "style_name": "List Paragraph",
                   "text": "复杂程度高的产品；",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "技术上不成熟的和技术难度大的产品；"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "技术上不成熟的和技术难度大的产品；"
                   ],
                   "style_name": "List Paragraph",
                   "text": "技术上不成熟的和技术难度大的产品；",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "处于恶劣环境条件下工作的产品；"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "处于恶劣环境条件下工作的产品；"
                   ],
                   "style_name": "List Paragraph",
                   "text": "处于恶劣环境条件下工作的产品；",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "需要长期工作的产品。"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "需要长期工作的产品。"
                   ],
                   "style_name": "List Paragraph",
                   "text": "需要长期工作的产品。",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "对于重要度高的产品，应分配较高的可靠性指标；"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "对于重要度高的产品，应分配较高的可靠性指标；"
                   ],
                   "style_name": "List Paragraph",
                   "text": "对于重要度高的产品，应分配较高的可靠性指标；",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "对于已有可靠性指标的货架产品，不再进行可靠性分配。"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "对于已有可靠性指标的货架产品，不再进行可靠性分配。"
                   ],
                   "style_name": "List Paragraph",
                   "text": "对于已有可靠性指标的货架产品，不再进行可靠性分配。",
-                  "type": "template_text"
-                }
-              ],
-              "placeholders": [
-                "【示例】",
-                "分配到同一层次产品的划分规模应尽可能适当，以便于权衡和比较；",
-                "分配应反复迭代，且要尽早实施；",
-                "分配时适当留有余地；",
-                "分配给具有下述特点产品的可靠性指标应该相对低一些：",
-                "可靠性分配一般应遵循以下原则：",
-                "处于恶劣环境条件下工作的产品；",
-                "复杂程度高的产品；",
-                "对于已有可靠性指标的货架产品，不再进行可靠性分配。",
-                "对于重要度高的产品，应分配较高的可靠性指标；",
-                "技术上不成熟的和技术难度大的产品；",
-                "需要长期工作的产品。"
-              ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
-            },
-            {
-              "number": "7.2",
-              "title": "分配层次",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "说明：【说明】\n说明：本节根据产品组成结构，系统中哪些是新研产品或改进产品、哪些是货架产品、哪些是外协配套产品来确定可靠性分配的层次。\n举例：【示例】",
-              "style_name": "Normal",
-              "body_style_name": "段",
-              "template_blocks": [
+                  "type": "example"
+                },
                 {
+                  "can_expand": false,
                   "has_italic": false,
                   "italic_texts": [],
-                  "label": "说明",
+                  "items": [
+                    {
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "7.",
+                      "text": "2 分配层次"
+                    }
+                  ],
+                  "label": "举例列表",
+                  "list_style": "number_dot",
                   "placeholders": [],
                   "style_name": "Normal",
-                  "text": "【说明】",
-                  "type": "instruction"
+                  "text": "7.2 分配层次",
+                  "type": "example_list"
                 },
                 {
                   "has_italic": false,
@@ -2348,26 +2141,13 @@
                 {
                   "has_italic": true,
                   "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "Normal",
-                  "text": "【示例】",
-                  "type": "example"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
                     "对",
                     "XXX产品的",
                     "基本可靠性指标进行分配",
                     "……",
                     "。"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "XXX",
                     "XXX产品的",
@@ -2378,59 +2158,47 @@
                   ],
                   "style_name": "段",
                   "text": "对XXX产品的基本可靠性指标进行分配……。",
-                  "type": "template_text"
-                }
-              ],
-              "placeholders": [
-                "XXX",
-                "XXX产品的",
-                "……",
-                "。",
-                "【示例】",
-                "基本可靠性指标进行分配",
-                "对"
-              ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": []
-            },
-            {
-              "number": "7.3",
-              "title": "分配方法",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "说明：【说明】\n举例：【示例】",
-              "style_name": "Normal",
-              "body_style_name": "Normal",
-              "template_blocks": [
+                  "type": "example"
+                },
+                {
+                  "can_expand": false,
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "items": [
+                    {
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "7.",
+                      "text": "3 分配方法"
+                    }
+                  ],
+                  "label": "举例列表",
+                  "list_style": "number_dot",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "7.3 分配方法",
+                  "type": "example_list"
+                },
                 {
                   "has_italic": false,
                   "italic_texts": [],
                   "label": "说明",
                   "placeholders": [],
                   "style_name": "Normal",
-                  "text": "【说明】",
+                  "text": "本节描述可靠性分配采用的方法，考虑产品在设计、生产、制造、使用的实际情况，参考可靠性分配指南，选择适用的分配方法。常用的分配方法见表7-1所示。",
                   "type": "instruction"
                 },
                 {
                   "has_italic": false,
                   "italic_texts": [],
-                  "label": "模板文字",
-                  "placeholders": [],
-                  "style_name": "Normal",
-                  "text": "本节描述可靠性分配采用的方法，考虑产品在设计、生产、制造、使用的实际情况，参考可靠性分配指南，选择适用的分配方法。常用的分配方法见表7-1所示。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "模板文字",
+                  "label": "说明",
                   "placeholders": [],
                   "style_name": "Normal",
                   "text": "表7-1 可靠性分配方法及应用研制阶段分析表",
-                  "type": "template_text"
+                  "type": "instruction"
                 },
                 {
-                  "label": "模板表格",
+                  "label": "说明表格",
                   "placeholders": [],
                   "rows": [
                     [
@@ -2459,745 +2227,746 @@
                     ]
                   ],
                   "text": "方法名称 | 特点 | 应用条件 | 适用阶段\n评分分配法 | 主观因素大，方法成熟，应用广泛 | 需要有经验的技术人员和专家参与可靠性设计工作 | 论证、方案、初步(初样)设计\n比例组合分配法 | 方法简单，需老系统可靠性信息 | 新、老系统具有相似性，并且老系统可靠性数据充分 | 论证、方案\n层次分析分配法 | 主观因素相对较少，但是计算量较大 | 影响可靠性分配的因素可知，单元产品相对这些因素的重要程度可知 | 论证、方案、初步(初样)设计",
-                  "type": "template_table"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "Normal",
-                  "text": "【示例】",
-                  "type": "example"
+                  "type": "instruction_table"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "以下章节为【示例】内容。"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "以下章节为【示例】内容。"
                   ],
                   "style_name": "Normal",
                   "text": "以下章节为【示例】内容。",
-                  "type": "template_text"
-                }
-              ],
-              "placeholders": [
-                "【示例】",
-                "以下章节为【示例】内容。"
-              ],
-              "generation_strategy": "smart_generate",
-              "sub_chapters": [
-                {
-                  "number": "7.3.1",
-                  "title": "专家评分法",
-                  "description": "",
-                  "required": true,
-                  "guidance_prompt": "",
-                  "style_name": "Normal",
-                  "body_style_name": "Normal",
-                  "template_blocks": [
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数C",
-                        "i",
-                        "，再根据分配系数给每个单元产品的可靠性指标进行分配。"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "i",
-                        "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数C",
-                        "，再根据分配系数给每个单元产品的可靠性指标进行分配。"
-                      ],
-                      "style_name": "Normal",
-                      "text": "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数Ci，再根据分配系数给每个单元产品的可靠性指标进行分配。",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配："
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配："
-                      ],
-                      "style_name": "Normal",
-                      "text": "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配：",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "令",
-                        "为系统中第",
-                        "个部件，第",
-                        "个因素的评分数。"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "个因素的评分数。",
-                        "个部件，第",
-                        "为系统中第",
-                        "令"
-                      ],
-                      "style_name": "Normal",
-                      "text": "令为系统中第个部件，第个因素的评分数。",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。"
-                      ],
-                      "style_name": "Normal",
-                      "text": "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "MTBF值计算如下："
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "MTBF值计算如下："
-                      ],
-                      "style_name": "Normal",
-                      "text": "MTBF值计算如下：",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "式中：",
-                        "——系统中第个部件的评分数；"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统中第个部件的评分数；",
-                        "式中："
-                      ],
-                      "style_name": "Normal",
-                      "text": "式中：——系统中第个部件的评分数；",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "——系统的总评分数；"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统的总评分数；"
-                      ],
-                      "style_name": "Normal",
-                      "text": "——系统的总评分数；",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "——系统中第",
-                        "个部件的个数；"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统中第",
-                        "个部件的个数；"
-                      ],
-                      "style_name": "Normal",
-                      "text": "——系统中第个部件的个数；",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "——系统中第个部件的评分系数；"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统中第个部件的评分系数；"
-                      ],
-                      "style_name": "Normal",
-                      "text": "——系统中第个部件的评分系数；",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "——系统的故障率；"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统的故障率；"
-                      ],
-                      "style_name": "Normal",
-                      "text": "——系统的故障率；",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "——系统中第个部件的故障率；"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统中第个部件的故障率；"
-                      ],
-                      "style_name": "Normal",
-                      "text": "——系统中第个部件的故障率；",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "——系统的MTBF值；"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统的MTBF值；"
-                      ],
-                      "style_name": "Normal",
-                      "text": "——系统的MTBF值；",
-                      "type": "template_text"
-                    },
-                    {
-                      "has_italic": true,
-                      "italic_texts": [
-                        "——系统中第个部件的MTBF值。"
-                      ],
-                      "label": "模板文字",
-                      "placeholders": [
-                        "——系统中第个部件的MTBF值。"
-                      ],
-                      "style_name": "段",
-                      "text": "——系统中第个部件的MTBF值。",
-                      "type": "template_text"
-                    }
-                  ],
-                  "placeholders": [
-                    "MTBF值计算如下：",
-                    "i",
-                    "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。",
-                    "——系统中第",
-                    "——系统中第个部件的MTBF值。",
-                    "——系统中第个部件的故障率；",
-                    "——系统中第个部件的评分数；",
-                    "——系统中第个部件的评分系数；",
-                    "——系统的MTBF值；",
-                    "——系统的总评分数；",
-                    "——系统的故障率；",
-                    "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数C",
-                    "个因素的评分数。",
-                    "个部件的个数；",
-                    "个部件，第",
-                    "为系统中第",
-                    "令",
-                    "式中：",
-                    "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配：",
-                    "，再根据分配系数给每个单元产品的可靠性指标进行分配。"
-                  ],
-                  "generation_strategy": "smart_generate",
-                  "sub_chapters": []
+                  "type": "example"
                 },
                 {
-                  "number": "7.3.2",
-                  "title": "评分因素和评分准则",
-                  "description": "",
-                  "required": true,
-                  "guidance_prompt": "",
-                  "style_name": "Normal",
-                  "body_style_name": "",
-                  "template_blocks": [],
-                  "placeholders": [],
-                  "generation_strategy": "placeholder_replace",
-                  "sub_chapters": [
+                  "can_expand": false,
+                  "has_italic": true,
+                  "italic_texts": [
+                    "7.3.1 专家评分法"
+                  ],
+                  "items": [
                     {
-                      "number": "7.3.2.1",
-                      "title": "评分因素",
-                      "description": "",
-                      "required": true,
-                      "guidance_prompt": "",
-                      "style_name": "Normal",
-                      "body_style_name": "标准文件_段",
-                      "template_blocks": [
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。"
-                          ],
-                          "style_name": "标准文件_段",
-                          "text": "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。",
-                          "type": "template_text"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；"
-                          ],
-                          "style_name": "标准文件_段",
-                          "text": "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；",
-                          "type": "template_text"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；"
-                          ],
-                          "style_name": "标准文件_段",
-                          "text": "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；",
-                          "type": "template_text"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "重要度——根据组成部件的组件重要度（即故障后果）来评定；"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "重要度——根据组成部件的组件重要度（即故障后果）来评定；"
-                          ],
-                          "style_name": "标准文件_段",
-                          "text": "重要度——根据组成部件的组件重要度（即故障后果）来评定；",
-                          "type": "template_text"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "环境条件——根据组成部件的组件所处的工作环境来评定；"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "环境条件——根据组成部件的组件所处的工作环境来评定；"
-                          ],
-                          "style_name": "标准文件_段",
-                          "text": "环境条件——根据组成部件的组件所处的工作环境来评定；",
-                          "type": "template_text"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "工作时间——根据组成部件的组件工作时间来评定。"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "工作时间——根据组成部件的组件工作时间来评定。"
-                          ],
-                          "style_name": "标准文件_段",
-                          "text": "工作时间——根据组成部件的组件工作时间来评定。",
-                          "type": "template_text"
-                        }
-                      ],
-                      "placeholders": [
-                        "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；",
-                        "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。",
-                        "工作时间——根据组成部件的组件工作时间来评定。",
-                        "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；",
-                        "环境条件——根据组成部件的组件所处的工作环境来评定；",
-                        "重要度——根据组成部件的组件重要度（即故障后果）来评定；"
-                      ],
-                      "generation_strategy": "smart_generate",
-                      "sub_chapters": []
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "7.",
+                      "text": "3.1 专家评分法"
+                    }
+                  ],
+                  "label": "举例列表",
+                  "list_style": "number_dot",
+                  "placeholders": [
+                    "7.3.1 专家评分法"
+                  ],
+                  "style_name": "Normal",
+                  "text": "7.3.1 专家评分法",
+                  "type": "example_list"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数C",
+                    "i",
+                    "，再根据分配系数给每个单元产品的可靠性指标进行分配。"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "i",
+                    "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数C",
+                    "，再根据分配系数给每个单元产品的可靠性指标进行分配。"
+                  ],
+                  "style_name": "Normal",
+                  "text": "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数Ci，再根据分配系数给每个单元产品的可靠性指标进行分配。",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配："
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配："
+                  ],
+                  "style_name": "Normal",
+                  "text": "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配：",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "令",
+                    "为系统中第",
+                    "个部件，第",
+                    "个因素的评分数。"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "个因素的评分数。",
+                    "个部件，第",
+                    "为系统中第",
+                    "令"
+                  ],
+                  "style_name": "Normal",
+                  "text": "令为系统中第个部件，第个因素的评分数。",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。"
+                  ],
+                  "style_name": "Normal",
+                  "text": "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "MTBF值计算如下："
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "MTBF值计算如下："
+                  ],
+                  "style_name": "Normal",
+                  "text": "MTBF值计算如下：",
+                  "type": "example"
+                },
+                {
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "label": "模板对象",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "label": "模板对象",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "label": "模板对象",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "label": "模板对象",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "label": "模板对象",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "label": "模板对象",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "包含 Word 图片、旧版公式或嵌入对象，生成时原样保留。",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "式中：",
+                    "——系统中第个部件的评分数；"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统中第个部件的评分数；",
+                    "式中："
+                  ],
+                  "style_name": "Normal",
+                  "text": "式中：——系统中第个部件的评分数；",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "——系统的总评分数；"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统的总评分数；"
+                  ],
+                  "style_name": "Normal",
+                  "text": "——系统的总评分数；",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "——系统中第",
+                    "个部件的个数；"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统中第",
+                    "个部件的个数；"
+                  ],
+                  "style_name": "Normal",
+                  "text": "——系统中第个部件的个数；",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "——系统中第个部件的评分系数；"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统中第个部件的评分系数；"
+                  ],
+                  "style_name": "Normal",
+                  "text": "——系统中第个部件的评分系数；",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "——系统的故障率；"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统的故障率；"
+                  ],
+                  "style_name": "Normal",
+                  "text": "——系统的故障率；",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "——系统中第个部件的故障率；"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统中第个部件的故障率；"
+                  ],
+                  "style_name": "Normal",
+                  "text": "——系统中第个部件的故障率；",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "——系统的MTBF值；"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统的MTBF值；"
+                  ],
+                  "style_name": "Normal",
+                  "text": "——系统的MTBF值；",
+                  "type": "embedded_object"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "——系统中第个部件的MTBF值。"
+                  ],
+                  "label": "模板对象",
+                  "placeholders": [
+                    "——系统中第个部件的MTBF值。"
+                  ],
+                  "style_name": "段",
+                  "text": "——系统中第个部件的MTBF值。",
+                  "type": "embedded_object"
+                },
+                {
+                  "can_expand": false,
+                  "has_italic": true,
+                  "italic_texts": [
+                    "7.3.2 评分因素和评分准则"
+                  ],
+                  "items": [
+                    {
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "7.",
+                      "text": "3.2 评分因素和评分准则"
                     },
                     {
-                      "number": "7.3.2.2",
-                      "title": "评分准则",
-                      "description": "",
-                      "required": true,
-                      "guidance_prompt": "",
-                      "style_name": "Normal",
-                      "body_style_name": "标准文件_段",
-                      "template_blocks": [
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。"
-                          ],
-                          "style_name": "标准文件_段",
-                          "text": "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。",
-                          "type": "template_text"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "表7-2复杂程度因素评分准则"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "表7-2复杂程度因素评分准则"
-                          ],
-                          "style_name": "Normal",
-                          "text": "表7-2复杂程度因素评分准则",
-                          "type": "template_text"
-                        },
-                        {
-                          "label": "模板表格",
-                          "placeholders": [],
-                          "rows": [
-                            [
-                              "等级",
-                              "分数",
-                              "说明"
-                            ],
-                            [
-                              "1",
-                              "9～10",
-                              "该单元产品的元部件数量是所有同级组成单元产品最大数量的100%～80%"
-                            ],
-                            [
-                              "2",
-                              "7～8",
-                              "该单元产品的元部件数量是所有同级组成单元产品最大数量的80%～60%"
-                            ],
-                            [
-                              "3",
-                              "5～6",
-                              "该单元产品的元部件数量是所有同级组成单元产品最大数量的60%～40%"
-                            ],
-                            [
-                              "4",
-                              "3～4",
-                              "该单元产品的元部件数量是所有同级组成单元产品最大数量的40%～20%"
-                            ],
-                            [
-                              "5",
-                              "1～2",
-                              "该单元产品的元部件数量是所有同级组成单元产品最大数量的20%以下"
-                            ]
-                          ],
-                          "text": "等级 | 分数 | 说明\n1 | 9～10 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的100%～80%\n2 | 7～8 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的80%～60%\n3 | 5～6 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的60%～40%\n4 | 3～4 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的40%～20%\n5 | 1～2 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的20%以下",
-                          "type": "template_table"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "表7-3",
-                            "技术",
-                            "发展水平因素评分准则"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "发展水平因素评分准则",
-                            "技术",
-                            "表7-3"
-                          ],
-                          "style_name": "Normal",
-                          "text": "表7-3技术发展水平因素评分准则",
-                          "type": "template_text"
-                        },
-                        {
-                          "label": "模板表格",
-                          "placeholders": [],
-                          "rows": [
-                            [
-                              "等级",
-                              "分数",
-                              "说明"
-                            ],
-                            [
-                              "1",
-                              "9～10",
-                              "掌握技术的基本原理或明确技术概念及如何应用"
-                            ],
-                            [
-                              "2",
-                              "7～8",
-                              "已进行概念验证，主要功能的分析和验证或已在实验室环境中验证主要功能模块"
-                            ],
-                            [
-                              "3",
-                              "5～6",
-                              "已在相似环境中验证主要功能模块或已在相似环境中验证系统或原型"
-                            ],
-                            [
-                              "4",
-                              "3～4",
-                              "已在运行环境中验证原型或实际系统已通过试验和验证"
-                            ],
-                            [
-                              "5",
-                              "1～2",
-                              "实际系统已成功应用"
-                            ]
-                          ],
-                          "text": "等级 | 分数 | 说明\n1 | 9～10 | 掌握技术的基本原理或明确技术概念及如何应用\n2 | 7～8 | 已进行概念验证，主要功能的分析和验证或已在实验室环境中验证主要功能模块\n3 | 5～6 | 已在相似环境中验证主要功能模块或已在相似环境中验证系统或原型\n4 | 3～4 | 已在运行环境中验证原型或实际系统已通过试验和验证\n5 | 1～2 | 实际系统已成功应用",
-                          "type": "template_table"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "表7-4重要度因素评分准则"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "表7-4重要度因素评分准则"
-                          ],
-                          "style_name": "Normal",
-                          "text": "表7-4重要度因素评分准则",
-                          "type": "template_text"
-                        },
-                        {
-                          "label": "模板表格",
-                          "placeholders": [],
-                          "rows": [
-                            [
-                              "等级",
-                              "分数",
-                              "说明"
-                            ],
-                            [
-                              "1",
-                              "9～10",
-                              "该设备故障不会影响人身安全、任务完成或产品损坏"
-                            ],
-                            [
-                              "2",
-                              "7～8",
-                              "该设备故障不会影响人身安全、产品损坏，但可能对任务顺利完成有轻微影响"
-                            ],
-                            [
-                              "3",
-                              "5～6",
-                              "该设备故障可能造成人身安全隐患、任务完成或产品损坏。"
-                            ],
-                            [
-                              "4",
-                              "3～4",
-                              "该设备故障对人身安全有威胁，影响任务完成或产品损坏"
-                            ],
-                            [
-                              "5",
-                              "1～2",
-                              "该设备故障会引起产品毁坏、人身安全或任务完成"
-                            ]
-                          ],
-                          "text": "等级 | 分数 | 说明\n1 | 9～10 | 该设备故障不会影响人身安全、任务完成或产品损坏\n2 | 7～8 | 该设备故障不会影响人身安全、产品损坏，但可能对任务顺利完成有轻微影响\n3 | 5～6 | 该设备故障可能造成人身安全隐患、任务完成或产品损坏。\n4 | 3～4 | 该设备故障对人身安全有威胁，影响任务完成或产品损坏\n5 | 1～2 | 该设备故障会引起产品毁坏、人身安全或任务完成",
-                          "type": "template_table"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "表7-5 环境条件因素评分准则"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "表7-5 环境条件因素评分准则"
-                          ],
-                          "style_name": "Normal",
-                          "text": "表7-5 环境条件因素评分准则",
-                          "type": "template_text"
-                        },
-                        {
-                          "label": "模板表格",
-                          "placeholders": [],
-                          "rows": [
-                            [
-                              "等级",
-                              "分数",
-                              "说明"
-                            ],
-                            [
-                              "1",
-                              "9～10",
-                              "该单元产品处于系统中最恶劣的工作环境中（如工作温度最高、振动加速度最大、湿度最大等）"
-                            ],
-                            [
-                              "2",
-                              "7～8",
-                              "该单元产品处于系统中较恶劣的工作环境中（如工作温度较高、振动加速度较大、湿度较大等）"
-                            ],
-                            [
-                              "3",
-                              "5～6",
-                              "该单元产品处于系统中适中的工作环境中（如工作温度适中、振动加速度适中、湿度适中等）"
-                            ],
-                            [
-                              "4",
-                              "3～4",
-                              "该单元产品处于系统中较好的工作环境中（如工作温度适中、振动加速度较小、湿度较小等）"
-                            ],
-                            [
-                              "5",
-                              "1～2",
-                              "该单元产品处于系统中最好的工作环境中（如工作温度适宜、振动加速度最小、湿度最小等）"
-                            ]
-                          ],
-                          "text": "等级 | 分数 | 说明\n1 | 9～10 | 该单元产品处于系统中最恶劣的工作环境中（如工作温度最高、振动加速度最大、湿度最大等）\n2 | 7～8 | 该单元产品处于系统中较恶劣的工作环境中（如工作温度较高、振动加速度较大、湿度较大等）\n3 | 5～6 | 该单元产品处于系统中适中的工作环境中（如工作温度适中、振动加速度适中、湿度适中等）\n4 | 3～4 | 该单元产品处于系统中较好的工作环境中（如工作温度适中、振动加速度较小、湿度较小等）\n5 | 1～2 | 该单元产品处于系统中最好的工作环境中（如工作温度适宜、振动加速度最小、湿度最小等）",
-                          "type": "template_table"
-                        },
-                        {
-                          "has_italic": true,
-                          "italic_texts": [
-                            "表7-6",
-                            "工作时间",
-                            "因素评分准则"
-                          ],
-                          "label": "模板文字",
-                          "placeholders": [
-                            "因素评分准则",
-                            "工作时间",
-                            "表7-6"
-                          ],
-                          "style_name": "Normal",
-                          "text": "表7-6 工作时间因素评分准则",
-                          "type": "template_text"
-                        },
-                        {
-                          "label": "模板表格",
-                          "placeholders": [],
-                          "rows": [
-                            [
-                              "等级",
-                              "分数",
-                              "说明"
-                            ],
-                            [
-                              "1",
-                              "9～10",
-                              "该单元产品的工作时间是同级单元产品最长工作时间的100%～80%"
-                            ],
-                            [
-                              "2",
-                              "7～8",
-                              "该单元产品的工作时间是同级单元产品最长工作时间的80%～60%"
-                            ],
-                            [
-                              "3",
-                              "5～6",
-                              "该单元产品的工作时间是同级单元产品最长工作时间的60%～40%"
-                            ],
-                            [
-                              "4",
-                              "3～4",
-                              "该单元产品的工作时间是同级单元产品最长工作时间的40%～20%"
-                            ],
-                            [
-                              "5",
-                              "1～2",
-                              "该单元产品的工作时间是同级单元产品最长工作时间的20%以下"
-                            ]
-                          ],
-                          "text": "等级 | 分数 | 说明\n1 | 9～10 | 该单元产品的工作时间是同级单元产品最长工作时间的100%～80%\n2 | 7～8 | 该单元产品的工作时间是同级单元产品最长工作时间的80%～60%\n3 | 5～6 | 该单元产品的工作时间是同级单元产品最长工作时间的60%～40%\n4 | 3～4 | 该单元产品的工作时间是同级单元产品最长工作时间的40%～20%\n5 | 1～2 | 该单元产品的工作时间是同级单元产品最长工作时间的20%以下",
-                          "type": "template_table"
-                        }
-                      ],
-                      "placeholders": [
-                        "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。",
-                        "发展水平因素评分准则",
-                        "因素评分准则",
-                        "工作时间",
-                        "技术",
-                        "表7-2复杂程度因素评分准则",
-                        "表7-3",
-                        "表7-4重要度因素评分准则",
-                        "表7-5 环境条件因素评分准则",
-                        "表7-6"
-                      ],
-                      "generation_strategy": "smart_generate",
-                      "sub_chapters": []
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "7.",
+                      "text": "3.2.1 评分因素"
                     }
-                  ]
-                }
-              ]
-            },
-            {
-              "number": "7.4",
-              "title": "分配过程",
-              "description": "",
-              "required": true,
-              "guidance_prompt": "说明：【说明】\n举例：【示例】",
-              "style_name": "Normal",
-              "body_style_name": "Normal",
-              "template_blocks": [
+                  ],
+                  "label": "举例列表",
+                  "list_style": "number_dot",
+                  "placeholders": [
+                    "7.3.2 评分因素和评分准则",
+                    "7.3.2.1 评分因素"
+                  ],
+                  "style_name": "Normal",
+                  "text": "7.3.2 评分因素和评分准则\n7.3.2.1 评分因素",
+                  "type": "example_list"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "重要度——根据组成部件的组件重要度（即故障后果）来评定；"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "重要度——根据组成部件的组件重要度（即故障后果）来评定；"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "重要度——根据组成部件的组件重要度（即故障后果）来评定；",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "环境条件——根据组成部件的组件所处的工作环境来评定；"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "环境条件——根据组成部件的组件所处的工作环境来评定；"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "环境条件——根据组成部件的组件所处的工作环境来评定；",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "工作时间——根据组成部件的组件工作时间来评定。"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "工作时间——根据组成部件的组件工作时间来评定。"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "工作时间——根据组成部件的组件工作时间来评定。",
+                  "type": "example"
+                },
+                {
+                  "can_expand": false,
+                  "has_italic": true,
+                  "italic_texts": [
+                    "7.3.2.2 评分准则"
+                  ],
+                  "items": [
+                    {
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "7.",
+                      "text": "3.2.2 评分准则"
+                    }
+                  ],
+                  "label": "举例列表",
+                  "list_style": "number_dot",
+                  "placeholders": [
+                    "7.3.2.2 评分准则"
+                  ],
+                  "style_name": "Normal",
+                  "text": "7.3.2.2 评分准则",
+                  "type": "example_list"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。"
+                  ],
+                  "style_name": "标准文件_段",
+                  "text": "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。",
+                  "type": "example"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "表7-2复杂程度因素评分准则"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "表7-2复杂程度因素评分准则"
+                  ],
+                  "style_name": "Normal",
+                  "text": "表7-2复杂程度因素评分准则",
+                  "type": "example"
+                },
+                {
+                  "label": "举例表格",
+                  "placeholders": [],
+                  "rows": [
+                    [
+                      "等级",
+                      "分数",
+                      "说明"
+                    ],
+                    [
+                      "1",
+                      "9～10",
+                      "该单元产品的元部件数量是所有同级组成单元产品最大数量的100%～80%"
+                    ],
+                    [
+                      "2",
+                      "7～8",
+                      "该单元产品的元部件数量是所有同级组成单元产品最大数量的80%～60%"
+                    ],
+                    [
+                      "3",
+                      "5～6",
+                      "该单元产品的元部件数量是所有同级组成单元产品最大数量的60%～40%"
+                    ],
+                    [
+                      "4",
+                      "3～4",
+                      "该单元产品的元部件数量是所有同级组成单元产品最大数量的40%～20%"
+                    ],
+                    [
+                      "5",
+                      "1～2",
+                      "该单元产品的元部件数量是所有同级组成单元产品最大数量的20%以下"
+                    ]
+                  ],
+                  "text": "等级 | 分数 | 说明\n1 | 9～10 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的100%～80%\n2 | 7～8 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的80%～60%\n3 | 5～6 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的60%～40%\n4 | 3～4 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的40%～20%\n5 | 1～2 | 该单元产品的元部件数量是所有同级组成单元产品最大数量的20%以下",
+                  "type": "example_table"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "表7-3",
+                    "技术",
+                    "发展水平因素评分准则"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "发展水平因素评分准则",
+                    "技术",
+                    "表7-3"
+                  ],
+                  "style_name": "Normal",
+                  "text": "表7-3技术发展水平因素评分准则",
+                  "type": "example"
+                },
+                {
+                  "label": "举例表格",
+                  "placeholders": [],
+                  "rows": [
+                    [
+                      "等级",
+                      "分数",
+                      "说明"
+                    ],
+                    [
+                      "1",
+                      "9～10",
+                      "掌握技术的基本原理或明确技术概念及如何应用"
+                    ],
+                    [
+                      "2",
+                      "7～8",
+                      "已进行概念验证，主要功能的分析和验证或已在实验室环境中验证主要功能模块"
+                    ],
+                    [
+                      "3",
+                      "5～6",
+                      "已在相似环境中验证主要功能模块或已在相似环境中验证系统或原型"
+                    ],
+                    [
+                      "4",
+                      "3～4",
+                      "已在运行环境中验证原型或实际系统已通过试验和验证"
+                    ],
+                    [
+                      "5",
+                      "1～2",
+                      "实际系统已成功应用"
+                    ]
+                  ],
+                  "text": "等级 | 分数 | 说明\n1 | 9～10 | 掌握技术的基本原理或明确技术概念及如何应用\n2 | 7～8 | 已进行概念验证，主要功能的分析和验证或已在实验室环境中验证主要功能模块\n3 | 5～6 | 已在相似环境中验证主要功能模块或已在相似环境中验证系统或原型\n4 | 3～4 | 已在运行环境中验证原型或实际系统已通过试验和验证\n5 | 1～2 | 实际系统已成功应用",
+                  "type": "example_table"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "表7-4重要度因素评分准则"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "表7-4重要度因素评分准则"
+                  ],
+                  "style_name": "Normal",
+                  "text": "表7-4重要度因素评分准则",
+                  "type": "example"
+                },
+                {
+                  "label": "举例表格",
+                  "placeholders": [],
+                  "rows": [
+                    [
+                      "等级",
+                      "分数",
+                      "说明"
+                    ],
+                    [
+                      "1",
+                      "9～10",
+                      "该设备故障不会影响人身安全、任务完成或产品损坏"
+                    ],
+                    [
+                      "2",
+                      "7～8",
+                      "该设备故障不会影响人身安全、产品损坏，但可能对任务顺利完成有轻微影响"
+                    ],
+                    [
+                      "3",
+                      "5～6",
+                      "该设备故障可能造成人身安全隐患、任务完成或产品损坏。"
+                    ],
+                    [
+                      "4",
+                      "3～4",
+                      "该设备故障对人身安全有威胁，影响任务完成或产品损坏"
+                    ],
+                    [
+                      "5",
+                      "1～2",
+                      "该设备故障会引起产品毁坏、人身安全或任务完成"
+                    ]
+                  ],
+                  "text": "等级 | 分数 | 说明\n1 | 9～10 | 该设备故障不会影响人身安全、任务完成或产品损坏\n2 | 7～8 | 该设备故障不会影响人身安全、产品损坏，但可能对任务顺利完成有轻微影响\n3 | 5～6 | 该设备故障可能造成人身安全隐患、任务完成或产品损坏。\n4 | 3～4 | 该设备故障对人身安全有威胁，影响任务完成或产品损坏\n5 | 1～2 | 该设备故障会引起产品毁坏、人身安全或任务完成",
+                  "type": "example_table"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "表7-5 环境条件因素评分准则"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "表7-5 环境条件因素评分准则"
+                  ],
+                  "style_name": "Normal",
+                  "text": "表7-5 环境条件因素评分准则",
+                  "type": "example"
+                },
+                {
+                  "label": "举例表格",
+                  "placeholders": [],
+                  "rows": [
+                    [
+                      "等级",
+                      "分数",
+                      "说明"
+                    ],
+                    [
+                      "1",
+                      "9～10",
+                      "该单元产品处于系统中最恶劣的工作环境中（如工作温度最高、振动加速度最大、湿度最大等）"
+                    ],
+                    [
+                      "2",
+                      "7～8",
+                      "该单元产品处于系统中较恶劣的工作环境中（如工作温度较高、振动加速度较大、湿度较大等）"
+                    ],
+                    [
+                      "3",
+                      "5～6",
+                      "该单元产品处于系统中适中的工作环境中（如工作温度适中、振动加速度适中、湿度适中等）"
+                    ],
+                    [
+                      "4",
+                      "3～4",
+                      "该单元产品处于系统中较好的工作环境中（如工作温度适中、振动加速度较小、湿度较小等）"
+                    ],
+                    [
+                      "5",
+                      "1～2",
+                      "该单元产品处于系统中最好的工作环境中（如工作温度适宜、振动加速度最小、湿度最小等）"
+                    ]
+                  ],
+                  "text": "等级 | 分数 | 说明\n1 | 9～10 | 该单元产品处于系统中最恶劣的工作环境中（如工作温度最高、振动加速度最大、湿度最大等）\n2 | 7～8 | 该单元产品处于系统中较恶劣的工作环境中（如工作温度较高、振动加速度较大、湿度较大等）\n3 | 5～6 | 该单元产品处于系统中适中的工作环境中（如工作温度适中、振动加速度适中、湿度适中等）\n4 | 3～4 | 该单元产品处于系统中较好的工作环境中（如工作温度适中、振动加速度较小、湿度较小等）\n5 | 1～2 | 该单元产品处于系统中最好的工作环境中（如工作温度适宜、振动加速度最小、湿度最小等）",
+                  "type": "example_table"
+                },
+                {
+                  "has_italic": true,
+                  "italic_texts": [
+                    "表7-6",
+                    "工作时间",
+                    "因素评分准则"
+                  ],
+                  "label": "举例",
+                  "placeholders": [
+                    "因素评分准则",
+                    "工作时间",
+                    "表7-6"
+                  ],
+                  "style_name": "Normal",
+                  "text": "表7-6 工作时间因素评分准则",
+                  "type": "example"
+                },
+                {
+                  "label": "举例表格",
+                  "placeholders": [],
+                  "rows": [
+                    [
+                      "等级",
+                      "分数",
+                      "说明"
+                    ],
+                    [
+                      "1",
+                      "9～10",
+                      "该单元产品的工作时间是同级单元产品最长工作时间的100%～80%"
+                    ],
+                    [
+                      "2",
+                      "7～8",
+                      "该单元产品的工作时间是同级单元产品最长工作时间的80%～60%"
+                    ],
+                    [
+                      "3",
+                      "5～6",
+                      "该单元产品的工作时间是同级单元产品最长工作时间的60%～40%"
+                    ],
+                    [
+                      "4",
+                      "3～4",
+                      "该单元产品的工作时间是同级单元产品最长工作时间的40%～20%"
+                    ],
+                    [
+                      "5",
+                      "1～2",
+                      "该单元产品的工作时间是同级单元产品最长工作时间的20%以下"
+                    ]
+                  ],
+                  "text": "等级 | 分数 | 说明\n1 | 9～10 | 该单元产品的工作时间是同级单元产品最长工作时间的100%～80%\n2 | 7～8 | 该单元产品的工作时间是同级单元产品最长工作时间的80%～60%\n3 | 5～6 | 该单元产品的工作时间是同级单元产品最长工作时间的60%～40%\n4 | 3～4 | 该单元产品的工作时间是同级单元产品最长工作时间的40%～20%\n5 | 1～2 | 该单元产品的工作时间是同级单元产品最长工作时间的20%以下",
+                  "type": "example_table"
+                },
+                {
+                  "can_expand": false,
+                  "has_italic": false,
+                  "italic_texts": [],
+                  "items": [
+                    {
+                      "can_expand": false,
+                      "list_style": "number_dot",
+                      "marker": "7.",
+                      "text": "4 分配过程"
+                    }
+                  ],
+                  "label": "举例列表",
+                  "list_style": "number_dot",
+                  "placeholders": [],
+                  "style_name": "Normal",
+                  "text": "7.4 分配过程",
+                  "type": "example_list"
+                },
                 {
                   "has_italic": false,
                   "italic_texts": [],
                   "label": "说明",
                   "placeholders": [],
                   "style_name": "Normal",
-                  "text": "【说明】",
-                  "type": "instruction"
-                },
-                {
-                  "has_italic": false,
-                  "italic_texts": [],
-                  "label": "模板文字",
-                  "placeholders": [],
-                  "style_name": "Normal",
                   "text": "本节描述通过前面章节确定的产品评分、系统可靠性定量要求和模型计算公式，计算出产品的可靠性分配结果，并最终确定产品的可靠性定量要求。",
-                  "type": "template_text"
-                },
-                {
-                  "has_italic": true,
-                  "italic_texts": [
-                    "【示例】"
-                  ],
-                  "label": "举例",
-                  "placeholders": [
-                    "【示例】"
-                  ],
-                  "style_name": "段",
-                  "text": "【示例】",
-                  "type": "example"
+                  "type": "instruction"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "评分过程中，首先统计出XXX产品各组件统计的零件数量，然后计算出各组件与零部件数量最多的单元的百分比，求得复杂度评分值，参见表7-7。"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "XXX",
                     "评分过程中，首先统计出XXX产品各组件统计的零件数量，然后计算出各组件与零部件数量最多的单元的百分比，求得复杂度评分值，参见表7-7。"
                   ],
                   "style_name": "Normal",
                   "text": "评分过程中，首先统计出XXX产品各组件统计的零件数量，然后计算出各组件与零部件数量最多的单元的百分比，求得复杂度评分值，参见表7-7。",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "表7-7 XXX产品复杂度评分表"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "XXX",
                     "表7-7 XXX产品复杂度评分表"
                   ],
                   "style_name": "Normal",
                   "text": "表7-7 XXX产品复杂度评分表",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
-                  "label": "模板表格",
+                  "label": "举例表格",
                   "placeholders": [
                     "XX",
                     "XXX",
@@ -3246,7 +3015,7 @@
                     ]
                   ],
                   "text": "产品名称 | 配套数量/套 | 组成名称 | 零件数量 | 与最复杂组件的百分比 | 评分\nXXX产品 | X | XXXX | XX | XXXX | X\nXXX产品 | X | XXXX | XX | XXXX | X\nXXX产品 | X | XXXX | XX | XXXX | X\nXXX产品 | … | … | … | … | …",
-                  "type": "template_table"
+                  "type": "example_table"
                 },
                 {
                   "has_italic": true,
@@ -3256,7 +3025,7 @@
                     "……",
                     "。"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "XXX",
                     "XXX产品",
@@ -3266,24 +3035,24 @@
                   ],
                   "style_name": "Normal",
                   "text": "XXX产品各组件评分结果分别见表7-8至表7-X……。",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
                   "has_italic": true,
                   "italic_texts": [
                     "表7-8 XXX产品的评分结果表"
                   ],
-                  "label": "模板文字",
+                  "label": "举例",
                   "placeholders": [
                     "XXX",
                     "表7-8 XXX产品的评分结果表"
                   ],
                   "style_name": "Normal",
                   "text": "表7-8 XXX产品的评分结果表",
-                  "type": "template_text"
+                  "type": "example"
                 },
                 {
-                  "label": "模板表格",
+                  "label": "举例表格",
                   "placeholders": [
                     "XXX",
                     "XXXX"
@@ -3339,7 +3108,7 @@
                     ]
                   ],
                   "text": "产品名称 | XXX产品（系统） | XXX产品（系统） | XXX产品（系统） | XXX产品（系统） | XXX产品（系统）\n组成名称 | 配套数量 | 复杂程度 | 技术水平 | 环境条件 | 工作时间\nXXXX | X | X | X | X | X\nXXXX | X | X | X | X | X\nXXXX | X | X | X | X | X\n… | … | … | … | … | …",
-                  "type": "template_table"
+                  "type": "example_table"
                 },
                 {
                   "can_expand": true,
@@ -3355,28 +3124,82 @@
                       "text": ""
                     }
                   ],
-                  "label": "模板列表",
+                  "label": "举例列表",
                   "list_style": "expandable",
                   "placeholders": [
                     "……"
                   ],
                   "style_name": "Normal",
                   "text": "……",
-                  "type": "template_list"
+                  "type": "example_list"
                 }
               ],
               "placeholders": [
+                "7.3.1 专家评分法",
+                "7.3.2 评分因素和评分准则",
+                "7.3.2.1 评分因素",
+                "7.3.2.2 评分准则",
+                "MTBF值计算如下：",
                 "XX",
                 "XXX",
                 "XXXX",
                 "XXX产品",
+                "XXX产品的",
+                "i",
+                "j=1代表复杂度；j=2代表技术发展水平；j=3代表环境条件；j=4代表重要度；j=5代表工作时间。",
+                "——系统中第",
+                "——系统中第个部件的MTBF值。",
+                "——系统中第个部件的故障率；",
+                "——系统中第个部件的评分数；",
+                "——系统中第个部件的评分系数；",
+                "——系统的MTBF值；",
+                "——系统的总评分数；",
+                "——系统的故障率；",
                 "……",
                 "。",
-                "【示例】",
+                "专家评分法各因素评分准则见表7-2、表7-3、表7-4、表7-5和表7-6。",
+                "专家评分法是可靠性分配方法的一种，通过对影响产品可靠性的集中因素评分，并对评分值进行综合分析以获得各单元产品之间的可靠性相对比值——分配系数C",
+                "个因素的评分数。",
+                "个部件的个数；",
+                "个部件，第",
+                "为系统中第",
+                "令",
+                "以下章节为【示例】内容。",
+                "分配到同一层次产品的划分规模应尽可能适当，以便于权衡和比较；",
+                "分配应反复迭代，且要尽早实施；",
+                "分配时适当留有余地；",
+                "分配给具有下述特点产品的可靠性指标应该相对低一些：",
+                "发展水平因素评分准则",
+                "可靠性分配一般应遵循以下原则：",
                 "各组件评分结果分别见表7-8至表7-X",
+                "因素评分准则",
+                "基本可靠性指标进行分配",
+                "处于恶劣环境条件下工作的产品；",
+                "复杂度——根据根据组成单元的元部件数量以及它们加工、检测、组装的难易程度来评定；",
+                "复杂度、技术发展水平、重要度、环境条件及工作时间5种因素的评分分数在1～10之间。",
+                "复杂程度高的产品；",
+                "对",
+                "对于已有可靠性指标的货架产品，不再进行可靠性分配。",
+                "对于重要度高的产品，应分配较高的可靠性指标；",
+                "工作时间",
+                "工作时间——根据组成部件的组件工作时间来评定。",
+                "式中：",
+                "技术",
+                "技术上不成熟的和技术难度大的产品；",
+                "技术发展水平——根据组成部件的组件目前技术水平和成熟程度来评定；",
+                "根据评分结果，依据下列方法对组成系统的各组件可靠性指标进行分配：",
+                "环境条件——根据组成部件的组件所处的工作环境来评定；",
+                "表7-2复杂程度因素评分准则",
+                "表7-3",
+                "表7-4重要度因素评分准则",
+                "表7-5 环境条件因素评分准则",
+                "表7-6",
                 "表7-7 XXX产品复杂度评分表",
                 "表7-8 XXX产品的评分结果表",
-                "评分过程中，首先统计出XXX产品各组件统计的零件数量，然后计算出各组件与零部件数量最多的单元的百分比，求得复杂度评分值，参见表7-7。"
+                "评分过程中，首先统计出XXX产品各组件统计的零件数量，然后计算出各组件与零部件数量最多的单元的百分比，求得复杂度评分值，参见表7-7。",
+                "重要度——根据组成部件的组件重要度（即故障后果）来评定；",
+                "需要长期工作的产品。",
+                "，再根据分配系数给每个单元产品的可靠性指标进行分配。"
               ],
               "generation_strategy": "smart_generate",
               "sub_chapters": []
@@ -3388,76 +3211,55 @@
           "title": "分配结果",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：【说明】\n举例：【示例】",
+          "guidance_prompt": "说明：将分配的各单元指标数值进行圆整化处理；\n说明：将圆整后的分配值按照预计的方法进行验算；\n说明：可根据经验或相关资料对部分指标进行适当调整并进行；\n说明：给出最终分配结果；\n说明：必要时可对分配结果进行分析。\n举例：对XXX产品的MTBF规定值XXX小时和最低可接受值XXX小时进行可靠性指标分配计算，计算出的MTBF值圆整化后，得到各个部件的MTBF分配结果值，参见表8-1。\n举例：表8-1 XXX产品基本可靠性指标分配表\n举例表格：序号 | 组成名称 | 配套\n数量 | 复杂\n程度 | 技术\n水平 | 环境条件 | 工作时间 | 分配的MTBF规定值（小时） | 分配的MTBF最低可接受值（小时）\n1 | XXXX | X | X | X | X | X | XXXX | XXXX\n2 | XXXX | X | X | X | X | X | XXXX | XXXX\n3 | XXXX | X | X | X | X | X | XXXX | XXXX\n4 | XXXX | X | X | X | X | X | XXXX | XXXX\n总计 | 总计 | 总计 | 总计 | 总计 | 总计 | 总计 | （验证值）\nXXXX | （验证值）\nXXXX\n结论 | 结论 | 结论 | 结论 | 结论 | 结论 | 结论 | （要求值）\nXXXX | （要求值）\nXXXX\n结论 | 结论 | 结论 | 结论 | 结论 | 结论 | 结论 | 满足 | 满足\n举例：由此可知，XXX产品的基本可靠性MTBF的分配结果值满足分配要求，因此XXX产品满足MTBF规定值XXX小时和最低可接受值XXX小时的可靠性要求。",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
-          "body_style_name": "Normal",
+          "body_style_name": "",
           "template_blocks": [
             {
               "has_italic": false,
               "italic_texts": [],
               "label": "说明",
               "placeholders": [],
-              "style_name": "段",
-              "text": "【说明】",
+              "style_name": "Normal",
+              "text": "将分配的各单元指标数值进行圆整化处理；",
               "type": "instruction"
             },
             {
               "has_italic": false,
               "italic_texts": [],
-              "label": "模板文字",
-              "placeholders": [],
-              "style_name": "Normal",
-              "text": "将分配的各单元指标数值进行圆整化处理；",
-              "type": "template_text"
-            },
-            {
-              "has_italic": false,
-              "italic_texts": [],
-              "label": "模板文字",
+              "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
               "text": "将圆整后的分配值按照预计的方法进行验算；",
-              "type": "template_text"
+              "type": "instruction"
             },
             {
               "has_italic": false,
               "italic_texts": [],
-              "label": "模板文字",
+              "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
               "text": "可根据经验或相关资料对部分指标进行适当调整并进行；",
-              "type": "template_text"
+              "type": "instruction"
             },
             {
               "has_italic": false,
               "italic_texts": [],
-              "label": "模板文字",
+              "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
               "text": "给出最终分配结果；",
-              "type": "template_text"
+              "type": "instruction"
             },
             {
               "has_italic": false,
               "italic_texts": [],
-              "label": "模板文字",
+              "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
               "text": "必要时可对分配结果进行分析。",
-              "type": "template_text"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例】"
-              ],
-              "label": "举例",
-              "placeholders": [
-                "【示例】"
-              ],
-              "style_name": "段",
-              "text": "【示例】",
-              "type": "example"
+              "type": "instruction"
             },
             {
               "has_italic": true,
@@ -3468,7 +3270,7 @@
                 "MTBF规定值",
                 "XXX小时和最低可接受值XXX小时进行可靠性指标分配计算，计算出的MTBF值圆整化后，得到各个部件的MTBF分配结果值，参见表8-1。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "MTBF规定值",
                 "XXX",
@@ -3479,24 +3281,24 @@
               ],
               "style_name": "标准文件_段",
               "text": "对XXX产品的MTBF规定值XXX小时和最低可接受值XXX小时进行可靠性指标分配计算，计算出的MTBF值圆整化后，得到各个部件的MTBF分配结果值，参见表8-1。",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "表8-1 XXX产品基本可靠性指标分配表"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "XXX",
                 "表8-1 XXX产品基本可靠性指标分配表"
               ],
               "style_name": "Normal",
               "text": "表8-1 XXX产品基本可靠性指标分配表",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [
                 "XXXX"
               ],
@@ -3591,7 +3393,7 @@
                 ]
               ],
               "text": "序号 | 组成名称 | 配套\n数量 | 复杂\n程度 | 技术\n水平 | 环境条件 | 工作时间 | 分配的MTBF规定值（小时） | 分配的MTBF最低可接受值（小时）\n1 | XXXX | X | X | X | X | X | XXXX | XXXX\n2 | XXXX | X | X | X | X | X | XXXX | XXXX\n3 | XXXX | X | X | X | X | X | XXXX | XXXX\n4 | XXXX | X | X | X | X | X | XXXX | XXXX\n总计 | 总计 | 总计 | 总计 | 总计 | 总计 | 总计 | （验证值）\nXXXX | （验证值）\nXXXX\n结论 | 结论 | 结论 | 结论 | 结论 | 结论 | 结论 | （要求值）\nXXXX | （要求值）\nXXXX\n结论 | 结论 | 结论 | 结论 | 结论 | 结论 | 结论 | 满足 | 满足",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
@@ -3602,7 +3404,7 @@
                 "XXX产品满足",
                 "MTBF规定值XXX小时和最低可接受值XXX小时的可靠性要求。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "MTBF规定值XXX小时和最低可接受值XXX小时的可靠性要求。",
                 "XXX",
@@ -3613,7 +3415,7 @@
               ],
               "style_name": "段",
               "text": "由此可知，XXX产品的基本可靠性MTBF的分配结果值满足分配要求，因此XXX产品满足MTBF规定值XXX小时和最低可接受值XXX小时的可靠性要求。",
-              "type": "template_text"
+              "type": "example"
             }
           ],
           "placeholders": [
@@ -3624,7 +3426,6 @@
             "XXX产品",
             "XXX产品满足",
             "XXX小时和最低可接受值XXX小时进行可靠性指标分配计算，计算出的MTBF值圆整化后，得到各个部件的MTBF分配结果值，参见表8-1。",
-            "【示例】",
             "对",
             "由此可知，",
             "的",
@@ -3639,9 +3440,10 @@
           "title": "签派可靠度分配",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：【说明】\n举例：【示例】",
+          "guidance_prompt": "说明：详述签派可靠度指标系统级至子系统级的分配过程及结果；如不适用，则需进行注明“不适用”。\n举例：首先，定义待分配机型系统或ATA章节的分配系数：\n举例表格：\n举例：式中：\n举例：待分配机型系统或ATA章节的分配系数采用以下公式计算：\n举例：式中：\n举例：相似机型系统或ATA章节的签派中断率和整机签派中断率采用以下公式计算：\n举例表格：\n举例：式中：\n举例：待分配机型签派中断率和签派可靠度存在以下关系：\n举例表格：\n举例：式中：\n举例：DR——为待分配机型的整机签派可靠度。\n举例：根据上述公式，得到系统或ATA章节的签派中断率：\n举例表格：\n举例：待分配机型系统或ATA章节的签派可靠度为：\n举例表格：\n表9-1 XXX相似机型签派可靠度分配数据\n……",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
-          "body_style_name": "Normal",
+          "body_style_name": "",
           "template_blocks": [
             {
               "has_italic": false,
@@ -3649,46 +3451,24 @@
               "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
-              "text": "【说明】",
-              "type": "instruction"
-            },
-            {
-              "has_italic": false,
-              "italic_texts": [],
-              "label": "模板文字",
-              "placeholders": [],
-              "style_name": "Normal",
               "text": "详述签派可靠度指标系统级至子系统级的分配过程及结果；如不适用，则需进行注明“不适用”。",
-              "type": "template_text"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例】"
-              ],
-              "label": "举例",
-              "placeholders": [
-                "【示例】"
-              ],
-              "style_name": "段",
-              "text": "【示例】",
-              "type": "example"
+              "type": "instruction"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "首先，定义待分配机型系统或ATA章节的分配系数："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "首先，定义待分配机型系统或ATA章节的分配系数："
               ],
               "style_name": "Normal",
               "text": "首先，定义待分配机型系统或ATA章节的分配系数：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -3698,90 +3478,109 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
+              "formula_texts": [
+                "DIRi"
+              ],
               "has_italic": true,
               "italic_texts": [
                 "——为待分配机型系统或 ATA章节的签派中断率；DIR——为待分配机型的整机签派中断率；i——为待分配机型系统或ATA章节的序号。"
               ],
-              "label": "模板文字",
+              "label": "模板公式",
               "placeholders": [
                 "——为待分配机型系统或 ATA章节的签派中断率；DIR——为待分配机型的整机签派中断率；i——为待分配机型系统或ATA章节的序号。"
               ],
               "style_name": "Normal",
-              "text": "——为待分配机型系统或 ATA章节的签派中断率；DIR——为待分配机型的整机签派中断率；i——为待分配机型系统或ATA章节的序号。",
-              "type": "template_text"
+              "text": "——为待分配机型系统或 ATA章节的签派中断率；DIR——为待分配机型的整机签派中断率；i——为待分配机型系统或ATA章节的序号。\nDIRi",
+              "type": "formula"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "待分配机型系统或ATA章节的分配系数采用以下公式计算："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "待分配机型系统或ATA章节的分配系数采用以下公式计算："
               ],
               "style_name": "Normal",
               "text": "待分配机型系统或ATA章节的分配系数采用以下公式计算：",
-              "type": "template_text"
+              "type": "example"
+            },
+            {
+              "formula_texts": [
+                "wiDR=DIRisDIRs"
+              ],
+              "has_italic": false,
+              "italic_texts": [],
+              "label": "模板公式",
+              "placeholders": [],
+              "style_name": "Normal",
+              "text": "wiDR=DIRisDIRs",
+              "type": "formula"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
+              "formula_texts": [
+                "DIRis",
+                "DIRs"
+              ],
               "has_italic": true,
               "italic_texts": [
                 "——为相似机型系统或ATA章节的签派中断率；",
                 "——为相似机型的整机签派中断率。"
               ],
-              "label": "模板文字",
+              "label": "模板公式",
               "placeholders": [
                 "——为相似机型的整机签派中断率。",
                 "——为相似机型系统或ATA章节的签派中断率；"
               ],
               "style_name": "Normal",
-              "text": "——为相似机型系统或ATA章节的签派中断率； ——为相似机型的整机签派中断率。",
-              "type": "template_text"
+              "text": "——为相似机型系统或ATA章节的签派中断率； ——为相似机型的整机签派中断率。\nDIRis\nDIRs",
+              "type": "formula"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "相似机型系统或ATA章节的签派中断率和整机签派中断率采用以下公式计算："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "相似机型系统或ATA章节的签派中断率和整机签派中断率采用以下公式计算："
               ],
               "style_name": "Normal",
               "text": "相似机型系统或ATA章节的签派中断率和整机签派中断率采用以下公式计算：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -3796,66 +3595,73 @@
                 ]
               ],
               "text": "\n",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
+              "formula_texts": [
+                "Ni",
+                "Ni"
+              ],
               "has_italic": true,
               "italic_texts": [
                 "——为相似机型系统或ATA章节影响签派的失效状态数量； N——为相似机型总的影响签派的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配,",
                 "则为统计的系统引起签派中断的次数，N为相似机型一定时期内总的航班数）。"
               ],
-              "label": "模板文字",
+              "label": "模板公式",
               "placeholders": [
                 "——为相似机型系统或ATA章节影响签派的失效状态数量； N——为相似机型总的影响签派的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配,",
                 "则为统计的系统引起签派中断的次数，N为相似机型一定时期内总的航班数）。"
               ],
               "style_name": "Normal",
-              "text": "——为相似机型系统或ATA章节影响签派的失效状态数量； N——为相似机型总的影响签派的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配, 则为统计的系统引起签派中断的次数，N为相似机型一定时期内总的航班数）。",
-              "type": "template_text"
+              "text": "——为相似机型系统或ATA章节影响签派的失效状态数量； N——为相似机型总的影响签派的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配, 则为统计的系统引起签派中断的次数，N为相似机型一定时期内总的航班数）。\nNi\nNi",
+              "type": "formula"
             },
             {
+              "formula_texts": [
+                "WiDR"
+              ],
               "has_italic": true,
               "italic_texts": [
                 "由上述公式计算得到待分配机型系统或ATA章节的分配系数",
                 "。"
               ],
-              "label": "模板文字",
+              "label": "模板公式",
               "placeholders": [
                 "。",
                 "由上述公式计算得到待分配机型系统或ATA章节的分配系数"
               ],
               "style_name": "Normal",
-              "text": "由上述公式计算得到待分配机型系统或ATA章节的分配系数。",
-              "type": "template_text"
+              "text": "由上述公式计算得到待分配机型系统或ATA章节的分配系数。\nWiDR",
+              "type": "formula"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "待分配机型签派中断率和签派可靠度存在以下关系："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "待分配机型签派中断率和签派可靠度存在以下关系："
               ],
               "style_name": "Normal",
               "text": "待分配机型签派中断率和签派可靠度存在以下关系：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -3864,49 +3670,49 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "DR——为待分配机型的整机签派可靠度。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "DR——为待分配机型的整机签派可靠度。"
               ],
               "style_name": "Normal",
               "text": "DR——为待分配机型的整机签派可靠度。",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "根据上述公式，得到系统或ATA章节的签派中断率："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "根据上述公式，得到系统或ATA章节的签派中断率："
               ],
               "style_name": "Normal",
               "text": "根据上述公式，得到系统或ATA章节的签派中断率：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -3916,23 +3722,23 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "待分配机型系统或ATA章节的签派可靠度为："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "待分配机型系统或ATA章节的签派可靠度为："
               ],
               "style_name": "Normal",
               "text": "待分配机型系统或ATA章节的签派可靠度为：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [
                 "XXX"
               ],
@@ -3949,7 +3755,7 @@
                 ]
               ],
               "text": "\n表9-1 XXX相似机型签派可靠度分配数据\n……",
-              "type": "template_table"
+              "type": "example_table"
             }
           ],
           "placeholders": [
@@ -3960,7 +3766,6 @@
             "——为相似机型系统或ATA章节影响签派的失效状态数量； N——为相似机型总的影响签派的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配,",
             "——为相似机型系统或ATA章节的签派中断率；",
             "。",
-            "【示例】",
             "则为统计的系统引起签派中断的次数，N为相似机型一定时期内总的航班数）。",
             "式中：",
             "待分配机型签派中断率和签派可靠度存在以下关系：",
@@ -3979,9 +3784,10 @@
           "title": "航班可靠度分配",
           "description": "",
           "required": true,
-          "guidance_prompt": "说明：【说明】\n举例：【示例】",
+          "guidance_prompt": "说明：详述航班可靠度指标系统级至子系统级的分配过程及结果；如不适用，则需进行注明“不适用”。\n举例：航班可靠度指标的分配过程涉及飞机级指标到系统，系统到子系统级指标的分配，分配方法相同。\n举例：首先，定义待分配机型系统或ATA章节的分配系数：\n举例表格：\n举例：式中：\n举例：待分配机型系统或ATA章节的分配系数采用以下公式计算：\n举例表格：\n举例：式中：\n举例：相似机型系统或ATA章节的航班中断率和整机签派中断率采用以下公式计算：\n举例表格：\n举例：式中：\n举例：由上述公式计算得到待分配机型系统或ATA章节航班可靠度的分配系数。\n举例：待分配机型航班中断率和航班可靠度存在以下关系：\n举例表格：\n举例：式中：\n举例：SR——为待分配机型的整机航班可靠度。\n举例：根据上述公式，得到系统或ATA章节的航班中断率：\n举例表格：\n举例：待分配机型系统或ATA章节的航班可靠度为：\n举例表格：\n举例：表10-1 航班可靠度分配系数和分配结果\n举例表格：序号 | ATA章节 | 系统名称 | 分配系数 | SIR(%) | 初步分配结果 (%) | 分配结果(%)\n1 | XX | XX | XX | XX | XX | XX\n2 | XX | XX | XX | XX | XX | XX\n3 | XX | XX | XX | XX | XX | XX\n… | … | … | … | … | … | …",
+          "manual_guidance_prompt": "",
           "style_name": "Normal",
-          "body_style_name": "Normal",
+          "body_style_name": "",
           "template_blocks": [
             {
               "has_italic": false,
@@ -3989,59 +3795,37 @@
               "label": "说明",
               "placeholders": [],
               "style_name": "Normal",
-              "text": "【说明】",
-              "type": "instruction"
-            },
-            {
-              "has_italic": false,
-              "italic_texts": [],
-              "label": "模板文字",
-              "placeholders": [],
-              "style_name": "Normal",
               "text": "详述航班可靠度指标系统级至子系统级的分配过程及结果；如不适用，则需进行注明“不适用”。",
-              "type": "template_text"
-            },
-            {
-              "has_italic": true,
-              "italic_texts": [
-                "【示例】"
-              ],
-              "label": "举例",
-              "placeholders": [
-                "【示例】"
-              ],
-              "style_name": "段",
-              "text": "【示例】",
-              "type": "example"
+              "type": "instruction"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "航班可靠度指标的分配过程涉及飞机级指标到系统，系统到子系统级指标的分配，分配方法相同。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "航班可靠度指标的分配过程涉及飞机级指标到系统，系统到子系统级指标的分配，分配方法相同。"
               ],
               "style_name": "Normal",
               "text": "航班可靠度指标的分配过程涉及飞机级指标到系统，系统到子系统级指标的分配，分配方法相同。",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "首先，定义待分配机型系统或ATA章节的分配系数："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "首先，定义待分配机型系统或ATA章节的分配系数："
               ],
               "style_name": "Normal",
               "text": "首先，定义待分配机型系统或ATA章节的分配系数：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -4051,33 +3835,36 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
+              "formula_texts": [
+                "SIRi"
+              ],
               "has_italic": true,
               "italic_texts": [
                 "——为待分配机型系统或ATA节的航班中断率；SIR——为待分配机型的整机航班中断率。"
               ],
-              "label": "模板文字",
+              "label": "模板公式",
               "placeholders": [
                 "——为待分配机型系统或ATA节的航班中断率；SIR——为待分配机型的整机航班中断率。"
               ],
               "style_name": "Normal",
-              "text": "——为待分配机型系统或ATA节的航班中断率；SIR——为待分配机型的整机航班中断率。",
-              "type": "template_text"
+              "text": "——为待分配机型系统或ATA节的航班中断率；SIR——为待分配机型的整机航班中断率。\nSIRi",
+              "type": "formula"
             },
             {
               "has_italic": true,
@@ -4086,7 +3873,7 @@
                 "ATA",
                 "章节的分配系数采用以下公式计算："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "ATA",
                 "待分配机型系统或",
@@ -4094,10 +3881,10 @@
               ],
               "style_name": "Normal",
               "text": "待分配机型系统或ATA章节的分配系数采用以下公式计算：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -4107,22 +3894,26 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
+              "formula_texts": [
+                "SIRis",
+                "SIRs"
+              ],
               "has_italic": true,
               "italic_texts": [
                 "——为相似机型系统或",
@@ -4130,7 +3921,7 @@
                 "章节的航班中断率；",
                 "——为相似机型的整机航班中断率。"
               ],
-              "label": "模板文字",
+              "label": "模板公式",
               "placeholders": [
                 "ATA",
                 "——为相似机型的整机航班中断率。",
@@ -4138,8 +3929,8 @@
                 "章节的航班中断率；"
               ],
               "style_name": "Normal",
-              "text": "——为相似机型系统或ATA章节的航班中断率； ——为相似机型的整机航班中断率。",
-              "type": "template_text"
+              "text": "——为相似机型系统或ATA章节的航班中断率； ——为相似机型的整机航班中断率。\nSIRis\nSIRs",
+              "type": "formula"
             },
             {
               "has_italic": true,
@@ -4148,7 +3939,7 @@
                 "ATA",
                 "章节的航班中断率和整机签派中断率采用以下公式计算："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "ATA",
                 "相似机型系统或",
@@ -4156,10 +3947,10 @@
               ],
               "style_name": "Normal",
               "text": "相似机型系统或ATA章节的航班中断率和整机签派中断率采用以下公式计算：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -4174,66 +3965,70 @@
                 ]
               ],
               "text": "\n",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
+              "formula_texts": [
+                "Mi",
+                "Mi"
+              ],
               "has_italic": true,
               "italic_texts": [
                 "——",
                 "为相似机型系统或ATA章节的影响航班中断的失效状态数量；M——为相似机型总的引起航班中断的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配，相似机型一定时期内总的航班数。",
                 "则为相似机型一定时期内系统或ATA章节的航班中断次数；M为相似机型一定时期内航班中断次数）；"
               ],
-              "label": "模板文字",
+              "label": "模板公式",
               "placeholders": [
                 "——",
                 "为相似机型系统或ATA章节的影响航班中断的失效状态数量；M——为相似机型总的引起航班中断的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配，相似机型一定时期内总的航班数。",
                 "则为相似机型一定时期内系统或ATA章节的航班中断次数；M为相似机型一定时期内航班中断次数）；"
               ],
               "style_name": "Normal",
-              "text": "——为相似机型系统或ATA章节的影响航班中断的失效状态数量；M——为相似机型总的引起航班中断的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配，相似机型一定时期内总的航班数。 则为相似机型一定时期内系统或ATA章节的航班中断次数；M为相似机型一定时期内航班中断次数）；",
-              "type": "template_text"
+              "text": "——为相似机型系统或ATA章节的影响航班中断的失效状态数量；M——为相似机型总的引起航班中断的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配，相似机型一定时期内总的航班数。 则为相似机型一定时期内系统或ATA章节的航班中断次数；M为相似机型一定时期内航班中断次数）；\nMi\nMi",
+              "type": "formula"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "由上述公式计算得到待分配机型系统或ATA章节航班可靠度的分配系数。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "由上述公式计算得到待分配机型系统或ATA章节航班可靠度的分配系数。"
               ],
               "style_name": "Normal",
               "text": "由上述公式计算得到待分配机型系统或ATA章节航班可靠度的分配系数。",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "待分配机型航班中断率和航班可靠度存在以下关系："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "待分配机型航班中断率和航班可靠度存在以下关系："
               ],
               "style_name": "Normal",
               "text": "待分配机型航班中断率和航班可靠度存在以下关系：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -4243,20 +4038,20 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "式中："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "式中："
               ],
               "style_name": "Normal",
               "text": "式中：",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
@@ -4264,30 +4059,30 @@
                 "S",
                 "R——为待分配机型的整机航班可靠度。"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "R——为待分配机型的整机航班可靠度。",
                 "S"
               ],
               "style_name": "Normal",
               "text": "SR——为待分配机型的整机航班可靠度。",
-              "type": "template_text"
+              "type": "example"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "根据上述公式，得到系统或ATA章节的航班中断率："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "根据上述公式，得到系统或ATA章节的航班中断率："
               ],
               "style_name": "Normal",
               "text": "根据上述公式，得到系统或ATA章节的航班中断率：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -4297,23 +4092,23 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "待分配机型系统或ATA章节的航班可靠度为："
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "待分配机型系统或ATA章节的航班可靠度为："
               ],
               "style_name": "Normal",
               "text": "待分配机型系统或ATA章节的航班可靠度为：",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [],
               "rows": [
                 [
@@ -4323,23 +4118,23 @@
                 ]
               ],
               "text": "",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
               "has_italic": true,
               "italic_texts": [
                 "表10-1 航班可靠度分配系数和分配结果"
               ],
-              "label": "模板文字",
+              "label": "举例",
               "placeholders": [
                 "表10-1 航班可靠度分配系数和分配结果"
               ],
               "style_name": "Normal",
               "text": "表10-1 航班可靠度分配系数和分配结果",
-              "type": "template_text"
+              "type": "example"
             },
             {
-              "label": "模板表格",
+              "label": "举例表格",
               "placeholders": [
                 "XX"
               ],
@@ -4391,30 +4186,20 @@
                 ]
               ],
               "text": "序号 | ATA章节 | 系统名称 | 分配系数 | SIR(%) | 初步分配结果 (%) | 分配结果(%)\n1 | XX | XX | XX | XX | XX | XX\n2 | XX | XX | XX | XX | XX | XX\n3 | XX | XX | XX | XX | XX | XX\n… | … | … | … | … | … | …",
-              "type": "template_table"
+              "type": "example_table"
             },
             {
-              "can_expand": true,
               "has_italic": true,
               "italic_texts": [
                 "……"
               ],
-              "items": [
-                {
-                  "can_expand": true,
-                  "list_style": "expandable",
-                  "marker": "……",
-                  "text": ""
-                }
-              ],
-              "label": "模板列表",
-              "list_style": "expandable",
+              "label": "模板对象",
               "placeholders": [
                 "……"
               ],
               "style_name": "段",
               "text": "……",
-              "type": "template_list"
+              "type": "embedded_object"
             }
           ],
           "placeholders": [
@@ -4427,7 +4212,6 @@
             "——为相似机型的整机航班中断率。",
             "——为相似机型系统或",
             "……",
-            "【示例】",
             "为相似机型系统或ATA章节的影响航班中断的失效状态数量；M——为相似机型总的引起航班中断的失效状态数量（若以相似机型实际航班运营统计数据为依据进行分配，相似机型一定时期内总的航班数。",
             "则为相似机型一定时期内系统或ATA章节的航班中断次数；M为相似机型一定时期内航班中断次数）；",
             "式中：",
